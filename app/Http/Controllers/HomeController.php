@@ -6,45 +6,79 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class HomeController extends Controller
 {
-    // عرض الصفحة الرئيسية
     public function index()
     {
-        return Inertia::render('HomeScreen', [
-            // نبعث للريأكت هل المستخدم مسجل دخول أم لا
-            'isLoggedIn' => Auth::check(),
-            'user' => Auth::user()
+        return Inertia::render('HomeScreen');
+    }
+
+    public function about()
+    {
+        return Inertia::render('AboutScreen');
+    }
+
+    public function contact()
+    {
+        return Inertia::render('ContactScreen');
+    }
+
+    public function showLogin()
+    {
+        return Inertia::render('Auth/Login');
+    }
+
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect()->intended('/map');
+        }
+
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
         ]);
     }
 
-    // تسجيل الدخول السريع (لأغراض العرض والمناقشة)
-    public function login()
+    public function showRegister()
     {
-        // بنبحث عن حساب Alex، وإذا مش موجود بنعمله
-        $user = User::firstOrCreate(
-            ['email' => 'alex@kiddo.test'],
-            [
-                'name' => 'Alex',
-                'password' => bcrypt('password'),
-                'avatar' => 'boy',
-                'level' => 1,
-                'xp' => 0,
-                'total_stars' => 0
-            ]
-        );
-
-        Auth::login($user);
-
-        // بعد تسجيل الدخول بنحوله للخريطة
-        return redirect()->route('map');
+        return Inertia::render('Auth/Register');
     }
 
-    // تسجيل الخروج
-    public function logout()
+    public function register(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'avatar' => 'boy',
+            'level' => 1,
+            'xp' => 0,
+            'total_stars' => 0,
+        ]);
+
+        Auth::login($user);
+        return redirect('/map');
+    }
+
+    public function logout(Request $request)
     {
         Auth::logout();
-        return redirect()->route('home');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect('/');
     }
 }

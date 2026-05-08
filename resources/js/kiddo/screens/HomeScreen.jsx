@@ -2,7 +2,97 @@ import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 
 /* ═══════════════════════════════════════════════════════════════
-   JuicyButton — Premium Glossy Pill Button
+   PolicyModal
+═══════════════════════════════════════════════════════════════ */
+const POLICY_CONTENT = {
+    "Privacy Policy": {
+        icon: "🔒",
+        color: "#9333EA",
+        items: [
+            "We do not collect any personal data from children under 13 without parental consent.",
+            "No microphone, camera, or location access is required or requested.",
+            "Progress data is stored locally on your device only.",
+            "We do not share any user information with third parties.",
+            "Cookies are used solely for session management and improving performance.",
+            "You may contact us at any time to request data deletion.",
+        ],
+    },
+    "Terms of Use": {
+        icon: "📋",
+        color: "#0284C7",
+        items: [
+            "Kiddo is designed exclusively for children aged 6–7 under parental supervision.",
+            "All content, images, audio, and games are protected by copyright.",
+            "You may not reproduce or redistribute any part of this platform.",
+            "The platform is provided free of charge for personal, non-commercial use.",
+            "We reserve the right to update these terms at any time with prior notice.",
+            "Continued use of the platform constitutes acceptance of the current terms.",
+        ],
+    },
+};
+
+const PolicyModal = ({ type, onClose }) => {
+    const content = POLICY_CONTENT[type];
+    if (!content) return null;
+    return (
+        <div
+            className="fixed inset-0 z-[999] flex items-center justify-center px-4"
+            onClick={onClose}
+        >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <div
+                className="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-md p-7 flex flex-col gap-5 animate-fadeInScale"
+                onClick={(e) => e.stopPropagation()}
+                style={{ border: `2px solid ${content.color}22` }}
+            >
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span
+                            className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-sm"
+                            style={{ background: `${content.color}15` }}
+                        >
+                            {content.icon}
+                        </span>
+                        <h2 className="font-black text-[#0F172A] text-lg leading-tight">
+                            {type}
+                        </h2>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 rounded-full bg-gray-100 hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-gray-400 font-black text-base transition-colors"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div
+                    className="h-0.5 rounded-full"
+                    style={{ background: `${content.color}22` }}
+                />
+                <ul className="flex flex-col gap-3">
+                    {content.items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                            <span
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0 mt-0.5 shadow-sm"
+                                style={{ background: content.color }}
+                            >
+                                {i + 1}
+                            </span>
+                            <p className="text-[12px] text-[#475569] font-semibold leading-relaxed">
+                                {item}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+                <p className="text-[10px] text-[#94A3B8] font-semibold text-center border-t border-gray-100 pt-4">
+                    © 2026 Kiddo · Last updated May 2026
+                </p>
+            </div>
+        </div>
+    );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   JuicyButton
 ═══════════════════════════════════════════════════════════════ */
 const JuicyButton = ({
     variant = "purple",
@@ -13,58 +103,18 @@ const JuicyButton = ({
     size = "md",
 }) => {
     const base =
-        "relative inline-flex items-center justify-center gap-2 font-black rounded-full select-none cursor-pointer transition-all duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
-
+        "relative inline-flex items-center justify-center gap-2 font-black select-none cursor-pointer transition-all duration-100 focus:outline-none";
     const sizes = {
         sm: "px-4 py-2 text-xs",
         md: "px-5 py-2.5 text-sm",
         lg: "px-7 py-3.5 text-base",
     };
-
     const variants = {
-        purple: [
-            "text-white",
-            "bg-[linear-gradient(180deg,_#C84BFF_0%,_#8B2FCF_100%)]",
-            "shadow-[0_5px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.40),_inset_0_-1px_0_0_rgba(0,0,0,0.15)]",
-            "hover:shadow-[0_3px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.40)]",
-            "hover:translate-y-[2px]",
-            "active:shadow-[0_1px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.20)]",
-            "active:translate-y-[4px]",
-            "focus-visible:ring-purple-400",
-        ].join(" "),
-
-        green: [
-            "text-white",
-            "bg-[linear-gradient(180deg,_#4ADE80_0%,_#16A34A_100%)]",
-            "shadow-[0_5px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.40),_inset_0_-1px_0_0_rgba(0,0,0,0.15)]",
-            "hover:shadow-[0_3px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.40)]",
-            "hover:translate-y-[2px]",
-            "active:shadow-[0_1px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.20)]",
-            "active:translate-y-[4px]",
-            "focus-visible:ring-green-400",
-        ].join(" "),
-
-        outline: [
-            "text-[#7C3AED] bg-white",
-            "border-[2.5px] border-[#9333EA]",
-            "shadow-[0_4px_0_0_#C4B5FD,_inset_0_1px_0_0_rgba(255,255,255,0.9)]",
-            "hover:shadow-[0_2px_0_0_#C4B5FD]",
-            "hover:translate-y-[2px]",
-            "hover:bg-purple-50",
-            "active:shadow-[0_1px_0_0_#C4B5FD]",
-            "active:translate-y-[3px]",
-            "focus-visible:ring-purple-400",
-        ].join(" "),
-
-        white: [
-            "text-[#7C3AED] bg-white",
-            "shadow-[0_5px_0_0_rgba(0,0,0,0.18),_inset_0_1px_0_0_rgba(255,255,255,0.9)]",
-            "hover:shadow-[0_3px_0_0_rgba(0,0,0,0.18)]",
-            "hover:translate-y-[2px]",
-            "active:shadow-[0_1px_0_0_rgba(0,0,0,0.18)]",
-            "active:translate-y-[4px]",
-            "focus-visible:ring-white",
-        ].join(" "),
+        purple: "text-white bg-[linear-gradient(180deg,_#C84BFF_0%,_#8B2FCF_100%)] rounded-full shadow-[0_5px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:shadow-[0_3px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:translate-y-[2px] active:shadow-[0_1px_0_0_#5B0F99] active:translate-y-[4px]",
+        green: "text-white bg-[linear-gradient(180deg,_#4ADE80_0%,_#16A34A_100%)] rounded-full shadow-[0_5px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:shadow-[0_3px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:translate-y-[2px] active:shadow-[0_1px_0_0_#0E6B2C] active:translate-y-[4px]",
+        white: "text-[#7C3AED] bg-white rounded-full shadow-[0_5px_0_0_rgba(0,0,0,0.18)] hover:translate-y-[2px] active:translate-y-[4px]",
+        flatAuth:
+            "text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px] shadow-none border-none",
     };
 
     return (
@@ -72,14 +122,15 @@ const JuicyButton = ({
             onClick={onClick}
             className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
         >
-            {/* Inner gloss highlight */}
-            <span
-                className="pointer-events-none absolute inset-x-3 top-0.5 h-[42%] rounded-full opacity-30"
-                style={{
-                    background:
-                        "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 100%)",
-                }}
-            />
+            {variant !== "flatAuth" && variant !== "white" && (
+                <span
+                    className="pointer-events-none absolute inset-x-3 top-0.5 h-[42%] rounded-full opacity-30"
+                    style={{
+                        background:
+                            "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 100%)",
+                    }}
+                />
+            )}
             {icon && (
                 <span className="relative z-10 text-[1.1em] leading-none">
                     {icon}
@@ -91,7 +142,7 @@ const JuicyButton = ({
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   LessonCard — حافظ على الصور داخل الإطار 100%
+   LessonCard
 ═══════════════════════════════════════════════════════════════ */
 const CARD_COLORS = {
     purple: {
@@ -135,28 +186,20 @@ const LessonCard = ({
     onClick,
 }) => {
     const c = CARD_COLORS[colorKey] ?? CARD_COLORS.purple;
-
     return (
         <div
             onClick={!isLocked ? onClick : undefined}
-            className={[
-                "group relative flex flex-col rounded-3xl border-2 border-white overflow-hidden h-full",
-                "transition-all duration-250 ease-out",
+            className={`group relative flex flex-col rounded-3xl border-2 border-white overflow-hidden h-full transition-all duration-250 ease-out ${
                 isLocked
                     ? "opacity-60 cursor-not-allowed grayscale-[40%]"
-                    : `cursor-pointer hover:-translate-y-1.5 hover:shadow-xl ring-2 ring-transparent ${c.ring}`,
-                c.bg,
-                "shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
-            ].join(" ")}
+                    : `cursor-pointer hover:-translate-y-1.5 hover:shadow-xl ring-2 ring-transparent ${c.ring}`
+            } ${c.bg} shadow-[0_2px_8px_rgba(0,0,0,0.08)]`}
         >
-            {/* Number badge */}
             <div
                 className={`absolute top-3 left-3 z-20 w-7 h-7 rounded-full ${c.badge} text-white font-black text-[13px] flex items-center justify-center shadow-md`}
             >
                 {number}
             </div>
-
-            {/* Lock overlay */}
             {isLocked && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center">
                     <div className="bg-white/70 backdrop-blur-[2px] rounded-full w-12 h-12 flex items-center justify-center shadow-sm">
@@ -164,8 +207,6 @@ const LessonCard = ({
                     </div>
                 </div>
             )}
-
-            {/* Image area — fixed height, contained */}
             <div className="flex-1 flex items-center justify-center p-3 pt-10 overflow-hidden">
                 <img
                     src={imagePath}
@@ -178,15 +219,11 @@ const LessonCard = ({
                     }}
                 />
             </div>
-
-            {/* Title area */}
             <div className="px-3 pb-3 text-center">
                 <p className="font-black text-[#1E293B] text-[11px] sm:text-xs leading-tight line-clamp-2">
                     {title}
                 </p>
             </div>
-
-            {/* Star sparkle */}
             {!isLocked && (
                 <span
                     className={`absolute bottom-2 right-2.5 ${c.star} text-[11px] opacity-0 group-hover:opacity-100 transition-opacity`}
@@ -232,25 +269,161 @@ const FeatureCard = ({ colorKey = "purple", emoji, title, desc }) => {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   StatPill — للـ Hero stats
+   MascotSection — تم تعديل المسافات والارتفاع والمواقع 100%
 ═══════════════════════════════════════════════════════════════ */
-const StatPill = ({ value, label }) => (
-    <div className="flex flex-col items-center sm:items-start">
-        <span className="font-black text-[#0F172A] text-base sm:text-lg leading-none">
-            {value}
-        </span>
-        <span className="text-[10px] text-[#64748B] font-semibold mt-0.5">
-            {label}
-        </span>
-    </div>
-);
+const MascotSection = ({ goToApp }) => {
+    return (
+        <>
+            <style>{`
+                /* ── Mascot container ── */
+                .mascot-wrap {
+                    position: relative;
+                    width: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: flex-end;
+                    min-height: 280px;
+                }
+                @media (min-width: 640px) {
+                    .mascot-wrap { min-height: 360px; }
+                }
+                @media (min-width: 1024px) {
+                    .mascot-wrap { min-height: 460px; }
+                }
+
+                /* ── ABC Blocks ── */
+                .abc-blocks {
+                    position: absolute;
+                    z-index: 0;
+                    object-fit: contain;
+                    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
+                    /* Mobile: تم الدفع لليسار وللأعلى لتبتعد عن الثعلب */
+                    left: -15px;
+                    bottom: 10px;
+                    width: 140px;
+                }
+                @media (min-width: 480px) {
+                    .abc-blocks {
+                        left: -10px;
+                        width: 160px;
+                        bottom: 15px;
+                    }
+                }
+                @media (min-width: 640px) {
+                    .abc-blocks {
+                        left: 0px;
+                        bottom: 20px;
+                        width: 180px;
+                    }
+                }
+                @media (min-width: 768px) {
+                    .abc-blocks {
+                        left: 0px;
+                        width: 200px;
+                        bottom: 20px;
+                    }
+                }
+                @media (min-width: 1024px) {
+                    .abc-blocks {
+                        left: -20px;
+                        bottom: 20px;
+                        width: 220px;
+                    }
+                }
+                @media (min-width: 1280px) {
+                    .abc-blocks {
+                        left: -30px;
+                        bottom: 25px;
+                        width: 240px;
+                    }
+                }
+
+                /* ── Fox Mascot ── */
+                .fox-mascot {
+                    position: relative;
+                    z-index: 10;
+                    object-fit: contain;
+                    filter: drop-shadow(0 16px 32px rgba(0,0,0,0.18));
+                    /* Mobile: تم رفعه لأعلى (سالب) ودفعه لليمين (موجب) */
+                    width: 190px;
+                    max-height: 50vh;
+                    transform: translateX(40px) translateY(-5px);
+                }
+                @media (min-width: 480px) {
+                    .fox-mascot {
+                        width: 220px;
+                        transform: translateX(50px) translateY(-5px);
+                    }
+                }
+                @media (min-width: 640px) {
+                    .fox-mascot {
+                        width: 260px;
+                        max-height: 52vh;
+                        transform: translateX(60px) translateY(-10px);
+                    }
+                }
+                @media (min-width: 768px) {
+                    .fox-mascot {
+                        width: 300px;
+                        transform: translateX(70px) translateY(-10px);
+                    }
+                }
+                @media (min-width: 1024px) {
+                    .fox-mascot {
+                        width: 340px;
+                        max-height: 56vh;
+                        transform: translateX(80px) translateY(-15px);
+                    }
+                }
+                @media (min-width: 1280px) {
+                    .fox-mascot {
+                        width: 380px;
+                        max-height: 58vh;
+                        transform: translateX(100px) translateY(-15px);
+                    }
+                }
+                @media (min-width: 1536px) {
+                    .fox-mascot {
+                        width: 420px;
+                        transform: translateX(110px) translateY(-20px);
+                    }
+                }
+
+                /* ── Modal animation ── */
+                @keyframes fadeInScale {
+                    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+                    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+                }
+                .animate-fadeInScale {
+                    animation: fadeInScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                }
+            `}</style>
+
+            <div className="mascot-wrap">
+                <img
+                    src="/assets/ui/hero/abc-blocks.png"
+                    alt="ABC Blocks"
+                    className="abc-blocks"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+                <img
+                    src="/assets/ui/mascot/fox-main.png"
+                    alt="Kiddo Mascot"
+                    className="fox-mascot"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+            </div>
+        </>
+    );
+};
 
 /* ═══════════════════════════════════════════════════════════════
-   HomeScreen — Main Page
+   HomeScreen
 ═══════════════════════════════════════════════════════════════ */
 const HomeScreen = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [activeModal, setActiveModal] = useState(null);
     const { user } = usePage().props;
 
     useEffect(() => {
@@ -261,18 +434,31 @@ const HomeScreen = () => {
         return () => el.removeEventListener("scroll", handler);
     }, []);
 
+    useEffect(() => {
+        if (activeModal) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [activeModal]);
+
     const lessons = [
         {
             number: "1",
             title: "Welcome / Hello",
             imagePath: "/assets/lessons/welcome/hello.png",
             colorKey: "purple",
+            isLocked: false,
         },
         {
             number: "2",
             title: "Family and Friends",
             imagePath: "/assets/lessons/family/family_group.png",
             colorKey: "green",
+            isLocked: false,
         },
         {
             number: "3",
@@ -318,831 +504,399 @@ const HomeScreen = () => {
         },
         {
             colorKey: "pink",
-            emoji: "✍️",
-            title: "Practice Activities",
-            desc: "Hands-on exercises to reinforce every new word.",
+            emoji: "🧩",
+            title: "Interactive Activities",
+            desc: "Hands-on exercises to reinforce every new word without microphones.",
         },
     ];
 
     const goToApp = () => router.visit(user ? "/map" : "/login");
-    const goToLogin = () => router.visit(user ? "/progress" : "/login");
 
     const navLinks = [
         { icon: "🏠", label: "Home", path: "/", active: true },
         { icon: "📖", label: "Lessons", path: "/map", active: false },
-        { icon: "ℹ️", label: "About", path: "/", active: false },
-        { icon: "✉️", label: "Contact", path: "/", active: false },
+        { icon: "ℹ️", label: "About", path: "/about", active: false },
+        { icon: "✉️", label: "Contact", path: "/contact", active: false },
     ];
 
     return (
-        <div
-            id="home-scroll"
-            className="h-screen w-screen overflow-y-auto overflow-x-hidden font-sans scroll-smooth"
-            style={{ scrollBehavior: "smooth" }}
-        >
-            {/* ═════════════════════════════════════════════
-                HERO SECTION (contains transparent navbar)
-            ═════════════════════════════════════════════ */}
-            <section
-                id="hero"
-                className="relative w-full overflow-hidden flex flex-col"
-                style={{
-                    background:
-                        "linear-gradient(155deg, #BAE6FD 0%, #C7F0FF 25%, #D9F0FF 50%, #EFF9FF 75%, #FFF9E0 100%)",
-                    minHeight: "100svh",
-                }}
-            >
-                {/* ── Background clouds ── */}
-                <img
-                    src="/assets/ui/hero/clouds.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover object-top pointer-events-none select-none"
-                    style={{ opacity: 0.55 }}
+        <>
+            {activeModal && (
+                <PolicyModal
+                    type={activeModal}
+                    onClose={() => setActiveModal(null)}
                 />
+            )}
 
-                {/* ── Subtle radial light in center ── */}
-                <div
-                    className="absolute inset-0 pointer-events-none"
+            <div
+                id="home-scroll"
+                className="h-screen w-screen overflow-y-auto overflow-x-hidden font-sans scroll-smooth"
+                style={{ scrollBehavior: "smooth" }}
+            >
+                {/* ══════════════════════ HERO ══════════════════════ */}
+                <section
+                    id="hero"
+                    className="relative w-full overflow-hidden flex flex-col"
                     style={{
                         background:
-                            "radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255,255,255,0.38) 0%, transparent 70%)",
+                            "linear-gradient(155deg, #BAE6FD 0%, #C7F0FF 25%, #D9F0FF 50%, #EFF9FF 75%, #FFF9E0 100%)",
+                        minHeight: "100svh",
                     }}
-                />
+                >
+                    <img
+                        src="/assets/ui/hero/clouds.png"
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover object-top pointer-events-none select-none"
+                        style={{ opacity: 0.55 }}
+                    />
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            background:
+                                "radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255,255,255,0.38) 0%, transparent 70%)",
+                        }}
+                    />
 
-                {/* ── Decorative blobs ── */}
-                <div className="absolute top-16 right-[12%] w-24 h-24 rounded-full bg-yellow-200/40 blur-2xl pointer-events-none" />
-                <div className="absolute bottom-[30%] left-[8%] w-32 h-32 rounded-full bg-purple-200/30 blur-3xl pointer-events-none" />
-                <div className="absolute bottom-[20%] right-[5%] w-20 h-20 rounded-full bg-pink-200/40 blur-2xl pointer-events-none" />
+                    {/* ── NAV ── */}
+                    <nav
+                        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+                            scrolled
+                                ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 py-2"
+                                : "bg-transparent py-3"
+                        }`}
+                    >
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+                            <div
+                                className="flex items-center cursor-pointer"
+                                onClick={() => router.visit("/")}
+                            >
+                                {/* تم استرجاع اللوجو الأصلي */}
+                                <img
+                                    src="/assets/ui/hero/title-logo.png"
+                                    alt="Kiddo"
+                                    className="h-8 sm:h-10 object-contain drop-shadow-sm"
+                                />
+                            </div>
 
-                {/* ── Floating decorative elements ── */}
-                <span
-                    className="absolute select-none pointer-events-none hidden sm:block"
-                    style={{
-                        top: "22%",
-                        left: "4%",
-                        fontSize: "clamp(1.8rem, 3.5vw, 3rem)",
-                        animation: "floatA 4s ease-in-out infinite",
-                    }}
-                >
-                    🎈
-                </span>
-                <span
-                    className="absolute select-none pointer-events-none"
-                    style={{
-                        top: "14%",
-                        right: "6%",
-                        fontSize: "clamp(1.2rem, 2.2vw, 1.8rem)",
-                        animation: "floatB 5s ease-in-out infinite",
-                    }}
-                >
-                    ⭐
-                </span>
-                <span
-                    className="absolute select-none pointer-events-none hidden md:block"
-                    style={{
-                        top: "38%",
-                        right: "2.5%",
-                        fontSize: "clamp(1.4rem, 2.5vw, 2.2rem)",
-                        animation: "floatA 6s ease-in-out infinite 0.5s",
-                    }}
-                >
-                    ✨
-                </span>
-                <span
-                    className="absolute select-none pointer-events-none hidden lg:block"
-                    style={{
-                        top: "20%",
-                        right: "22%",
-                        fontSize: "clamp(2rem, 4vw, 3.5rem)",
-                        opacity: 0.7,
-                        animation: "floatB 7s ease-in-out infinite 1s",
-                    }}
-                >
-                    🌈
-                </span>
-                <span
-                    className="absolute select-none pointer-events-none hidden lg:block"
-                    style={{
-                        bottom: "28%",
-                        right: "3%",
-                        fontSize: "clamp(3rem, 7vw, 6rem)",
-                        opacity: 0.5,
-                    }}
-                >
-                    🏰
-                </span>
-
-                {/* ════════════════════════════════════════
-                    NAVBAR (floating transparent → glass)
-                ════════════════════════════════════════ */}
-                <nav
-                    className={[
-                        "sticky top-0 z-50 w-full transition-all duration-300",
-                        scrolled
-                            ? "bg-white/90 backdrop-blur-md shadow-sm border-b border-white/60 py-2"
-                            : "bg-transparent py-3.5",
-                    ].join(" ")}
-                >
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
-                        {/* Logo */}
-                        <button
-                            onClick={() => router.visit("/")}
-                            className="shrink-0 focus:outline-none"
-                            aria-label="Kiddo Home"
-                        >
-                            <img
-                                src="/assets/ui/hero/title-logo.png"
-                                alt="Kiddo"
-                                className="h-9 sm:h-10 object-contain drop-shadow-sm"
-                                onError={(e) => {
-                                    e.currentTarget.outerHTML = `<span class="font-black text-2xl"><span class="text-[#0EA5E9]">Kid</span><span class="text-[#FF4B63]">d</span><span class="text-[#F59E0B]">o</span></span>`;
-                                }}
-                            />
-                        </button>
-
-                        {/* Desktop nav */}
-                        <ul className="hidden lg:flex items-center gap-7 font-black text-[13.5px] text-[#475569]">
-                            {navLinks.map((item) => (
-                                <li key={item.label}>
-                                    <button
+                            <ul className="hidden lg:flex items-center gap-7 font-black text-[14px] text-[#475569]">
+                                {navLinks.map((item) => (
+                                    <li
+                                        key={item.label}
                                         onClick={() => router.visit(item.path)}
-                                        className={[
-                                            "flex items-center gap-1.5 pb-0.5 border-b-2 transition-colors duration-150",
+                                        className={`flex items-center gap-1.5 cursor-pointer pb-1 border-b-2 transition-colors ${
                                             item.active
                                                 ? "text-[#9333EA] border-[#9333EA]"
-                                                : "border-transparent hover:text-[#9333EA] hover:border-[#9333EA]",
-                                        ].join(" ")}
+                                                : "border-transparent hover:text-[#9333EA] hover:border-[#9333EA]"
+                                        }`}
                                     >
-                                        <span className="text-base leading-none">
+                                        <span className="text-base">
                                             {item.icon}
                                         </span>
                                         {item.label}
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                                    </li>
+                                ))}
+                            </ul>
 
-                        {/* CTA desktop */}
-                        <div className="hidden sm:flex items-center gap-2.5 shrink-0">
-                            <JuicyButton
-                                variant="green"
-                                icon="⭐"
-                                onClick={goToApp}
-                            >
-                                {user ? "Play Now" : "Start Learning"}
-                            </JuicyButton>
-                            <JuicyButton
-                                variant="outline"
-                                icon="👨‍👩‍👧"
-                                onClick={goToLogin}
-                                className="hidden md:inline-flex"
-                            >
-                                {user ? "Dashboard" : "Login"}
-                            </JuicyButton>
-                            {user && (
-                                <button
-                                    onClick={() => router.post("/logout")}
-                                    className="text-xs font-bold text-gray-400 hover:text-red-400 transition-colors ml-1"
-                                >
-                                    Logout
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Hamburger */}
-                        <button
-                            onClick={() => setMenuOpen((o) => !o)}
-                            aria-label={menuOpen ? "Close menu" : "Open menu"}
-                            aria-expanded={menuOpen}
-                            className="sm:hidden w-9 h-9 flex flex-col justify-center items-center gap-[5px] rounded-xl bg-white/80 border border-white/60 shadow-sm shrink-0 focus:outline-none"
-                        >
-                            {[0, 1, 2].map((i) => (
-                                <span
-                                    key={i}
-                                    className={[
-                                        "block w-5 h-[2.5px] bg-[#334155] rounded-full transition-all duration-200 origin-center",
-                                        i === 0 && menuOpen
-                                            ? "rotate-45 translate-y-[7.5px]"
-                                            : "",
-                                        i === 1 && menuOpen
-                                            ? "opacity-0 scale-x-0"
-                                            : "",
-                                        i === 2 && menuOpen
-                                            ? "-rotate-45 -translate-y-[7.5px]"
-                                            : "",
-                                    ].join(" ")}
-                                />
-                            ))}
-                        </button>
-                    </div>
-
-                    {/* Mobile dropdown */}
-                    <div
-                        className={[
-                            "sm:hidden overflow-hidden transition-all duration-300",
-                            menuOpen
-                                ? "max-h-96 opacity-100"
-                                : "max-h-0 opacity-0",
-                        ].join(" ")}
-                    >
-                        <div className="bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-lg px-5 py-4 flex flex-col gap-2">
-                            {navLinks.map((item) => (
-                                <button
-                                    key={item.label}
-                                    onClick={() => {
-                                        router.visit(item.path);
-                                        setMenuOpen(false);
-                                    }}
-                                    className={[
-                                        "text-left font-black text-sm py-2 border-b border-gray-50 transition-colors",
-                                        item.active
-                                            ? "text-[#9333EA]"
-                                            : "text-[#1E293B] hover:text-[#9333EA]",
-                                    ].join(" ")}
-                                >
-                                    {item.icon} {item.label}
-                                </button>
-                            ))}
-                            <div className="flex flex-col gap-2 pt-2">
+                            <div className="hidden sm:flex items-center gap-4">
                                 <JuicyButton
-                                    variant="green"
-                                    onClick={goToApp}
-                                    className="w-full"
-                                >
-                                    {user ? "Play Now" : "Start Learning"}
-                                </JuicyButton>
-                                <JuicyButton
-                                    variant="outline"
-                                    onClick={goToLogin}
-                                    className="w-full"
+                                    variant="flatAuth"
+                                    onClick={() =>
+                                        router.visit(user ? "/map" : "/login")
+                                    }
                                 >
                                     {user
-                                        ? "Dashboard"
-                                        : "Parent / Teacher Login"}
+                                        ? "Continue Learning"
+                                        : "Login / Register"}
                                 </JuicyButton>
+                                {user && (
+                                    <button
+                                        onClick={() => router.post("/logout")}
+                                        className="text-gray-400 hover:text-red-500 font-bold text-sm"
+                                    >
+                                        Logout
+                                    </button>
+                                )}
                             </div>
+
+                            <button
+                                className="sm:hidden w-9 h-9 flex flex-col justify-center items-center gap-1.5 rounded-xl bg-white/80 border border-gray-200 shadow-sm"
+                                onClick={() => setMenuOpen(!menuOpen)}
+                            >
+                                <span
+                                    className={`block w-5 h-0.5 bg-[#1E293B] rounded-full transition-all duration-200 ${menuOpen ? "rotate-45 translate-y-[8px]" : ""}`}
+                                />
+                                <span
+                                    className={`block w-5 h-0.5 bg-[#1E293B] rounded-full transition-all duration-200 ${menuOpen ? "opacity-0" : ""}`}
+                                />
+                                <span
+                                    className={`block w-5 h-0.5 bg-[#1E293B] rounded-full transition-all duration-200 ${menuOpen ? "-rotate-45 -translate-y-[8px]" : ""}`}
+                                />
+                            </button>
                         </div>
-                    </div>
-                </nav>
 
-                {/* ════════════════════════════════════════
-                    HERO BODY
-                ════════════════════════════════════════ */}
-                <div className="relative z-10 flex-1 flex items-center">
-                    <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-                        <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-6 lg:gap-8">
-                            {/* ── LEFT: Text ── */}
-                            <div className="w-full lg:w-[54%] flex flex-col items-center lg:items-start text-center lg:text-left">
-                                {/* ABC blocks */}
-                                <div className="flex items-end gap-1.5 mb-5 sm:mb-6">
-                                    {[
-                                        {
-                                            l: "A",
-                                            bg: "#3B82F6",
-                                            shadow: "#1D4ED8",
-                                        },
-                                        {
-                                            l: "B",
-                                            bg: "#F59E0B",
-                                            shadow: "#B45309",
-                                            offset: true,
-                                        },
-                                        {
-                                            l: "C",
-                                            bg: "#EC4899",
-                                            shadow: "#BE185D",
-                                        },
-                                    ].map(({ l, bg, shadow, offset }) => (
-                                        <div
-                                            key={l}
-                                            className={`flex items-center justify-center text-white font-black rounded-xl select-none ${offset ? "-translate-y-2" : ""}`}
-                                            style={{
-                                                width: "clamp(2.2rem, 4vw, 3rem)",
-                                                height: "clamp(2.2rem, 4vw, 3rem)",
-                                                fontSize:
-                                                    "clamp(1rem, 2vw, 1.4rem)",
-                                                background: `linear-gradient(180deg, ${bg} 0%, ${shadow} 100%)`,
-                                                boxShadow: `0 4px 0 0 ${shadow}, inset 0 1px 0 rgba(255,255,255,0.35)`,
-                                            }}
-                                        >
-                                            {l}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Headline */}
-                                <h1
-                                    className="font-black text-[#0F172A] leading-[1.08] tracking-tight"
-                                    style={{
-                                        fontSize:
-                                            "clamp(1.9rem, 4.5vw, 3.75rem)",
-                                    }}
-                                >
-                                    Learn English
-                                    <br />
-                                    with{" "}
-                                    <span
-                                        style={{
-                                            color: "#FF4B63",
-                                            WebkitTextStroke: "1px #cc0019",
-                                            textShadow:
-                                                "0 2px 0 rgba(255,75,99,0.18)",
+                        {menuOpen && (
+                            <div className="sm:hidden absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-lg px-5 py-4 flex flex-col gap-3">
+                                {navLinks.map((item, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            router.visit(item.path);
+                                            setMenuOpen(false);
                                         }}
+                                        className="text-left font-black text-[#1E293B] text-base border-b border-gray-50 pb-2 hover:text-[#9333EA]"
                                     >
-                                        Fun
-                                    </span>
-                                    ,{" "}
-                                    <span
-                                        style={{
-                                            color: "#10B981",
-                                            WebkitTextStroke: "1px #059669",
-                                            textShadow:
-                                                "0 2px 0 rgba(16,185,129,0.18)",
-                                        }}
-                                    >
-                                        Games
-                                    </span>
-                                    ,
-                                    <br />
-                                    and{" "}
-                                    <span
-                                        style={{
-                                            color: "#8B5CF6",
-                                            WebkitTextStroke: "1px #6D28D9",
-                                            textShadow:
-                                                "0 2px 0 rgba(139,92,246,0.18)",
-                                        }}
-                                    >
-                                        Sounds
-                                    </span>
-                                    !
-                                </h1>
-
-                                {/* Sub-headline badge */}
-                                <div className="flex items-center gap-2 mt-4 sm:mt-5 bg-white/80 backdrop-blur-sm rounded-full px-3.5 py-1.5 border border-white/60 shadow-sm w-fit mx-auto lg:mx-0">
-                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
-                                    <span className="text-[11px] font-black text-[#334155]">
-                                        Safe · Fun · 100% Ad-free
-                                    </span>
-                                </div>
-
-                                <p
-                                    className="text-[#475569] font-semibold mt-3 max-w-[400px] leading-relaxed"
-                                    style={{
-                                        fontSize: "clamp(0.8rem, 1.5vw, 1rem)",
-                                    }}
-                                >
-                                    Kiddo is a playful learning adventure for
-                                    kids aged 6–7. Play, listen, and grow with
-                                    every lesson!
-                                </p>
-
-                                {/* CTA */}
-                                <div className="mt-5 sm:mt-6 flex flex-col items-center lg:items-start gap-3">
+                                        {item.label}
+                                    </button>
+                                ))}
+                                <div className="pt-2">
                                     <JuicyButton
-                                        variant="purple"
-                                        icon="🚀"
-                                        onClick={goToApp}
-                                        size="lg"
+                                        variant="flatAuth"
+                                        onClick={() =>
+                                            router.visit(
+                                                user ? "/map" : "/login",
+                                            )
+                                        }
+                                        className="w-full justify-center"
                                     >
                                         {user
-                                            ? "Continue Journey ➔"
-                                            : "Start Learning Now! ➔"}
+                                            ? "Continue Learning"
+                                            : "Login / Register"}
                                     </JuicyButton>
-                                    <p className="flex items-center gap-2 text-xs text-[#64748B] font-semibold">
-                                        <span
-                                            className="w-5 h-5 rounded-full bg-[#10B981] text-white flex items-center justify-center text-[9px] shrink-0 font-black"
-                                            style={{
-                                                boxShadow: "0 2px 0 #059669",
-                                            }}
-                                        >
-                                            ✔
-                                        </span>
-                                        No sign-up required · Free to start
-                                    </p>
-                                </div>
-
-                                {/* Stats row */}
-                                <div className="mt-5 sm:mt-6 flex items-center gap-5 sm:gap-7">
-                                    <StatPill
-                                        value="10K+"
-                                        label="Kids learning"
-                                    />
-                                    <span className="w-px h-8 bg-gray-200" />
-                                    <StatPill value="5" label="Fun units" />
-                                    <span className="w-px h-8 bg-gray-200" />
-                                    <StatPill
-                                        value="⭐⭐⭐⭐⭐"
-                                        label="Parent rating"
-                                    />
                                 </div>
                             </div>
+                        )}
+                    </nav>
 
-                            {/* ── RIGHT: Fox ── */}
-                            <div className="w-full lg:w-[46%] relative flex justify-center items-end">
-                                {/* Speech bubble */}
-                                <div
-                                    className="absolute z-20 bg-white rounded-[20px] rounded-br-[4px] px-4 py-3 shadow-xl border border-white/60 text-center"
-                                    style={{
-                                        top: "8%",
-                                        left: "8%",
-                                        animation:
-                                            "floatB 3s ease-in-out infinite",
-                                        minWidth: "130px",
-                                    }}
-                                >
-                                    <p className="font-black text-[#7C3AED] text-sm leading-snug">
-                                        Hi there! 👋
-                                    </p>
-                                    <p className="text-[11px] font-semibold text-[#475569] mt-0.5">
-                                        Let's learn
-                                        <br />
-                                        together!
-                                    </p>
-                                    {/* tail */}
-                                    <div
-                                        className="absolute -bottom-2 right-3 w-4 h-4 bg-white border-b border-r border-white/60 rotate-45"
+                    {/* ── HERO CONTENT ── */}
+                    <div className="relative z-10 flex-1 flex items-center pt-16">
+                        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+                            <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-6 lg:gap-8">
+                                {/* ── Text Side ── */}
+                                <div className="w-full lg:w-[54%] flex flex-col items-center lg:items-start text-center lg:text-left">
+                                    <h1
+                                        className="font-black text-[#0F172A] leading-[1.1] tracking-tight mt-6"
                                         style={{
-                                            boxShadow:
-                                                "2px 2px 0 rgba(255,255,255,0.6)",
+                                            fontSize:
+                                                "clamp(2.2rem, 5vw, 4rem)",
                                         }}
-                                    />
-                                </div>
-
-                                {/* Fox image — clamp size, never overflows */}
-                                <img
-                                    src="/assets/ui/mascot/fox-main.png"
-                                    alt="Kiddo Fox Mascot"
-                                    className="relative z-10 object-contain drop-shadow-2xl"
-                                    style={{
-                                        width: "clamp(170px, 32vw, 340px)",
-                                        maxHeight: "52vh",
-                                        marginTop: "auto",
-                                    }}
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = "none";
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── WAVE DIVIDER ── */}
-                <div
-                    className="relative z-20 mt-auto"
-                    style={{ lineHeight: 0, marginBottom: "-2px" }}
-                >
-                    <svg
-                        viewBox="0 0 1440 80"
-                        preserveAspectRatio="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        aria-hidden="true"
-                        className="w-full block"
-                        style={{ height: "clamp(44px, 6vw, 80px)" }}
-                    >
-                        <path
-                            d="M0,35 C120,65 240,10 360,40 C480,70 600,8 720,38 C840,68 960,12 1080,42 C1200,72 1320,18 1440,45 L1440,80 L0,80 Z"
-                            fill="white"
-                        />
-                    </svg>
-                </div>
-            </section>
-
-            {/* ═════════════════════════════════════════════
-                OUR LEARNING UNITS
-            ═════════════════════════════════════════════ */}
-            <section className="w-full bg-white py-10 sm:py-14">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Section heading */}
-                    <div className="text-center mb-7 sm:mb-8">
-                        <p className="text-[11px] sm:text-xs font-black text-[#9333EA] uppercase tracking-[0.15em] mb-2">
-                            📚 Curriculum
-                        </p>
-                        <h2
-                            className="font-black text-[#0F172A] inline-flex items-center gap-2 flex-wrap justify-center"
-                            style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
-                        >
-                            <span className="text-yellow-400">⭐</span>
-                            Our Learning Units
-                            <span className="text-yellow-400">⭐</span>
-                        </h2>
-                        <p className="text-sm text-[#94A3B8] font-semibold mt-1.5">
-                            5 themed units · games, audio &amp; activities
-                        </p>
-                    </div>
-
-                    {/* Cards grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                        {lessons.map((l) => (
-                            <div
-                                key={l.number}
-                                style={{ height: "clamp(150px, 20vw, 210px)" }}
-                            >
-                                <LessonCard {...l} onClick={goToApp} />
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* View all */}
-                    <div className="text-center mt-6 sm:mt-8">
-                        <button
-                            onClick={goToApp}
-                            className="inline-flex items-center gap-2 text-[#9333EA] font-black text-sm border-2 border-[#9333EA] rounded-full px-6 py-2.5
-                                hover:bg-[#9333EA] hover:text-white transition-all duration-150
-                                shadow-[0_3px_0_#7E22CE] hover:shadow-[0_1px_0_#7E22CE] hover:translate-y-[2px]"
-                        >
-                            View All Units ➔
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            {/* ═════════════════════════════════════════════
-                WHY KIDS LOVE KIDDO
-            ═════════════════════════════════════════════ */}
-            <section
-                className="w-full py-10 sm:py-14"
-                style={{
-                    background:
-                        "linear-gradient(180deg, #F8FAFF 0%, #F0F4FF 100%)",
-                }}
-            >
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-7 sm:mb-8">
-                        <p className="text-[11px] sm:text-xs font-black text-[#16A34A] uppercase tracking-[0.15em] mb-2">
-                            ✨ Why Kiddo?
-                        </p>
-                        <h2
-                            className="font-black text-[#0F172A]"
-                            style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
-                        >
-                            Why Kids Love Kiddo
-                        </h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {features.map((f) => (
-                            <FeatureCard key={f.title} {...f} />
-                        ))}
-                    </div>
-
-                    {/* Testimonial banner */}
-                    <div className="mt-7 sm:mt-10 bg-gradient-to-r from-purple-50 via-white to-blue-50 rounded-3xl p-5 sm:p-7 border border-purple-100 shadow-sm flex flex-col sm:flex-row items-center gap-5">
-                        <div className="flex -space-x-3 shrink-0">
-                            {["👦", "👧", "🧒"].map((e, i) => (
-                                <div
-                                    key={i}
-                                    className="w-10 h-10 rounded-full bg-white border-2 border-white flex items-center justify-center text-xl shadow-md"
-                                >
-                                    {e}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="text-center sm:text-left flex-1 min-w-0">
-                            <p className="font-black text-[#1E293B] text-sm sm:text-base leading-snug">
-                                "My daughter asks to practice every single day!"
-                            </p>
-                            <p className="text-xs text-[#94A3B8] font-semibold mt-1">
-                                — Sarah M., parent of a 6-year-old
-                            </p>
-                        </div>
-                        <JuicyButton
-                            variant="purple"
-                            onClick={goToApp}
-                            className="shrink-0 !text-sm !px-6 !py-3"
-                        >
-                            Try it free 🎉
-                        </JuicyButton>
-                    </div>
-                </div>
-            </section>
-
-            {/* ═════════════════════════════════════════════
-                HOW IT WORKS
-            ═════════════════════════════════════════════ */}
-            <section className="w-full bg-white py-10 sm:py-14">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-7 sm:mb-8">
-                        <p className="text-[11px] sm:text-xs font-black text-[#DB2777] uppercase tracking-[0.15em] mb-2">
-                            🗺️ Journey
-                        </p>
-                        <h2
-                            className="font-black text-[#0F172A]"
-                            style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
-                        >
-                            How It Works
-                        </h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 relative">
-                        {/* Connector line (desktop) */}
-                        <div className="hidden sm:block absolute top-[2.8rem] left-[calc(16.6%+2rem)] right-[calc(16.6%+2rem)] h-px border-t-2 border-dashed border-purple-200 z-0" />
-
-                        {[
-                            {
-                                step: "1",
-                                icon: "🎯",
-                                title: "Pick a Unit",
-                                desc: "Choose a topic that excites your child — greetings, family, school & more.",
-                            },
-                            {
-                                step: "2",
-                                icon: "🔊",
-                                title: "Learn & Listen",
-                                desc: "Hear native speakers, see colourful flashcards, and repeat out loud.",
-                            },
-                            {
-                                step: "3",
-                                icon: "🏆",
-                                title: "Play & Win",
-                                desc: "Complete activities to earn stars and unlock the next adventure!",
-                            },
-                        ].map(({ step, icon, title, desc }) => (
-                            <div
-                                key={step}
-                                className="relative z-10 bg-white rounded-3xl p-5 sm:p-6 border border-purple-50 shadow-sm flex flex-row sm:flex-col items-start sm:items-center sm:text-center gap-4 sm:gap-3 hover:shadow-md transition-shadow"
-                            >
-                                <div
-                                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#9333EA] flex items-center justify-center text-2xl text-white shrink-0 relative z-10"
-                                    style={{
-                                        boxShadow:
-                                            "0 4px 0 #6B21A8, inset 0 1px 0 rgba(255,255,255,0.25)",
-                                    }}
-                                >
-                                    {icon}
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-0.5">
-                                        Step {step}
+                                    >
+                                        Learn English <br />
+                                        with{" "}
+                                        <span className="inline-block -rotate-2 bg-[#FF4B63] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#cc0019]">
+                                            Fun
+                                        </span>
+                                        ,{" "}
+                                        <span className="inline-block rotate-2 bg-[#10B981] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#059669] mx-1">
+                                            Games
+                                        </span>
+                                        ,
+                                        <br />
+                                        and{" "}
+                                        <span className="inline-block -rotate-1 bg-[#8B5CF6] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#6D28D9] mt-2">
+                                            Sounds
+                                        </span>
+                                        !
+                                    </h1>
+                                    <p
+                                        className="text-[#475569] font-semibold mt-6 max-w-[400px] leading-relaxed"
+                                        style={{
+                                            fontSize:
+                                                "clamp(0.9rem, 1.5vw, 1.1rem)",
+                                        }}
+                                    >
+                                        Kiddo is a playful learning adventure
+                                        for kids aged 6–7. Play, listen, and
+                                        grow with every lesson!
                                     </p>
-                                    <h3 className="font-black text-[#1E293B] text-base sm:text-lg leading-tight">
-                                        {title}
-                                    </h3>
-                                    <p className="text-xs sm:text-sm text-[#64748B] font-semibold mt-1.5 leading-relaxed">
-                                        {desc}
-                                    </p>
+                                    <div className="mt-8 flex flex-col items-center lg:items-start gap-3">
+                                        <JuicyButton
+                                            variant="purple"
+                                            icon="🚀"
+                                            onClick={goToApp}
+                                            size="lg"
+                                        >
+                                            {user
+                                                ? "Continue Journey ➔"
+                                                : "Start Learning Now! ➔"}
+                                        </JuicyButton>
+                                        <p className="flex items-center gap-2 text-xs text-[#64748B] font-semibold mt-2">
+                                            <span
+                                                className="w-5 h-5 rounded-full bg-[#10B981] text-white flex items-center justify-center text-[9px] shrink-0 font-black"
+                                                style={{
+                                                    boxShadow:
+                                                        "0 2px 0 #059669",
+                                                }}
+                                            >
+                                                ✔
+                                            </span>
+                                            No sign-up required · Free to start
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* ── Mascot + Blocks Side ── */}
+                                <div className="w-full lg:w-[46%]">
+                                    <MascotSection goToApp={goToApp} />
                                 </div>
                             </div>
-                        ))}
+                        </div>
                     </div>
-                </div>
-            </section>
 
-            {/* ═════════════════════════════════════════════
-                CTA BANNER
-            ═════════════════════════════════════════════ */}
-            <section
-                className="w-full py-12 sm:py-16 relative overflow-hidden"
-                style={{
-                    background:
-                        "linear-gradient(135deg, #7C3AED 0%, #9333EA 50%, #A855F7 100%)",
-                }}
-            >
-                {/* Background sparkles */}
-                {[
-                    "top-3 left-10 text-5xl",
-                    "top-8 right-14 text-4xl",
-                    "bottom-5 left-1/4 text-4xl",
-                    "bottom-3 right-1/3 text-5xl",
-                ].map((cls, i) => (
-                    <span
-                        key={i}
-                        className={`absolute ${cls} opacity-[0.12] pointer-events-none select-none`}
+                    {/* ── Wave ── */}
+                    <div
+                        className="relative z-20 mt-auto"
+                        style={{ lineHeight: 0, marginBottom: "-2px" }}
                     >
-                        {["⭐", "🎮", "🏆", "🎧"][i]}
-                    </span>
-                ))}
-
-                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 text-center">
-                    <h2
-                        className="font-black text-white leading-tight"
-                        style={{ fontSize: "clamp(1.5rem, 4vw, 2.4rem)" }}
-                    >
-                        Ready to start the adventure? 🚀
-                    </h2>
-                    <p className="text-purple-200 font-semibold text-sm sm:text-base mt-2 sm:mt-3 max-w-md mx-auto">
-                        Join thousands of kids already learning English with
-                        Kiddo — it's completely free!
-                    </p>
-                    <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <JuicyButton
-                            variant="white"
-                            icon="🎉"
-                            onClick={goToApp}
-                            size="lg"
+                        <svg
+                            viewBox="0 0 1440 80"
+                            preserveAspectRatio="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden="true"
+                            className="w-full block"
+                            style={{ height: "clamp(44px, 6vw, 80px)" }}
                         >
-                            Start for Free
-                        </JuicyButton>
-                        <button
-                            onClick={goToLogin}
-                            className="inline-flex items-center gap-2 border-2 border-white/60 text-white font-black rounded-full px-7 py-3.5 text-base
-                                hover:bg-white/15 transition-colors duration-150"
-                        >
-                            👨‍👩‍👧 Parent Dashboard
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            {/* ═════════════════════════════════════════════
-                FOOTER
-            ═════════════════════════════════════════════ */}
-            <footer className="w-full bg-[#F8FAFF] border-t border-blue-50 pt-8 pb-5 relative overflow-hidden">
-                {/* Decorative blobs */}
-                <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-purple-100/40 blur-3xl pointer-events-none" />
-                <div className="absolute top-0 left-0 w-24 h-24 rounded-full bg-blue-100/40 blur-2xl pointer-events-none" />
-
-                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Top row */}
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-6 pb-6 border-b border-blue-100/60">
-                        {/* Logo + tagline */}
-                        <div className="flex items-center gap-3">
-                            <img
-                                src="/assets/ui/hero/title-logo.png"
-                                alt="Kiddo"
-                                className="h-8 object-contain"
-                                onError={(e) => {
-                                    e.currentTarget.outerHTML = `<span class="font-black text-xl"><span class="text-[#0EA5E9]">Kid</span><span class="text-[#FF4B63]">d</span><span class="text-[#F59E0B]">o</span></span>`;
-                                }}
+                            <path
+                                d="M0,35 C120,65 240,10 360,40 C480,70 600,8 720,38 C840,68 960,12 1080,42 C1200,72 1320,18 1440,45 L1440,80 L0,80 Z"
+                                fill="white"
                             />
-                            <div className="border-l border-gray-200 pl-3">
-                                <p className="text-xs font-black text-[#334155] leading-none">
-                                    Learn. Play. Grow.
+                        </svg>
+                    </div>
+                </section>
+
+                {/* ══════════════════════ LESSONS ══════════════════════ */}
+                <section className="w-full bg-white py-10 sm:py-14">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-7 sm:mb-8">
+                            <p className="text-[11px] sm:text-xs font-black text-[#9333EA] uppercase tracking-[0.15em] mb-2">
+                                📚 Curriculum
+                            </p>
+                            <h2
+                                className="font-black text-[#0F172A] inline-flex items-center gap-2 flex-wrap justify-center"
+                                style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
+                            >
+                                <span className="text-yellow-400">⭐</span> Our
+                                Learning Units{" "}
+                                <span className="text-yellow-400">⭐</span>
+                            </h2>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                            {lessons.map((l) => (
+                                <div
+                                    key={l.number}
+                                    style={{
+                                        height: "clamp(150px, 20vw, 210px)",
+                                    }}
+                                >
+                                    <LessonCard {...l} onClick={goToApp} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══════════════════════ FEATURES ══════════════════════ */}
+                <section className="w-full py-10 sm:py-14 bg-gradient-to-b from-[#F8FAFF] to-[#F0F4FF]">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-7 sm:mb-8">
+                            <p className="text-[11px] sm:text-xs font-black text-[#16A34A] uppercase tracking-[0.15em] mb-2">
+                                ✨ Why Kiddo?
+                            </p>
+                            <h2
+                                className="font-black text-[#0F172A]"
+                                style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
+                            >
+                                Why Kids Love Kiddo
+                            </h2>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {features.map((f) => (
+                                <FeatureCard key={f.title} {...f} />
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ══════════════════════ FOOTER ══════════════════════ */}
+                <footer className="w-full bg-[#F8FAFF] border-t border-blue-50 pt-8 pb-5 relative overflow-hidden">
+                    <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-purple-100/40 blur-3xl pointer-events-none" />
+                    <div className="absolute top-0 left-0 w-24 h-24 rounded-full bg-blue-100/40 blur-2xl pointer-events-none" />
+
+                    <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-6 pb-6 border-b border-blue-100/60">
+                            {/* Brand */}
+                            <div className="flex items-center gap-3">
+                                {/* تم استرجاع اللوجو الأصلي */}
+                                <img
+                                    src="/assets/ui/hero/title-logo.png"
+                                    alt="Kiddo"
+                                    className="h-7 sm:h-8 object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                                    onClick={() => router.visit("/")}
+                                />
+                                <div className="border-l border-gray-200 pl-3">
+                                    <p className="text-xs font-black text-[#334155] leading-none">
+                                        Learn. Play. Grow.
+                                    </p>
+                                    <p className="text-[10px] text-[#94A3B8] font-semibold mt-0.5">
+                                        English for kids aged 6–7
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Shield / fox-hint mascot */}
+                            <div className="flex flex-col items-center gap-1 select-none">
+                                <img
+                                    src="/assets/ui/mascot/fox-hint.png"
+                                    alt="Kiddo Safe"
+                                    className="w-14 h-14 object-contain drop-shadow-md"
+                                    onError={(e) =>
+                                        (e.currentTarget.style.display = "none")
+                                    }
+                                />
+                                <p className="text-[9px] font-black text-[#CBD5E1] uppercase tracking-widest">
+                                    Safe &amp; Free
                                 </p>
-                                <p className="text-[10px] text-[#94A3B8] font-semibold mt-0.5">
-                                    English for kids aged 6–7
-                                </p>
+                            </div>
+
+                            {/* Links */}
+                            <div className="flex items-center gap-5 sm:gap-7 text-[11px] font-bold text-[#94A3B8]">
+                                {[
+                                    "Privacy Policy",
+                                    "Terms of Use",
+                                    "Help Center",
+                                ].map((link) => (
+                                    <button
+                                        key={link}
+                                        onClick={() => {
+                                            if (
+                                                link === "Privacy Policy" ||
+                                                link === "Terms of Use"
+                                            ) {
+                                                setActiveModal(link);
+                                            } else {
+                                                router.visit("/contact");
+                                            }
+                                        }}
+                                        className="hover:text-[#9333EA] transition-colors duration-150 focus:outline-none"
+                                    >
+                                        {link}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Footer links */}
-                        <div className="flex items-center gap-5 sm:gap-7 text-[11px] font-bold text-[#94A3B8]">
-                            {[
-                                "Privacy Policy",
-                                "Terms of Use",
-                                "Help Center",
-                                "Contact",
-                            ].map((link) => (
-                                <button
-                                    key={link}
-                                    className="hover:text-[#9333EA] transition-colors duration-150 focus:outline-none focus-visible:underline"
-                                >
-                                    {link}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Social icons */}
-                        <div className="flex items-center gap-2">
-                            {[
-                                { bg: "#1877F2", label: "Facebook", char: "f" },
-                                {
-                                    bg: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)",
-                                    label: "Instagram",
-                                    char: "in",
-                                },
-                                { bg: "#FF0000", label: "YouTube", char: "▶" },
-                            ].map(({ bg, label, char }) => (
-                                <button
-                                    key={label}
-                                    aria-label={label}
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs hover:scale-110 hover:shadow-lg transition-all duration-150 focus:outline-none"
-                                    style={{ background: bg }}
-                                >
-                                    {char}
-                                </button>
-                            ))}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4">
+                            <p className="text-[11px] font-bold text-[#CBD5E1]">
+                                © 2026 Kiddo. Made with ❤️ for curious kids.
+                            </p>
+                            <p className="text-[11px] text-[#CBD5E1] font-semibold">
+                                🌍 Available worldwide · Free forever
+                            </p>
                         </div>
                     </div>
-
-                    {/* Bottom row */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4">
-                        <p className="text-[11px] font-bold text-[#CBD5E1]">
-                            © 2026 Kiddo. Made with ❤️ for curious kids.
-                        </p>
-                        <p className="text-[11px] text-[#CBD5E1] font-semibold">
-                            🌍 Available worldwide · Free forever
-                        </p>
-                    </div>
-                </div>
-            </footer>
-
-            {/* ═════════════════════════════════════════════
-                GLOBAL ANIMATIONS
-            ═════════════════════════════════════════════ */}
-            <style>{`
-                @keyframes floatA {
-                    0%, 100% { transform: translateY(0px) rotate(0deg); }
-                    50%       { transform: translateY(-10px) rotate(3deg); }
-                }
-                @keyframes floatB {
-                    0%, 100% { transform: translateY(0px) rotate(0deg); }
-                    50%       { transform: translateY(-7px) rotate(-2deg); }
-                }
-            `}</style>
-        </div>
+                </footer>
+            </div>
+        </>
     );
 };
 
