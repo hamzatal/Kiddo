@@ -17,10 +17,18 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            // أعمدة اللعبة (Gamification)
+            $table->string('avatar')->default('fox'); // شخصية الطفل
+            $table->integer('level')->default(1); // المستوى الحالي
+            $table->integer('xp')->default(0); // نقاط الخبرة
+            $table->integer('total_stars')->default(0); // إجمالي النجوم المكتسبة
+
             $table->rememberToken();
             $table->timestamps();
         });
 
+        // جداول لارافيل الافتراضية (لا تحذفها)
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
