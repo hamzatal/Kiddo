@@ -14,7 +14,7 @@ class CurriculumSeeder extends Seeder
 
         // الوحدة الثانية
         $unit2 = Unit::create(['unit_number' => 2, 'title' => 'Family Tree', 'image_path' => '/assets/lessons/family/treehouse.png', 'color_key' => 'blue']);
-        Word::create(['unit_id' => $unit2->id, 'word' => 'Family', 'image_path' => '/assets/lessons/family/family_group.png', 'wrong_options' => ['Ball', 'Pencil']]);
+        Word::create(['unit_id' => $unit2->id, 'word' => 'Family', 'image_path' => '/assets/lessons/family/family_group.png', 'wrong_options' => ['toy', 'Pencil']]);
 
         // الوحدة الثالثة
         $unit3 = Unit::create(['unit_number' => 3, 'title' => 'My School Bag', 'image_path' => '/assets/lessons/schoolbag/bag.png', 'color_key' => 'pink']);
@@ -22,10 +22,10 @@ class CurriculumSeeder extends Seeder
 
         // الوحدة الرابعة
         $unit4 = Unit::create(['unit_number' => 4, 'title' => 'Our Classroom', 'image_path' => '/assets/lessons/classroom/desk.png', 'color_key' => 'orange']);
-        Word::create(['unit_id' => $unit4->id, 'word' => 'Desk', 'image_path' => '/assets/lessons/classroom/desk.png', 'wrong_options' => ['Bag', 'Ball']]);
+        Word::create(['unit_id' => $unit4->id, 'word' => 'Desk', 'image_path' => '/assets/lessons/classroom/desk.png', 'wrong_options' => ['Bag', 'toy']]);
 
         // الوحدة الخامسة
-        $unit5 = Unit::create(['unit_number' => 5, 'title' => 'My Favourite Toy', 'image_path' => '/assets/lessons/toy/ball.png', 'color_key' => 'green']);
-        Word::create(['unit_id' => $unit5->id, 'word' => 'Ball', 'image_path' => '/assets/lessons/toy/ball.png', 'wrong_options' => ['Hello', 'Desk']]);
+        $unit5 = Unit::create(['unit_number' => 5, 'title' => 'My Favourite Toy', 'image_path' => '/assets/lessons/toy/toy.png', 'color_key' => 'green']);
+        Word::create(['unit_id' => $unit5->id, 'word' => 'toy', 'image_path' => '/assets/lessons/toy/toy.png', 'wrong_options' => ['Hello', 'Desk']]);
     }
 }
