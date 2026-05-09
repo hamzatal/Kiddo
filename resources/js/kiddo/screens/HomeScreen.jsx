@@ -269,134 +269,33 @@ const FeatureCard = ({ colorKey = "purple", emoji, title, desc }) => {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MascotSection — تم تعديل المسافات والارتفاع والمواقع 100%
+   MascotSection
 ═══════════════════════════════════════════════════════════════ */
 const MascotSection = ({ goToApp }) => {
     return (
         <>
             <style>{`
-                /* ── Mascot container ── */
-                .mascot-wrap {
-                    position: relative;
-                    width: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: flex-end;
-                    min-height: 280px;
-                }
-                @media (min-width: 640px) {
-                    .mascot-wrap { min-height: 360px; }
-                }
-                @media (min-width: 1024px) {
-                    .mascot-wrap { min-height: 460px; }
-                }
+                .mascot-wrap { position: relative; width: 100%; display: flex; justify-content: center; align-items: flex-end; min-height: 280px; }
+                @media (min-width: 640px) { .mascot-wrap { min-height: 360px; } }
+                @media (min-width: 1024px) { .mascot-wrap { min-height: 460px; } }
 
-                /* ── ABC Blocks ── */
-                .abc-blocks {
-                    position: absolute;
-                    z-index: 0;
-                    object-fit: contain;
-                    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
-                    /* Mobile: تم الدفع لليسار وللأعلى لتبتعد عن الثعلب */
-                    left: -15px;
-                    bottom: 10px;
-                    width: 140px;
-                }
-                @media (min-width: 480px) {
-                    .abc-blocks {
-                        left: -10px;
-                        width: 160px;
-                        bottom: 15px;
-                    }
-                }
-                @media (min-width: 640px) {
-                    .abc-blocks {
-                        left: 0px;
-                        bottom: 20px;
-                        width: 180px;
-                    }
-                }
-                @media (min-width: 768px) {
-                    .abc-blocks {
-                        left: 0px;
-                        width: 200px;
-                        bottom: 20px;
-                    }
-                }
-                @media (min-width: 1024px) {
-                    .abc-blocks {
-                        left: -20px;
-                        bottom: 20px;
-                        width: 220px;
-                    }
-                }
-                @media (min-width: 1280px) {
-                    .abc-blocks {
-                        left: -30px;
-                        bottom: 25px;
-                        width: 240px;
-                    }
-                }
+                .abc-blocks { position: absolute; z-index: 0; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15)); left: -15px; bottom: 10px; width: 140px; }
+                @media (min-width: 480px) { .abc-blocks { left: -10px; width: 160px; bottom: 15px; } }
+                @media (min-width: 640px) { .abc-blocks { left: 0px; bottom: 20px; width: 180px; } }
+                @media (min-width: 768px) { .abc-blocks { left: 0px; width: 200px; bottom: 20px; } }
+                @media (min-width: 1024px) { .abc-blocks { left: -20px; bottom: 20px; width: 220px; } }
+                @media (min-width: 1280px) { .abc-blocks { left: -30px; bottom: 25px; width: 240px; } }
 
-                /* ── Fox Mascot ── */
-                .fox-mascot {
-                    position: relative;
-                    z-index: 10;
-                    object-fit: contain;
-                    filter: drop-shadow(0 16px 32px rgba(0,0,0,0.18));
-                    /* Mobile: تم رفعه لأعلى (سالب) ودفعه لليمين (موجب) */
-                    width: 190px;
-                    max-height: 50vh;
-                    transform: translateX(40px) translateY(-5px);
-                }
-                @media (min-width: 480px) {
-                    .fox-mascot {
-                        width: 220px;
-                        transform: translateX(50px) translateY(-5px);
-                    }
-                }
-                @media (min-width: 640px) {
-                    .fox-mascot {
-                        width: 260px;
-                        max-height: 52vh;
-                        transform: translateX(60px) translateY(-10px);
-                    }
-                }
-                @media (min-width: 768px) {
-                    .fox-mascot {
-                        width: 300px;
-                        transform: translateX(70px) translateY(-10px);
-                    }
-                }
-                @media (min-width: 1024px) {
-                    .fox-mascot {
-                        width: 340px;
-                        max-height: 56vh;
-                        transform: translateX(80px) translateY(-15px);
-                    }
-                }
-                @media (min-width: 1280px) {
-                    .fox-mascot {
-                        width: 380px;
-                        max-height: 58vh;
-                        transform: translateX(100px) translateY(-15px);
-                    }
-                }
-                @media (min-width: 1536px) {
-                    .fox-mascot {
-                        width: 420px;
-                        transform: translateX(110px) translateY(-20px);
-                    }
-                }
+                .fox-mascot { position: relative; z-index: 10; object-fit: contain; filter: drop-shadow(0 16px 32px rgba(0,0,0,0.18)); width: 190px; max-height: 50vh; transform: translateX(40px) translateY(-5px); }
+                @media (min-width: 480px) { .fox-mascot { width: 220px; transform: translateX(50px) translateY(-5px); } }
+                @media (min-width: 640px) { .fox-mascot { width: 260px; max-height: 52vh; transform: translateX(60px) translateY(-10px); } }
+                @media (min-width: 768px) { .fox-mascot { width: 300px; transform: translateX(70px) translateY(-10px); } }
+                @media (min-width: 1024px) { .fox-mascot { width: 340px; max-height: 56vh; transform: translateX(80px) translateY(-15px); } }
+                @media (min-width: 1280px) { .fox-mascot { width: 380px; max-height: 58vh; transform: translateX(100px) translateY(-15px); } }
+                @media (min-width: 1536px) { .fox-mascot { width: 420px; transform: translateX(110px) translateY(-20px); } }
 
-                /* ── Modal animation ── */
-                @keyframes fadeInScale {
-                    from { opacity: 0; transform: scale(0.92) translateY(10px); }
-                    to   { opacity: 1; transform: scale(1)    translateY(0);    }
-                }
-                .animate-fadeInScale {
-                    animation: fadeInScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-                }
+                @keyframes fadeInScale { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+                .animate-fadeInScale { animation: fadeInScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
             `}</style>
 
             <div className="mascot-wrap">
@@ -420,11 +319,15 @@ const MascotSection = ({ goToApp }) => {
 /* ═══════════════════════════════════════════════════════════════
    HomeScreen
 ═══════════════════════════════════════════════════════════════ */
-const HomeScreen = () => {
+const HomeScreen = ({ units }) => {
+    // ◄ استقبال الداتا من الباك إند
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [activeModal, setActiveModal] = useState(null);
-    const { user } = usePage().props;
+
+    // ◄ جلب اليوزر بالطريقة الصحيحة للارافيل/انرشيا لتفادي الأخطاء
+    const { auth, user: propUser } = usePage().props;
+    const user = auth?.user || propUser;
 
     useEffect(() => {
         const el = document.getElementById("home-scroll");
@@ -445,8 +348,10 @@ const HomeScreen = () => {
         };
     }, [activeModal]);
 
-    const lessons = [
+    // ◄ الداتا الافتراضية في حال ما اجا إشي من الباك إند
+    const defaultLessons = [
         {
+            id: 1,
             number: "1",
             title: "Welcome / Hello",
             imagePath: "/assets/lessons/welcome/hello.png",
@@ -454,6 +359,7 @@ const HomeScreen = () => {
             isLocked: false,
         },
         {
+            id: 2,
             number: "2",
             title: "Family and Friends",
             imagePath: "/assets/lessons/family/family_group.png",
@@ -461,6 +367,7 @@ const HomeScreen = () => {
             isLocked: false,
         },
         {
+            id: 3,
             number: "3",
             title: "My School Bag",
             imagePath: "/assets/lessons/schoolbag/bag.png",
@@ -468,6 +375,7 @@ const HomeScreen = () => {
             isLocked: true,
         },
         {
+            id: 4,
             number: "4",
             title: "Our Classroom",
             imagePath: "/assets/lessons/classroom/desk.png",
@@ -475,13 +383,27 @@ const HomeScreen = () => {
             isLocked: true,
         },
         {
+            id: 5,
             number: "5",
             title: "My Favourite Toy",
-            imagePath: "/assets/lessons/toy/ball.png",
+            imagePath: "/assets/lessons/toy/toy.png",
             colorKey: "amber",
             isLocked: true,
         },
     ];
+
+    // ◄ تحويل داتا الباك إند (إن وجدت) عشان تناسب شكل الكرت
+    const displayLessons =
+        units && units.length > 0
+            ? units.map((u) => ({
+                  id: u.id,
+                  number: u.unit_number || u.id,
+                  title: u.title,
+                  imagePath: u.image_path || u.imagePath,
+                  colorKey: u.color_key || u.colorKey || "purple",
+                  isLocked: u.status === "locked",
+              }))
+            : defaultLessons;
 
     const features = [
         {
@@ -560,18 +482,13 @@ const HomeScreen = () => {
 
                     {/* ── NAV ── */}
                     <nav
-                        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-                            scrolled
-                                ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 py-2"
-                                : "bg-transparent py-3"
-                        }`}
+                        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 py-2" : "bg-transparent py-3"}`}
                     >
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
                             <div
                                 className="flex items-center cursor-pointer"
                                 onClick={() => router.visit("/")}
                             >
-                                {/* تم استرجاع اللوجو الأصلي */}
                                 <img
                                     src="/assets/ui/hero/title-logo.png"
                                     alt="Kiddo"
@@ -584,38 +501,42 @@ const HomeScreen = () => {
                                     <li
                                         key={item.label}
                                         onClick={() => router.visit(item.path)}
-                                        className={`flex items-center gap-1.5 cursor-pointer pb-1 border-b-2 transition-colors ${
-                                            item.active
-                                                ? "text-[#9333EA] border-[#9333EA]"
-                                                : "border-transparent hover:text-[#9333EA] hover:border-[#9333EA]"
-                                        }`}
+                                        className={`flex items-center gap-1.5 cursor-pointer pb-1 border-b-2 transition-colors ${item.active ? "text-[#9333EA] border-[#9333EA]" : "border-transparent hover:text-[#9333EA] hover:border-[#9333EA]"}`}
                                     >
                                         <span className="text-base">
                                             {item.icon}
-                                        </span>
+                                        </span>{" "}
                                         {item.label}
                                     </li>
                                 ))}
                             </ul>
 
-                            <div className="hidden sm:flex items-center gap-4">
-                                <JuicyButton
-                                    variant="flatAuth"
-                                    onClick={() =>
-                                        router.visit(user ? "/map" : "/login")
-                                    }
-                                >
-                                    {user
-                                        ? "Continue Learning"
-                                        : "Login / Register"}
-                                </JuicyButton>
-                                {user && (
-                                    <button
-                                        onClick={() => router.post("/logout")}
-                                        className="text-gray-400 hover:text-red-500 font-bold text-sm"
+                            {/* ◄ أزرار الديسكتوب المربوطة بشكل صحيح باليوزر واللوج أوت */}
+                            <div className="hidden sm:flex items-center gap-3">
+                                {user ? (
+                                    <>
+                                        <JuicyButton
+                                            variant="flatAuth"
+                                            onClick={() => router.visit("/map")}
+                                        >
+                                            Continue Learning
+                                        </JuicyButton>
+                                        <button
+                                            onClick={() =>
+                                                router.post("/logout")
+                                            }
+                                            className="text-gray-400 hover:text-red-500 font-bold text-sm bg-white/50 hover:bg-red-50 border border-gray-200 px-4 py-2 rounded-xl transition-colors"
+                                        >
+                                            Logout
+                                        </button>
+                                    </>
+                                ) : (
+                                    <JuicyButton
+                                        variant="flatAuth"
+                                        onClick={() => router.visit("/login")}
                                     >
-                                        Logout
-                                    </button>
+                                        Login / Register
+                                    </JuicyButton>
                                 )}
                             </div>
 
@@ -649,20 +570,39 @@ const HomeScreen = () => {
                                         {item.label}
                                     </button>
                                 ))}
-                                <div className="pt-2">
-                                    <JuicyButton
-                                        variant="flatAuth"
-                                        onClick={() =>
-                                            router.visit(
-                                                user ? "/map" : "/login",
-                                            )
-                                        }
-                                        className="w-full justify-center"
-                                    >
-                                        {user
-                                            ? "Continue Learning"
-                                            : "Login / Register"}
-                                    </JuicyButton>
+                                {/* ◄ أزرار الموبايل المربوطة بشكل صحيح */}
+                                <div className="pt-2 flex flex-col gap-2">
+                                    {user ? (
+                                        <>
+                                            <JuicyButton
+                                                variant="flatAuth"
+                                                onClick={() =>
+                                                    router.visit("/map")
+                                                }
+                                                className="w-full justify-center"
+                                            >
+                                                Continue Learning
+                                            </JuicyButton>
+                                            <button
+                                                onClick={() =>
+                                                    router.post("/logout")
+                                                }
+                                                className="w-full text-center text-red-500 font-bold text-sm bg-red-50 py-2.5 rounded-[12px] border border-red-100"
+                                            >
+                                                Logout
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <JuicyButton
+                                            variant="flatAuth"
+                                            onClick={() =>
+                                                router.visit("/login")
+                                            }
+                                            className="w-full justify-center"
+                                        >
+                                            Login / Register
+                                        </JuicyButton>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -672,7 +612,6 @@ const HomeScreen = () => {
                     <div className="relative z-10 flex-1 flex items-center pt-16">
                         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
                             <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-6 lg:gap-8">
-                                {/* ── Text Side ── */}
                                 <div className="w-full lg:w-[54%] flex flex-col items-center lg:items-start text-center lg:text-left">
                                     <h1
                                         className="font-black text-[#0F172A] leading-[1.1] tracking-tight mt-6"
@@ -681,8 +620,7 @@ const HomeScreen = () => {
                                                 "clamp(2.2rem, 5vw, 4rem)",
                                         }}
                                     >
-                                        Learn English <br />
-                                        with{" "}
+                                        Learn English <br /> with{" "}
                                         <span className="inline-block -rotate-2 bg-[#FF4B63] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#cc0019]">
                                             Fun
                                         </span>
@@ -690,9 +628,7 @@ const HomeScreen = () => {
                                         <span className="inline-block rotate-2 bg-[#10B981] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#059669] mx-1">
                                             Games
                                         </span>
-                                        ,
-                                        <br />
-                                        and{" "}
+                                        , <br /> and{" "}
                                         <span className="inline-block -rotate-1 bg-[#8B5CF6] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#6D28D9] mt-2">
                                             Sounds
                                         </span>
@@ -735,7 +671,6 @@ const HomeScreen = () => {
                                     </div>
                                 </div>
 
-                                {/* ── Mascot + Blocks Side ── */}
                                 <div className="w-full lg:w-[46%]">
                                     <MascotSection goToApp={goToApp} />
                                 </div>
@@ -781,14 +716,24 @@ const HomeScreen = () => {
                             </h2>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                            {lessons.map((l) => (
+                            {/* ◄ استخدام داتا الباك إند هنا */}
+                            {displayLessons.map((l, index) => (
                                 <div
-                                    key={l.number}
+                                    key={index}
                                     style={{
                                         height: "clamp(150px, 20vw, 210px)",
                                     }}
                                 >
-                                    <LessonCard {...l} onClick={goToApp} />
+                                    <LessonCard
+                                        {...l}
+                                        onClick={() =>
+                                            router.visit(
+                                                user
+                                                    ? `/lesson/${l.id}`
+                                                    : "/login",
+                                            )
+                                        }
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -824,9 +769,7 @@ const HomeScreen = () => {
 
                     <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-6 pb-6 border-b border-blue-100/60">
-                            {/* Brand */}
                             <div className="flex items-center gap-3">
-                                {/* تم استرجاع اللوجو الأصلي */}
                                 <img
                                     src="/assets/ui/hero/title-logo.png"
                                     alt="Kiddo"
@@ -843,7 +786,6 @@ const HomeScreen = () => {
                                 </div>
                             </div>
 
-                            {/* Shield / fox-hint mascot */}
                             <div className="flex flex-col items-center gap-1 select-none">
                                 <img
                                     src="/assets/ui/mascot/fox-hint.png"
@@ -858,7 +800,6 @@ const HomeScreen = () => {
                                 </p>
                             </div>
 
-                            {/* Links */}
                             <div className="flex items-center gap-5 sm:gap-7 text-[11px] font-bold text-[#94A3B8]">
                                 {[
                                     "Privacy Policy",

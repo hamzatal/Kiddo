@@ -2,74 +2,62 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use App\Models\Unit;
+use App\Models\Word;
 use App\Models\UserProgress;
 use Illuminate\Support\Facades\Auth;
 
 class QuizController extends Controller
 {
-    // 1. عرض بيانات الاختبار بناءً على الوحدة
-    public function show($unit_id = 2)
+    public function show($unit_id)
     {
-        // بنك الأسئلة بناءً على المنهاج
-        $quizzes = [
-            2 => [
-                'unit_id' => 2,
-                'questionText' => 'Where is',
-                'targetWord' => 'Dad',
-                'audioPrompt' => 'Where is Dad?',
-                'options' => [
-                    ['id' => 1, 'word' => 'Boy', 'imagePath' => '/assets/lessons/family/boy.png', 'isCorrect' => false],
-                    ['id' => 2, 'word' => 'Cat', 'imagePath' => '/assets/lessons/family/cat.png', 'isCorrect' => false],
-                    ['id' => 3, 'word' => 'Dad', 'imagePath' => '/assets/lessons/family/dad.png', 'isCorrect' => true],
-                ]
-            ],
-            3 => [
-                'unit_id' => 3,
-                'questionText' => 'Where is the',
-                'targetWord' => 'Pencil',
-                'audioPrompt' => 'Where is the pencil?',
-                'options' => [
-                    ['id' => 1, 'word' => 'Bag', 'imagePath' => '/assets/lessons/schoolbag/bag.png', 'isCorrect' => false],
-                    ['id' => 2, 'word' => 'Pencil', 'imagePath' => '/assets/lessons/schoolbag/pencil.png', 'isCorrect' => true],
-                    ['id' => 3, 'word' => 'Bear', 'imagePath' => '/assets/lessons/toy/bear.png', 'isCorrect' => false],
-                ]
-            ],
-        ];
+        $unit = Unit::findOrFail($unit_id);
+        $targetWord = Word::where('unit_id', $unit_id)->first();
 
-        $quizData = $quizzes[$unit_id] ?? $quizzes[3];
+        // جلب خيارات خاطئة من وحدات أخرى للتمويه
+        $wrongWords = Word::where('id', '!=', $targetWord->id)->inRandomOrder()->limit(2)->get();
+
+        $options = collect([
+            ['id' => $targetWord->id, 'word' => $targetWord->word, 'imagePath' => $targetWord->image_path, 'isCorrect' => true]
+        ]);
+
+        foreach ($wrongWords as $wrong) {
+            $options->push(['id' => $wrong->id, 'word' => $wrong->word, 'imagePath' => $wrong->image_path, 'isCorrect' => false]);
+        }
 
         return Inertia::render('QuizScreen', [
-            'quizData' => $quizData
+            'quizData' => [
+                'unit_id' => $unit->id,
+                'targetWord' => $targetWord->word,
+                'options' => $options->shuffle()->values()->all() // خلط الخيارات
+            ]
         ]);
     }
 
-    // 2. حفظ النتيجة وفتح المرحلة التالية
     public function submit(Request $request)
     {
         $user = Auth::user();
 
-        // تحديث إجمالي النجوم والـ XP للطفل
-        $user->total_stars += $request->stars_earned;
-        $user->xp += $request->xp_earned;
-        $user->save();
+        // 1. تحديث إحصائيات الطالب
+        $user->increment('total_stars', 3);
+        $user->increment('xp', 50);
 
-        // تحديث حالة الوحدة الحالية إلى "مكتملة" (done)
+        // 2. قفل الوحدة الحالية كـ (مكتملة)
         UserProgress::updateOrCreate(
             ['user_id' => $user->id, 'unit_id' => $request->unit_id],
-            ['lesson_id' => 5, 'status' => 'done', 'stars_earned' => $request->stars_earned]
+            ['status' => 'done', 'stars_earned' => 3]
         );
 
-        // فتح الوحدة التالية (active) إذا لم تكن الوحدة الأخيرة
+        // 3. فتح الوحدة التالية مباشرة بالترتيب (1 بفتح 2، و2 بفتح 3)
         if ($request->unit_id < 5) {
-            UserProgress::updateOrCreate(
+            UserProgress::firstOrCreate(
                 ['user_id' => $user->id, 'unit_id' => $request->unit_id + 1],
-                ['lesson_id' => 1, 'status' => 'active']
+                ['status' => 'active']
             );
         }
 
-        // العودة للخريطة
         return redirect()->route('map');
     }
 }

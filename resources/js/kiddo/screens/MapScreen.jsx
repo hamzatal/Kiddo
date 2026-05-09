@@ -1,216 +1,388 @@
-import React, { useState } from "react";
-import { router } from "@inertiajs/react";
+import React, { useState, useEffect } from "react";
+import { router, usePage } from "@inertiajs/react";
 
-/* ─────────────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════════
+   ألوان اللوحات (Pills)
+══════════════════════════════════════════════════════════ */
+const PILL_COLORS = {
+    "bg-[#7C3AED]": "bg-[#7C3AED]",
+    "bg-[#2563EB]": "bg-[#2563EB]",
+    "bg-[#DB2777]": "bg-[#DB2777]",
+    "bg-[#D97706]": "bg-[#D97706]",
+    "bg-[#16A34A]": "bg-[#16A34A]",
+};
+
+/* ══════════════════════════════════════════════════════════
+   VISUAL CONFIG
+══════════════════════════════════════════════════════════ */
+const VISUAL_CONFIG = {
+    1: {
+        imagePath: "/assets/lessons/welcome/hut.png",
+        color: "bg-[#7C3AED]",
+        pos: { left: "20.5%", top: "37%" },
+        customSize: "w-40 h-40 sm:w-48 sm:h-48 lg:w-52 lg:h-52",
+    },
+    2: {
+        imagePath: "/assets/lessons/family/treehouse.png",
+        color: "bg-[#2563EB]",
+        pos: { left: "51.2%", top: "33%" },
+        customSize: "w-40 h-40 sm:w-48 sm:h-48 lg:w-52 lg:h-52",
+    },
+    3: {
+        imagePath: "/assets/lessons/schoolbag/bag.png",
+        color: "bg-[#DB2777]",
+        pos: { left: "72%", top: "65%" },
+        customSize: "w-24 h-24 sm:w-32 sm:h-32",
+    },
+    4: {
+        imagePath: "/assets/lessons/classroom/desk.png",
+        color: "bg-[#D97706]",
+        pos: { left: "18%", top: "63%" },
+        customSize: "w-32 h-32 sm:w-40 sm:h-40 lg:w-44 lg:h-44",
+    },
+    5: {
+        imagePath: "/assets/lessons/toy/toy.png",
+        color: "bg-[#16A34A]",
+        pos: { left: "45%", top: "69%" },
+        customSize: "w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40",
+    },
+};
+
+/* ══════════════════════════════════════════════════════════
    UnitNode
-───────────────────────────────────────────────────────── */
-const UnitNode = ({
-    number,
-    title,
-    imagePath,
-    color,
-    stars,
-    status,
-    label,
-    badge,
-    subLessons,
-    onClick,
-}) => {
-    const isDone = status === "done";
-    const isActive = status === "active";
-    const isLocked = status === "locked";
+══════════════════════════════════════════════════════════ */
+const UnitNode = ({ unit, onClick }) => {
+    const isDone = unit.status === "done";
+    const isActive = unit.status === "active";
+    const isLocked = unit.status === "locked";
+
+    const visual = VISUAL_CONFIG[unit.id] || VISUAL_CONFIG[1];
+    const subLessonsArray = Array.from({ length: unit.lessons_count || 1 }).map(
+        (_, i) => i < (unit.current_lesson || 1) - 1,
+    );
 
     return (
         <div
-            className={`flex flex-col items-center gap-1 select-none ${isLocked ? "cursor-default" : "cursor-pointer"}`}
+            className={`flex flex-col items-center gap-2 select-none transition-transform duration-300 ${isLocked ? "cursor-default" : "cursor-pointer group"}`}
             style={{
-                filter: isLocked ? "grayscale(55%) opacity(0.7)" : "none",
+                filter: isLocked ? "grayscale(80%) opacity(0.7)" : "none",
             }}
             onClick={!isLocked ? onClick : undefined}
         >
-            {badge && (
-                <div className="bg-orange-400 text-white text-[10px] font-black px-2.5 py-0.5 rounded-xl shadow-lg rotate-2 animate-pulse mb-0.5 z-10 whitespace-nowrap border border-orange-300">
-                    {badge}
+            <div className="absolute bottom-[90%] left-1/2 -translate-x-1/2 pb-2 flex flex-col items-center gap-1.5 w-max pointer-events-none z-30 transition-transform group-hover:-translate-y-2">
+                {isActive && (
+                    <div className="bg-gradient-to-r from-orange-400 to-amber-500 text-white text-[10px] font-black px-4 py-1 rounded-full shadow-lg rotate-2 animate-bounce whitespace-nowrap border-2 border-white pointer-events-auto">
+                        Current Adventure!
+                    </div>
+                )}
+                <div
+                    className={`${visual.color} text-white px-5 py-1.5 rounded-full font-black text-[12px] shadow-xl flex items-center gap-2 whitespace-nowrap pointer-events-auto border-2 border-white/40 backdrop-blur-md`}
+                >
+                    <span className="bg-white/30 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-inner">
+                        {unit.number}
+                    </span>
+                    {unit.title}
                 </div>
-            )}
-
-            <div
-                className={`${color} text-white px-3.5 py-1 rounded-full font-black text-[11px] shadow-lg flex items-center gap-1.5 z-10 whitespace-nowrap`}
-            >
-                <span className="bg-white/30 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0">
-                    {number}
-                </span>
-                {title}
             </div>
 
             <div
-                className={`relative z-10 ${isActive ? "drop-shadow-2xl hover:scale-105 transition-transform duration-300" : "drop-shadow-lg"}`}
+                className={`${visual.customSize} flex items-center justify-center relative transition-transform duration-500 ${isActive ? "scale-110 drop-shadow-[0_20px_30px_rgba(0,0,0,0.25)]" : "drop-shadow-xl group-hover:scale-105"}`}
             >
-                {isLocked ? (
-                    <div className="relative">
-                        <img
-                            src={imagePath}
-                            alt={title}
-                            className="w-28 object-contain"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="bg-black/40 backdrop-blur-sm rounded-full w-10 h-10 flex items-center justify-center">
-                                <span className="text-xl">🔒</span>
-                            </div>
+                <img
+                    src={visual.imagePath}
+                    alt={unit.title}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                        e.target.style.display = "none";
+                    }}
+                />
+                {isLocked && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="bg-black/50 backdrop-blur-md rounded-full w-14 h-14 flex items-center justify-center shadow-2xl border-2 border-white/20">
+                            <span className="text-3xl drop-shadow-md">🔒</span>
                         </div>
                     </div>
-                ) : (
-                    <img
-                        src={imagePath}
-                        alt={title}
-                        className={`object-contain ${isActive ? "w-40" : "w-28"}`}
-                    />
+                )}
+                {isActive && (
+                    <div className="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-40 pointer-events-none" />
                 )}
             </div>
 
-            {isDone && (
-                <div className="bg-white/90 backdrop-blur-sm px-3 py-0.5 rounded-full text-sm shadow-md z-10">
-                    {"⭐".repeat(stars)}
-                </div>
-            )}
-
-            {isActive && subLessons && (
-                <>
-                    <div className="flex gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-lg z-10 border border-gray-100">
-                        {subLessons.map((done, i) => (
-                            <div
-                                key={i}
-                                className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black border-2
-                                    ${done ? "bg-[#16A34A] text-white border-green-300 shadow-sm" : "bg-gray-100 text-gray-400 border-gray-200"}`}
-                            >
-                                {number}.{i + 1}
-                            </div>
+            <div className="absolute top-[90%] left-1/2 -translate-x-1/2 pt-2 flex flex-col items-center gap-2 w-max pointer-events-none z-20">
+                {isDone && (
+                    <div className="bg-white/95 backdrop-blur-sm px-4 py-1 rounded-full text-sm shadow-lg border border-gray-100 flex gap-0.5">
+                        {Array.from({ length: unit.stars || 3 }).map((_, i) => (
+                            <span key={i} className="drop-shadow-sm">
+                                ⭐
+                            </span>
                         ))}
                     </div>
-                    {label && (
-                        <div className="bg-white/95 text-[10px] font-black text-[#1E293B] px-3 py-1 rounded-full shadow-lg z-10 text-center max-w-[160px] leading-snug border border-gray-100">
-                            {label}
+                )}
+
+                {isActive && (
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="flex gap-1.5 bg-white/90 p-1.5 rounded-full shadow-lg border border-gray-100 pointer-events-auto backdrop-blur-md">
+                            {subLessonsArray.map((done, i) => (
+                                <div
+                                    key={i}
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border transition-all shadow-inner
+                                    ${done ? "bg-[#16A34A] text-white border-green-400" : "bg-gray-100 text-gray-400 border-gray-200"}`}
+                                >
+                                    {unit.number}.{i + 1}
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </>
-            )}
+                        <div className="bg-white/95 text-[10px] font-black text-[#1E293B] px-4 py-1.5 rounded-full shadow-lg text-center border border-gray-100 pointer-events-auto">
+                            Lesson {unit.id}.{unit.current_lesson || 1}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
 
-/* ─────────────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════════
    MapScreen
-───────────────────────────────────────────────────────── */
-// لاحظ كيف استقبلنا الـ user و الـ units كـ props من Laravel
-const MapScreen = ({ user, units }) => {
+══════════════════════════════════════════════════════════ */
+const MapScreen = ({ user, units: propUnits }) => {
     const [soundOn, setSoundOn] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // دالة توجيه تستخدم Inertia Router بدلاً من State
-    const handleNavigate = (route) => {
-        if (route === "home") router.visit("/");
-        else if (route === "lesson") router.visit("/lesson");
-        else if (route === "progress") router.visit("/progress");
-    };
+    const units = propUnits || [];
+    const completedCount = units.filter((u) => u.status === "done").length;
+    const activeUnit = units.find((u) => u.status === "active");
 
-    // حساب الدروس المكتملة للشريط الجانبي بناءً على البيانات القادمة من الباك إند
-    const completedUnitsCount = units
-        ? units.filter((u) => u.status === "done").length
-        : 0;
-    const activeUnit = units ? units.find((u) => u.status === "active") : null;
+    const xp = user?.xp || 0;
+    const maxXp = 600;
+    const xpPct = Math.min((xp / maxXp) * 100, 100);
+
+    useEffect(() => {
+        const onResize = () => {
+            if (window.innerWidth >= 1024) setSidebarOpen(true);
+            else setSidebarOpen(false);
+        };
+        onResize();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
 
     return (
-        <div className="h-screen w-screen bg-[#C9E8FF] font-sans flex flex-col overflow-hidden">
-            <header className="bg-white/95 backdrop-blur-md px-5 py-2 flex justify-between items-center z-30 shadow-sm border-b border-gray-100 shrink-0 h-14">
-                <div
-                    className="flex items-center cursor-pointer"
-                    onClick={() => handleNavigate("home")}
-                >
-                    <img
-                        src="/assets/ui/hero/title-logo.png"
-                        alt="Kiddo"
-                        className="h-8 object-contain"
-                    />
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full shadow-sm">
-                        <span className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-base">
-                            👦🏻
-                        </span>
-                        <div>
-                            <p className="font-black text-[#1E293B] text-xs leading-none">
-                                {user?.name || "Alex"}
-                            </p>
-                            <p className="text-[10px] text-amber-500 font-bold mt-0.5">
-                                ⭐ {user?.total_stars || 0}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 bg-gray-50 border border-gray-100 px-3.5 py-1.5 rounded-full shadow-sm">
-                        <span className="font-black text-[#7C3AED] text-xs">
-                            Level {user?.level || 1}
-                        </span>
-                        <div className="w-28 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                                className="h-full rounded-full bg-[#16A34A]"
-                                style={{ width: `${(user?.xp / 600) * 100}%` }}
+        // الهيكلة الأساسية: الطول 100vh وممنوع السكرول الخارجي
+        <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#B8E4FF] font-sans">
+            {/* ── HEADER (ثابت لا يتأثر بالسكرول) ── */}
+            <header className="h-[72px] shrink-0 bg-white/95 backdrop-blur-2xl border-b border-gray-100 shadow-sm flex items-center z-50">
+                <div className="w-full px-4 lg:px-8 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => router.visit("/")}
+                            className="hover:scale-105 transition-transform shrink-0"
+                        >
+                            <img
+                                src="/assets/ui/hero/title-logo.png"
+                                alt="Kiddo"
+                                className="h-9 lg:h-10 object-contain drop-shadow-sm"
                             />
+                        </button>
+                        <div className="hidden lg:block w-px h-8 bg-gray-200" />
+                        <div className="hidden lg:flex items-center gap-2 bg-[#F0F4FF] px-4 py-2 rounded-full border border-[#E0E7FF]">
+                            <span className="text-xl leading-none">🗺️</span>
+                            <span className="font-black text-[#4338CA] text-xs tracking-wide">
+                                Adventure Map
+                            </span>
                         </div>
-                        <span className="text-[10px] text-gray-400 font-bold">
-                            {user?.xp || 0} / 600 XP
-                        </span>
-                        <span className="text-sm">🎁</span>
                     </div>
-                </div>
 
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setSoundOn(!soundOn)}
-                        className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 hover:bg-purple-50 transition-colors text-base"
-                    >
-                        {soundOn ? "🔊" : "🔇"}
-                    </button>
-                    <button
-                        onClick={() => handleNavigate("home")}
-                        className="w-9 h-9 bg-[#7C3AED] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#6D28D9] hover:scale-105 transition-all"
-                    >
-                        🏠
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <div className="hidden md:flex items-center gap-3 bg-gray-50 border border-gray-200 px-4 py-2 rounded-full shadow-inner">
+                            <span className="font-black text-[#7C3AED] text-xs uppercase tracking-widest">
+                                Lv.{user?.level || 1}
+                            </span>
+                            <div className="w-32 h-2.5 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                                <div
+                                    className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A855F7] transition-all duration-1000"
+                                    style={{ width: `${xpPct}%` }}
+                                />
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-bold">
+                                {xp}/{maxXp}
+                            </span>
+                        </div>
+
+                        <div className="hidden sm:flex items-center gap-2 bg-amber-50 border border-amber-100 px-4 py-2 rounded-full shadow-sm">
+                            <span className="text-lg leading-none drop-shadow-sm">
+                                ⭐
+                            </span>
+                            <span className="font-black text-amber-600 text-sm leading-none">
+                                {user?.total_stars || 0}
+                            </span>
+                        </div>
+
+                        <button
+                            onClick={() => router.visit("/progress")}
+                            className="flex items-center gap-2 bg-white border border-gray-200 p-1.5 pr-4 rounded-full shadow-sm hover:bg-gray-50 transition-colors"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-sm border-2 border-white shadow-sm shrink-0">
+                                👦🏻
+                            </div>
+                            <span className="font-black text-[#1E293B] text-[11px] hidden sm:block">
+                                {user?.name || "Student"}
+                            </span>
+                        </button>
+
+                        <button
+                            onClick={() => setSoundOn((s) => !s)}
+                            className="w-11 h-11 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-xl shadow-sm hover:bg-gray-50 transition-all"
+                        >
+                            {soundOn ? "🔊" : "🔇"}
+                        </button>
+
+                        <button
+                            onClick={() => setSidebarOpen((v) => !v)}
+                            className="lg:hidden w-11 h-11 rounded-xl bg-[#1E293B] text-white flex items-center justify-center shadow-sm active:scale-95"
+                        >
+                            ☰
+                        </button>
+                    </div>
                 </div>
             </header>
 
-            <div className="flex-1 flex overflow-hidden">
-                <main className="flex-1 relative overflow-hidden">
-                    <img
-                        src="/assets/ui/map/map-bg.png"
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/20 pointer-events-none z-[1]" />
+            {/* ── MAIN BODY (الحاوية المرنة) ── */}
+            <div className="flex-1 flex min-h-0 relative">
+                {/* ── MAP AREA ── */}
+                <main className="flex-1 relative overflow-auto hide-scrollbar bg-[#90D4F5] flex items-center justify-center">
+                    <div className="relative w-full h-full min-w-[1200px] min-h-[700px] lg:min-w-0 lg:min-h-0 lg:aspect-[16/9] lg:h-auto max-w-[1800px] mx-auto">
+                        <img
+                            src="/assets/ui/map/map-bg.png"
+                            alt="Map Environment"
+                            className="absolute inset-0 w-full h-full object-cover lg:object-contain drop-shadow-sm"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-transparent to-blue-900/10 pointer-events-none z-[1]" />
 
-                    <div className="absolute top-4 left-5 z-20">
-                        <h1 className="font-black text-[#1E293B] text-xl flex items-center gap-2">
-                            <span className="text-2xl">☀️</span>
-                            <span className="bg-white/85 backdrop-blur-sm px-3.5 py-1 rounded-full shadow-md">
-                                Learning Map
-                            </span>
-                        </h1>
-                        <p className="text-[11px] font-bold text-[#334155] ml-9 mt-1.5 bg-white/75 backdrop-blur-sm px-3 py-0.5 rounded-full w-fit shadow-sm">
-                            Explore, learn and earn stars!
-                        </p>
+                        <div className="absolute inset-0 z-10">
+                            {units.map((u) => {
+                                const pos = VISUAL_CONFIG[u.id]?.pos || {
+                                    left: "50%",
+                                    top: "50%",
+                                };
+                                return (
+                                    <div
+                                        key={u.id}
+                                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                                        style={{ left: pos.left, top: pos.top }}
+                                    >
+                                        <UnitNode
+                                            unit={u}
+                                            onClick={() =>
+                                                router.visit(`/lesson/${u.id}`)
+                                            }
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div className="absolute inset-0 z-10">
-                        {units &&
-                            units.map((u) => (
-                                <div
-                                    key={u.id}
-                                    className="absolute -translate-x-1/2 -translate-y-1/2"
-                                    style={{ left: u.pos.left, top: u.pos.top }}
-                                >
-                                    {/* لاحظ هون كيف صرنا نبعث رقم الـ ID تبع الدرس للباك إند */}
-                                    <UnitNode
-                                        {...u}
+
+                    <button
+                        onClick={() => router.visit("/contact")}
+                        className="fixed bottom-6 right-6 lg:right-[340px] z-30 bg-white/95 backdrop-blur text-[#7C3AED] font-black text-sm px-6 py-3.5 rounded-2xl shadow-2xl border border-white hover:scale-105 transition-transform flex items-center gap-2"
+                    >
+                        <span className="text-lg">❓</span> Need Help?
+                    </button>
+                </main>
+
+                {/* ── SIDEBAR (إصلاح جذري لهيكلية السايد بار) ── */}
+                {/* تم التأكد من إعطائه h-full و overflow-y-auto ليعمل بشكل مستقل وبدون أي قص للبيانات */}
+                <aside
+                    className={`${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"} absolute lg:static right-0 top-0 h-full w-[300px] shrink-0 bg-[#F8FAFC] lg:bg-white border-l border-gray-200 z-40 shadow-2xl lg:shadow-[-10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto custom-scrollbar flex flex-col gap-4 p-5 transition-transform duration-300 lg:transition-none`}
+                >
+                    {/* زر إغلاق للموبايل */}
+                    <div className="lg:hidden flex justify-end shrink-0">
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-black"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    {/* Mission Card - تصميم بلوك متماسك يمنع القص */}
+                    <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-[1.25rem] p-4 border border-indigo-100 shadow-sm">
+                        <h3 className="font-black text-[#1E293B] text-[13px] flex items-center gap-2 mb-3">
+                            <span className="text-xl">🎯</span> Today's Mission
+                        </h3>
+                        <div className="flex items-center gap-3 mb-4 bg-white p-3 rounded-xl border border-white shadow-sm">
+                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                                🚀
+                            </div>
+                            <div className="flex flex-col justify-center min-w-0">
+                                <p className="text-[13px] font-black text-[#1E293B] leading-tight break-words">
+                                    {activeUnit
+                                        ? activeUnit.title
+                                        : "All Units Done! 🎉"}
+                                </p>
+                                <p className="text-[10px] text-indigo-500 font-bold mt-1 uppercase tracking-widest">
+                                    {activeUnit
+                                        ? "Ready to play"
+                                        : "Amazing Job!"}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() =>
+                                router.visit(
+                                    activeUnit
+                                        ? `/lesson/${activeUnit.id}`
+                                        : "/progress",
+                                )
+                            }
+                            className="w-full bg-[#10B981] text-white py-3 rounded-xl font-black text-[13px] shadow-[0_4px_0_#059669] hover:shadow-[0_2px_0_#059669] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2"
+                        >
+                            {activeUnit
+                                ? "START ADVENTURE ➔"
+                                : "VIEW REWARDS ➔"}
+                        </button>
+                    </div>
+
+                    {/* Progress Stats */}
+                    <div className="shrink-0 bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
+                        <h3 className="font-black text-[#1E293B] text-[13px] mb-3 flex items-center gap-2">
+                            <span>📊</span> My Progress
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-slate-100">
+                                    <span className="text-base font-black text-[#1E293B]">
+                                        {completedCount}/5
+                                    </span>
+                                </div>
+                                <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center">
+                                    Units Done
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-center justify-center bg-amber-50 p-3 rounded-xl border border-amber-100">
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-amber-100 text-xl">
+                                    ⭐
+                                </div>
+                                <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center">
+                                    Total Stars
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Map Index */}
+                    <div className="shrink-0 bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
+                        <h3 className="font-black text-[#1E293B] text-[13px] mb-3 flex items-center gap-2">
+                            <span>🗺️</span> Map Index
+                        </h3>
+                        <div className="flex flex-col gap-2">
+                            {units.map((u) => {
+                                const visual =
+                                    VISUAL_CONFIG[u.id] || VISUAL_CONFIG[1];
+                                return (
+                                    <div
+                                        key={u.id}
                                         onClick={
                                             u.status !== "locked"
                                                 ? () =>
@@ -219,166 +391,75 @@ const MapScreen = ({ user, units }) => {
                                                       )
                                                 : undefined
                                         }
-                                    />
-                                </div>
-                            ))}
-                    </div>
-
-                    <button className="absolute bottom-4 right-4 z-20 bg-white text-[#7C3AED] font-black text-xs px-4 py-2 rounded-full shadow-lg border border-purple-100 hover:bg-purple-50 transition-colors flex items-center gap-1.5">
-                        ❓ Need Help?
-                    </button>
-                </main>
-
-                <aside className="w-[280px] shrink-0 bg-white/96 backdrop-blur-xl border-l border-gray-100 p-4 z-20 shadow-[-8px_0_24px_rgba(0,0,0,0.05)] overflow-y-auto flex flex-col gap-3.5">
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden">
-                        <div className="absolute -top-4 -right-4 w-14 h-14 bg-yellow-50 rounded-full pointer-events-none" />
-                        <h3 className="font-black text-[#1E293B] text-xs flex items-center gap-1.5 mb-3">
-                            <span className="text-yellow-400 text-sm">⭐</span>{" "}
-                            Today's Mission
-                        </h3>
-                        <div className="flex items-center gap-2.5 mb-3">
-                            <div className="w-9 h-9 bg-purple-50 rounded-xl flex items-center justify-center text-lg shrink-0">
-                                📖
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-black text-[#1E293B] truncate">
-                                    Learn 1 new lesson
-                                </p>
-                                <p className="text-[10px] text-gray-400 font-semibold">
-                                    Let's keep going!
-                                </p>
-                                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-                                    <div
-                                        className="h-full bg-amber-400 rounded-full"
-                                        style={{ width: "0%" }}
-                                    />
-                                </div>
-                            </div>
-                            <div className="shrink-0 w-8 h-8 bg-yellow-400 rounded-xl flex flex-col items-center justify-center shadow-sm">
-                                <span className="font-black text-white text-[11px] leading-none">
-                                    25
-                                </span>
-                                <span className="font-bold text-white text-[8px]">
-                                    XP
-                                </span>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => {
-                                // إذا في درس فعال، ادخل عليه، غير هيك ادخل على الدرس الأول
-                                if (activeUnit) {
-                                    router.visit(`/lesson/${activeUnit.id}`);
-                                } else {
-                                    router.visit("/lesson/1");
-                                }
-                            }}
-                            className="w-full bg-[#7C3AED] text-white py-2.5 rounded-xl font-black text-xs shadow-[0_3px_0_#5B21B6] hover:shadow-[0_1px_0_#5B21B6] hover:translate-y-[2px] transition-all duration-150 flex items-center justify-center gap-2"
-                        >
-                            ▶ Continue Lesson
-                        </button>
-                        <p className="text-center text-[10px] text-gray-400 font-semibold mt-1.5">
-                            {activeUnit ? activeUnit.label : "Let's learn!"}
-                        </p>
-                    </div>
-
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                        <h3 className="font-black text-[#1E293B] text-xs mb-3">
-                            My Progress
-                        </h3>
-                        <div className="flex items-center justify-around">
-                            <div className="text-center">
-                                <div className="relative w-12 h-12 mx-auto">
-                                    <svg
-                                        viewBox="0 0 48 48"
-                                        className="w-12 h-12 -rotate-90"
+                                        className={`flex items-center gap-3 p-2.5 rounded-xl border transition-colors
+                                         ${
+                                             u.status === "active"
+                                                 ? "border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100"
+                                                 : u.status === "done"
+                                                   ? "border-green-200 bg-green-50 cursor-pointer hover:bg-green-100"
+                                                   : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                                         }`}
                                     >
-                                        <circle
-                                            cx="24"
-                                            cy="24"
-                                            r="18"
-                                            fill="none"
-                                            stroke="#F1F5F9"
-                                            strokeWidth="5"
-                                        />
-                                        <circle
-                                            cx="24"
-                                            cy="24"
-                                            r="18"
-                                            fill="none"
-                                            stroke="#16A34A"
-                                            strokeWidth="5"
-                                            strokeDasharray={`${2 * Math.PI * 18 * (completedUnitsCount / 5)} ${2 * Math.PI * 18}`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                    <span className="absolute inset-0 flex items-center justify-center font-black text-[#1E293B] text-[10px]">
-                                        {completedUnitsCount}/5
-                                    </span>
-                                </div>
-                                <p className="text-[9px] text-gray-400 font-bold mt-1 leading-tight">
-                                    Units
-                                    <br />
-                                    Completed
-                                </p>
-                            </div>
-                            <div className="w-px h-10 bg-gray-100" />
-                            <div className="text-center">
-                                <p className="text-2xl font-black text-[#1E293B]">
-                                    {user?.total_stars || 0}
-                                </p>
-                                <p className="text-yellow-400 text-xs mt-0.5">
-                                    ⭐
-                                </p>
-                                <p className="text-[9px] text-gray-400 font-bold">
-                                    Stars
-                                    <br />
-                                    Earned
-                                </p>
-                            </div>
+                                        <div
+                                            className={`${visual.color} w-6 h-6 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm`}
+                                        >
+                                            {u.number}
+                                        </div>
+                                        <p className="text-[11px] font-black text-[#1E293B] flex-1 truncate">
+                                            {u.title}
+                                        </p>
+                                        <span className="text-sm bg-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
+                                            {u.status === "done"
+                                                ? "✅"
+                                                : u.status === "active"
+                                                  ? "📍"
+                                                  : "🔒"}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                        <h3 className="font-black text-[#1E293B] text-xs mb-3">
-                            Recent Badge
-                        </h3>
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-purple-50 rounded-xl items-center justify-center text-2xl flex shrink-0 border border-purple-100">
-                                🏅
-                            </div>
+                    {/* Mascot Tip */}
+                    <div className="shrink-0 mt-auto bg-[#7C3AED] rounded-[1.25rem] p-4 relative overflow-hidden shadow-lg border border-[#6D28D9]">
+                        <div className="absolute -top-10 -right-10 w-24 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                        <div className="flex items-center gap-3 relative z-10">
+                            <img
+                                src="/assets/ui/mascot/fox-hint.png"
+                                alt="Fox Tip"
+                                className="w-12 h-12 object-contain drop-shadow-md"
+                                onError={(e) =>
+                                    (e.target.style.display = "none")
+                                }
+                            />
                             <div>
-                                <p className="font-black text-[#1E293B] text-[11px]">
-                                    Great Start! 🎉
+                                <p className="font-black text-white text-[11px] mb-0.5">
+                                    Parent's Tip:
                                 </p>
-                                <p className="text-[10px] text-gray-400 leading-snug mt-0.5">
-                                    Completed your first lesson!
+                                <p className="text-[10px] text-purple-100 font-bold leading-tight">
+                                    Check the dashboard to view certificates!
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => handleNavigate("progress")}
-                            className="text-[#7C3AED] text-[10px] font-black w-full text-left mt-2.5 hover:underline flex items-center gap-1"
-                        >
-                            View Parent Dashboard <span>›</span>
-                        </button>
-                    </div>
-
-                    <div className="mt-auto bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-3.5 relative overflow-hidden border border-purple-100 min-h-[80px]">
-                        <p className="font-black text-[#1E293B] text-[11px]">
-                            💡 Keep it up!
-                        </p>
-                        <p className="text-[10px] text-gray-500 mt-0.5 pr-14 leading-snug">
-                            Every lesson brings you closer to new adventures!
-                        </p>
-                        <img
-                            src="/assets/ui/mascot/fox-hint.png"
-                            alt="Fox"
-                            className="absolute bottom-0 right-1 w-14 object-contain"
-                            onError={(e) => (e.target.style.display = "none")}
-                        />
                     </div>
                 </aside>
             </div>
+
+            <style>{`
+                /* إخفاء السكرول بار للخريطة */
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                
+                /* سكرول بار أنيق للسايد بار */
+                .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 20px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94A3B8; }
+
+                @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+            `}</style>
         </div>
     );
 };

@@ -2,83 +2,50 @@
 
 namespace App\Http\Controllers;
 
-use Inertia\Inertia;
-use Illuminate\Http\Request;
+use App\Models\Unit;
+use App\Models\UserProgress;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Inertia\Inertia;
 
 class HomeController extends Controller
 {
     public function index()
     {
-        return Inertia::render('HomeScreen');
-    }
+        $user = Auth::user();
+        $units = Unit::orderBy('unit_number')->get();
 
-    public function about()
-    {
-        return Inertia::render('AboutScreen');
-    }
+        // إذا الطالب مسجل دخول، نجيب تقدمه الحقيقي
+        if ($user) {
+            $progress = UserProgress::where('user_id', $user->id)->get()->keyBy('unit_id');
 
-    public function contact()
-    {
-        return Inertia::render('ContactScreen');
-    }
-
-    public function showLogin()
-    {
-        return Inertia::render('Auth/Login');
-    }
-
-    public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
-            return redirect()->intended('/map');
+            $mappedUnits = $units->map(function ($unit) use ($progress) {
+                $unitProgress = $progress->get($unit->id);
+                return [
+                    'id' => $unit->id,
+                    'unit_number' => $unit->unit_number,
+                    'title' => $unit->title,
+                    'image_path' => $unit->image_path,
+                    'color_key' => $unit->color_key,
+                    // إذا كان مسجل وكل شي مفتوح عندك، تأكد إن الحالة هون مش 'locked'
+                    'status' => $unitProgress ? $unitProgress->status : ($unit->unit_number == 1 ? 'active' : 'locked'),
+                ];
+            });
+        } else {
+            // للزوار: أول وحدة مفتوحة والباقي مقفل (أو حسب رغبتك)
+            $mappedUnits = $units->map(function ($unit) {
+                return [
+                    'id' => $unit->id,
+                    'unit_number' => $unit->unit_number,
+                    'title' => $unit->title,
+                    'image_path' => $unit->image_path,
+                    'color_key' => $unit->color_key,
+                    'status' => $unit->unit_number == 1 ? 'active' : 'locked',
+                ];
+            });
         }
 
-        return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
+        return Inertia::render('HomeScreen', [
+            'units' => $mappedUnits
         ]);
-    }
-
-    public function showRegister()
-    {
-        return Inertia::render('Auth/Register');
-    }
-
-    public function register(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'avatar' => 'boy',
-            'level' => 1,
-            'xp' => 0,
-            'total_stars' => 0,
-        ]);
-
-        Auth::login($user);
-        return redirect('/map');
-    }
-
-    public function logout(Request $request)
-    {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        return redirect('/');
     }
 }
