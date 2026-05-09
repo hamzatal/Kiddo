@@ -7,11 +7,10 @@ import { createInertiaApp } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 
 createInertiaApp({
-    // تأكد إن المسار هون بطابق مكان مجلد الشاشات عندك
     resolve: (name) =>
         resolvePageComponent(
-            `./kiddo/screens/${name}.jsx`,
-            import.meta.glob("./kiddo/screens/**/*.jsx"),
+            `./Pages/${name}.jsx`,
+            import.meta.glob("./Pages/**/*.jsx"),
         ),
     setup({ el, App, props }) {
         const root = createRoot(el);

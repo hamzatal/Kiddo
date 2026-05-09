@@ -2,74 +2,77 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Unit;
+use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\User;
-use App\Models\UserProgress;
-use Illuminate\Support\Facades\Auth;
 
 class MapController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
-        // بيانات وهمية في حال عدم وجود مستخدم لتسهيل الفحص
-        if (!$user) {
-            $user = User::firstOrCreate(
-                ['email' => 'alex@kiddo.test'],
-                [
-                    'name' => 'Alex',
-                    'password' => bcrypt('password'),
-                    'avatar' => 'boy',
-                    'level' => 2,
-                    'xp' => 350,
-                    'total_stars' => 125,
-                ]
-            );
-            Auth::login($user);
+        // تأكد من وجود Progress للوحدة الأولى على الأقل
+        $firstUnit = Unit::orderBy('unit_number')->first();
+        if ($firstUnit && !$user->progresses()->where('unit_id', $firstUnit->id)->exists()) {
+            UserProgress::create([
+                'user_id'        => $user->id,
+                'unit_id'        => $firstUnit->id,
+                'status'         => 'active',
+                'current_lesson' => 1,
+                'stars_earned'   => 0,
+            ]);
         }
 
-        // 1. الداتا الأساسية فقط (بدون أي ألوان أو مسارات صور)
-        $baseUnits = [
-            ['id' => 1, 'number' => '1', 'title' => 'Welcome Island', 'lessons_count' => 1],
-            ['id' => 2, 'number' => '2', 'title' => 'Family Tree', 'lessons_count' => 5],
-            ['id' => 3, 'number' => '3', 'title' => 'My School Bag', 'lessons_count' => 5],
-            ['id' => 4, 'number' => '4', 'title' => 'Our Classroom', 'lessons_count' => 5],
-            ['id' => 5, 'number' => '5', 'title' => 'My Favourite Toy', 'lessons_count' => 5],
-        ];
+        $units = Unit::orderBy('unit_number')
+            ->with('lessons')
+            ->get()
+            ->map(function (Unit $unit) use ($user) {
+                $progress = $user->progresses()
+                    ->where('unit_id', $unit->id)
+                    ->first();
 
-        // 2. جلب تقدم الطفل
-        $progress = UserProgress::where('user_id', $user->id)->get()->keyBy('unit_id');
+                $status = $progress->status ?? 'locked';
+                if (!$progress && $unit->unit_number === 1) {
+                    $status = 'active';
+                }
 
-        // 3. دمج الحالة مع الدروس
-        $units = array_map(function ($unit) use ($progress) {
-            $unitProgress = $progress->get($unit['id']);
+                return [
+                    'id'            => $unit->id,
+                    'number'        => $unit->unit_number,
+                    'title'         => $unit->title,
+                    'lessonsCount'  => $unit->lessons_count,
+                    'currentLesson' => $progress->current_lesson ?? 1,
+                    'status'        => $status,
+                    'stars'         => $progress->stars_earned ?? 0,
+                ];
+            });
 
-            if ($unitProgress) {
-                $unit['status'] = $unitProgress->status; // 'done', 'active', 'locked'
-                $unit['stars'] = $unitProgress->stars_earned;
-                $unit['current_lesson'] = $unitProgress->lesson_id ?? 1;
-            } else {
-                // الافتراضي: الدرس الأول مفتوح والباقي مقفل
-                $unit['status'] = $unit['id'] === 1 ? 'active' : 'locked';
-                $unit['stars'] = 0;
-                $unit['current_lesson'] = 1;
-            }
+        $completedUnitsCount = $units->where('status', 'done')->count();
 
-            return $unit;
-        }, $baseUnits);
+        // آخر وحدة/درس نشط
+        $activeProgress = $user->progresses()
+            ->with('unit')
+            ->where('status', 'active')
+            ->orderBy('unit_id')
+            ->first();
 
-        // إرسال داتا نقية للفرونت إند
-        return Inertia::render('MapScreen', [
-            'user' => [
-                'name' => $user->name,
-                'level' => $user->level,
-                'xp' => $user->xp,
-                'total_stars' => $user->total_stars,
-                'streak' => $user->streak ?? 3,
+        $latestLessonTitle = $activeProgress
+            ? $activeProgress->unit->title
+            : ($firstUnit->title ?? 'Welcome Island');
+
+        $completionPercentage = $units->count() > 0
+            ? round($completedUnitsCount / $units->count() * 100)
+            : 0;
+
+        return Inertia::render('Map/MapScreen', [
+            'user' => $user,
+            'units' => $units,
+            'stats' => [
+                'completionPercentage' => $completionPercentage,
+                'latestLesson'         => $latestLessonTitle,
             ],
-            'units' => $units
         ]);
     }
 }

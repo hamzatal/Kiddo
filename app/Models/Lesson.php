@@ -5,26 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Word extends Model
+class Lesson extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'unit_id',
-        'word',
+        'lesson_number',
+        'title',
         'type',
-        'audio_path',
-        'image_path',
-        'wrong_options',
-        'category',
+        'config',
     ];
 
     protected $casts = [
-        'wrong_options' => 'array',
+        'config' => 'array',
     ];
 
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function gameResults()
+    {
+        return $this->hasMany(GameResult::class);
     }
 }

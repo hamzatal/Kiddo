@@ -5,23 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class UserProgress extends Model
+class AiInteraction extends Model
 {
     use HasFactory;
 
-    protected $table = 'user_progress';
-
     protected $fillable = [
         'user_id',
+        'context',
         'unit_id',
-        'status',
-        'current_lesson',
-        'stars_earned',
-        'last_activity_at',
+        'lesson_id',
+        'payload',
+        'response',
     ];
 
     protected $casts = [
-        'last_activity_at' => 'datetime',
+        'payload' => 'array',
     ];
 
     public function user()
@@ -34,13 +32,8 @@ class UserProgress extends Model
         return $this->belongsTo(Unit::class);
     }
 
-    public function scopeActive($query)
+    public function lesson()
     {
-        return $query->where('status', 'active');
-    }
-
-    public function scopeDone($query)
-    {
-        return $query->where('status', 'done');
+        return $this->belongsTo(Lesson::class);
     }
 }
