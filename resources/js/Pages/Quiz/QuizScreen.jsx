@@ -7,8 +7,7 @@ const QuizScreen = ({ quizData }) => {
     const [wrongClicks, setWrongClicks] = useState([]);
     const [isFinished, setIsFinished] = useState(false);
 
-    // حماية للكود في حال تأخر الباك إند
-    const unit_id = quizData?.unit_id || 1;
+    const unitId = quizData?.unitId || 1;
     const questions = quizData?.questions || [
         {
             targetWord: "Word",
@@ -28,12 +27,10 @@ const QuizScreen = ({ quizData }) => {
 
             setTimeout(() => {
                 if (currentIndex + 1 < questions.length) {
-                    // الانتقال للسؤال التالي
                     setCurrentIndex(currentIndex + 1);
                     setSelectedCorrect(null);
                     setWrongClicks([]);
                 } else {
-                    // إنهاء الكويز
                     setIsFinished(true);
                 }
             }, 1200);
@@ -44,21 +41,28 @@ const QuizScreen = ({ quizData }) => {
     };
 
     const handleFinish = () => {
+        const correct = questions.length;
+        const wrong = 0;
+        const score = correct * 10;
+
         router.post("/quiz/submit", {
-            unit_id: unit_id,
+            unitId,
+            correctCount: correct,
+            wrongCount: wrong,
+            score,
         });
     };
 
     return (
         <div className="h-[100dvh] w-screen bg-[#F4F8FB] font-sans flex flex-col overflow-hidden relative">
-            {/* ── خلفية ديناميكية متحركة ── */}
+            {/* خلفية */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                <div className="absolute top-[-10%] left-[-10%] w-[30rem] h-[30rem] bg-purple-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob"></div>
-                <div className="absolute top-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-yellow-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-2000"></div>
-                <div className="absolute bottom-[-20%] left-[20%] w-[30rem] h-[30rem] bg-pink-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-4000"></div>
+                <div className="absolute top-[-10%] left-[-10%] w-[30rem] h-[30rem] bg-purple-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob" />
+                <div className="absolute top-[-10%] right-[-10%] w-[30rem] h-[30rem] bg-yellow-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-2000" />
+                <div className="absolute bottom-[-20%] left-[20%] w-[30rem] h-[30rem] bg-pink-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-4000" />
             </div>
 
-            {/* ── الهيدر وشريط التقدم ── */}
+            {/* Header + progress */}
             <header className="absolute top-0 left-0 w-full p-5 sm:p-6 flex flex-col gap-4 z-20 pointer-events-none">
                 <div className="flex justify-between items-center w-full">
                     <img
@@ -75,7 +79,6 @@ const QuizScreen = ({ quizData }) => {
                     </button>
                 </div>
 
-                {/* شريط التقدم العصري */}
                 {!isFinished && (
                     <div className="w-full max-w-2xl mx-auto flex items-center gap-3 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-sm border border-white pointer-events-auto">
                         <span className="text-xl">🌟</span>
@@ -93,16 +96,13 @@ const QuizScreen = ({ quizData }) => {
             </header>
 
             {!isFinished ? (
-                // ═══════════════════════════════════════════
-                // شاشة الكويز (الأسئلة المتتالية)
-                // ═══════════════════════════════════════════
                 <div
                     key={currentIndex}
                     className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 relative z-10 animate-fade-in-up mt-20"
                 >
                     <div className="bg-white/90 backdrop-blur-md px-8 py-5 rounded-[2rem] shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-white mb-8">
                         <h2 className="text-3xl sm:text-5xl font-black text-[#1E293B] drop-shadow-sm text-center">
-                            Where is:{" "}
+                            Where is{" "}
                             <span className="text-[#7C3AED] uppercase underline decoration-dashed">
                                 {currentQ.targetWord}
                             </span>
@@ -124,13 +124,13 @@ const QuizScreen = ({ quizData }) => {
                                     }
                                     onClick={() => handleChoice(opt)}
                                     className={`aspect-square sm:aspect-auto sm:h-64 p-6 bg-white/95 backdrop-blur-xl rounded-[2.5rem] border-4 transition-all duration-300 shadow-md flex items-center justify-center relative
-                                    ${
-                                        isCorrectSelected
-                                            ? "border-green-500 bg-green-50 scale-105 rotate-2 z-10 shadow-2xl"
-                                            : isWrong
-                                              ? "border-red-200 bg-red-50 opacity-40 grayscale scale-95 cursor-not-allowed"
-                                              : "border-white hover:border-purple-300 hover:shadow-xl hover:-translate-y-2"
-                                    }`}
+                    ${
+                        isCorrectSelected
+                            ? "border-green-500 bg-green-50 scale-105 rotate-2 z-10 shadow-2xl"
+                            : isWrong
+                              ? "border-red-200 bg-red-50 opacity-40 grayscale scale-95 cursor-not-allowed"
+                              : "border-white hover:border-purple-300 hover:shadow-xl hover:-translate-y-2"
+                    }`}
                                 >
                                     {opt.imagePath ? (
                                         <img
@@ -138,7 +138,7 @@ const QuizScreen = ({ quizData }) => {
                                             alt={opt.word}
                                             className="w-full h-full object-contain drop-shadow-md"
                                             onError={(e) =>
-                                                (e.target.outerHTML = `<span class="text-3xl font-black uppercase text-gray-400">${opt.word}</span>`)
+                                                (e.currentTarget.outerHTML = `<span class="text-3xl font-black uppercase text-gray-400">${opt.word}</span>`)
                                             }
                                         />
                                     ) : (
@@ -158,9 +158,6 @@ const QuizScreen = ({ quizData }) => {
                     </div>
                 </div>
             ) : (
-                // ═══════════════════════════════════════════
-                // شاشة النجاح والنهاية (الاحترافية)
-                // ═══════════════════════════════════════════
                 <div className="flex-1 flex items-center justify-center p-6 relative z-10 inset-0">
                     <div className="absolute inset-0 bg-sky-900/10 backdrop-blur-[2px]" />
 
@@ -187,7 +184,7 @@ const QuizScreen = ({ quizData }) => {
                                 alt="Trophy"
                                 className="w-24 h-24 object-contain drop-shadow-xl animate-pulse"
                                 onError={(e) =>
-                                    (e.target.outerHTML =
+                                    (e.currentTarget.outerHTML =
                                         '<span class="text-7xl drop-shadow-lg">🏆</span>')
                                 }
                             />
@@ -240,26 +237,27 @@ const QuizScreen = ({ quizData }) => {
                         >
                             COLLECT REWARDS ➔
                         </button>
-
-                        <img
-                            src="/assets/ui/mascot/fox-main.png"
-                            alt="Fox"
-                            className="absolute -bottom-8 -right-12 w-44 object-contain pointer-events-none drop-shadow-2xl z-30"
-                            onError={(e) => (e.target.style.display = "none")}
-                        />
                     </div>
                 </div>
             )}
 
             <style>{`
-                @keyframes fade-in-up { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-                .animate-fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-                
-                @keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-                .animate-blob { animation: blob 7s infinite; }
-                .animation-delay-2000 { animation-delay: 2s; }
-                .animation-delay-4000 { animation-delay: 4s; }
-            `}</style>
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(40px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob { animation: blob 7s infinite; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      `}</style>
         </div>
     );
 };
