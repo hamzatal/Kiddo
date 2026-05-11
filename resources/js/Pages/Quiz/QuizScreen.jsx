@@ -6,6 +6,8 @@ const QuizScreen = ({ quizData }) => {
     const [selectedCorrect, setSelectedCorrect] = useState(null);
     const [wrongClicks, setWrongClicks] = useState([]);
     const [isFinished, setIsFinished] = useState(false);
+    // Per-question stat: true if answered correctly on the first click.
+    const [questionStats, setQuestionStats] = useState([]);
 
     const unitId = quizData?.unitId || 1;
     const questions = quizData?.questions || [
@@ -24,6 +26,9 @@ const QuizScreen = ({ quizData }) => {
         if (opt.isCorrect) {
             setSelectedCorrect(opt.id);
             new Audio("/assets/audio/success.mp3").play().catch(() => {});
+            const firstTry = wrongClicks.length === 0;
+            const nextStats = [...questionStats, { correct: firstTry }];
+            setQuestionStats(nextStats);
 
             setTimeout(() => {
                 if (currentIndex + 1 < questions.length) {
@@ -40,16 +45,15 @@ const QuizScreen = ({ quizData }) => {
         }
     };
 
-    const handleFinish = () => {
-        const correct = questions.length;
-        const wrong = 0;
-        const score = correct * 10;
+    const correctCount = questionStats.filter((s) => s.correct).length;
+    const wrongCount = questionStats.length - correctCount;
 
+    const handleFinish = () => {
         router.post("/quiz/submit", {
             unitId,
-            correctCount: correct,
-            wrongCount: wrong,
-            score,
+            correctCount,
+            wrongCount,
+            total: questions.length,
         });
     };
 
@@ -197,9 +201,9 @@ const QuizScreen = ({ quizData }) => {
                         <p className="text-lg sm:text-xl text-gray-500 font-bold mb-10 max-w-md">
                             Amazing job! You scored{" "}
                             <span className="text-green-500">
-                                {questions.length} / {questions.length}
+                                {correctCount} / {questions.length}
                             </span>{" "}
-                            and mastered this unit.
+                            on your first try.
                         </p>
 
                         <div className="flex gap-4 mb-12 w-full justify-center">

@@ -1,9 +1,13 @@
 import React, { useState } from "react";
 import { router } from "@inertiajs/react";
+import TrackPlayer from "@/learning/components/ui/TrackPlayer";
 
 /* 1) Learn stage */
-const LearnStage = ({ wordData, onComplete }) => {
+const LearnStage = ({ wordData, audioTrack, lesson, onComplete }) => {
     const [isListening, setIsListening] = useState(false);
+    const [trackPlayed, setTrackPlayed] = useState(false);
+
+    const hasTrack = !!(audioTrack && (audioTrack.playUrl || audioTrack.localUrl || audioTrack.url));
 
     const playWord = () => {
         if (!wordData?.audioPath) {
@@ -15,57 +19,76 @@ const LearnStage = ({ wordData, onComplete }) => {
         const audio = new Audio(wordData.audioPath);
         audio.play().catch(() => {
             setIsListening(false);
-            onComplete();
+            if (!hasTrack || trackPlayed) onComplete();
         });
 
         audio.onended = () => {
             setIsListening(false);
-            onComplete();
+            if (!hasTrack || trackPlayed) onComplete();
         };
     };
 
+    const handleTrackEnded = () => {
+        setTrackPlayed(true);
+        onComplete();
+    };
+
     return (
-        <div className="w-full max-w-4xl bg-white/95 backdrop-blur-2xl rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white flex flex-col md:flex-row items-center p-8 sm:p-14 gap-10 sm:gap-16 relative animate-fade-in-up">
-            <div className="w-56 h-56 sm:w-80 sm:h-80 bg-gradient-to-br from-[#F4F8FB] to-[#E2E8F0] rounded-[2.5rem] border-4 border-white flex items-center justify-center p-6 shadow-inner shrink-0 group overflow-hidden">
-                {wordData?.imagePath ? (
-                    <img
-                        src={wordData.imagePath}
-                        alt={wordData.word}
-                        className="w-full h-full object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                            e.currentTarget.outerHTML =
-                                '<span class="text-[100px] drop-shadow-lg">🔤</span>';
-                        }}
-                    />
-                ) : (
-                    <span className="text-[100px] drop-shadow-lg">🔤</span>
-                )}
+        <div className="w-full max-w-4xl flex flex-col items-center gap-6 animate-fade-in-up">
+            <div className="w-full bg-white/95 backdrop-blur-2xl rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.05)] border border-white flex flex-col md:flex-row items-center p-8 sm:p-14 gap-10 sm:gap-16 relative">
+                <div className="w-56 h-56 sm:w-80 sm:h-80 bg-gradient-to-br from-[#F4F8FB] to-[#E2E8F0] rounded-[2.5rem] border-4 border-white flex items-center justify-center p-6 shadow-inner shrink-0 group overflow-hidden">
+                    {wordData?.imagePath ? (
+                        <img
+                            src={wordData.imagePath}
+                            alt={wordData.word}
+                            className="w-full h-full object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => {
+                                e.currentTarget.outerHTML =
+                                    '<span class="text-[100px] drop-shadow-lg">🔤</span>';
+                            }}
+                        />
+                    ) : (
+                        <span className="text-[100px] drop-shadow-lg">🔤</span>
+                    )}
+                </div>
+
+                <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left w-full">
+                    {lesson?.pageNumber ? (
+                        <p className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-600 mb-1">
+                            Book page {lesson.pageNumber}
+                        </p>
+                    ) : null}
+                    <p className="text-gray-400 font-black uppercase tracking-[0.25em] text-[12px] mb-2 flex items-center gap-2">
+                        <span className="text-xl">✨</span> New Word
+                    </p>
+                    <h1 className="text-5xl sm:text-[80px] font-black text-[#1E293B] tracking-tight mb-8 drop-shadow-sm leading-none uppercase">
+                        {wordData?.word || "Error"}
+                    </h1>
+
+                    <button
+                        onClick={playWord}
+                        disabled={isListening}
+                        className={`flex items-center gap-4 px-8 sm:px-12 py-5 sm:py-6 rounded-[2rem] font-black text-xl sm:text-2xl transition-all duration-300 w-full sm:w-auto justify-center
+                ${
+                    isListening
+                        ? "bg-purple-300 text-white shadow-none translate-y-[6px] cursor-wait"
+                        : "bg-[#7C3AED] text-white shadow-[0_6px_0_#5B21B6] hover:bg-[#6D28D9] hover:translate-y-[2px] active:translate-y-[6px] active:shadow-none"
+                }`}
+                    >
+                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl shadow-inner">
+                            {isListening ? "🎧" : "🔊"}
+                        </div>
+                        {isListening ? "LISTENING..." : "LISTEN"}
+                    </button>
+                </div>
             </div>
 
-            <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left w-full">
-                <p className="text-gray-400 font-black uppercase tracking-[0.25em] text-[12px] mb-2 flex items-center gap-2">
-                    <span className="text-xl">✨</span> New Word
-                </p>
-                <h1 className="text-5xl sm:text-[80px] font-black text-[#1E293B] tracking-tight mb-8 drop-shadow-sm leading-none uppercase">
-                    {wordData?.word || "Error"}
-                </h1>
-
-                <button
-                    onClick={playWord}
-                    disabled={isListening}
-                    className={`flex items-center gap-4 px-8 sm:px-12 py-5 sm:py-6 rounded-[2rem] font-black text-xl sm:text-2xl transition-all duration-300 w-full sm:w-auto justify-center
-            ${
-                isListening
-                    ? "bg-purple-300 text-white shadow-none translate-y-[6px] cursor-wait"
-                    : "bg-[#7C3AED] text-white shadow-[0_6px_0_#5B21B6] hover:bg-[#6D28D9] hover:translate-y-[2px] active:translate-y-[6px] active:shadow-none"
-            }`}
-                >
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl shadow-inner">
-                        {isListening ? "🎧" : "🔊"}
-                    </div>
-                    {isListening ? "LISTENING..." : "LISTEN"}
-                </button>
-            </div>
+            {hasTrack && (
+                <TrackPlayer
+                    audioTrack={audioTrack}
+                    onEnded={handleTrackEnded}
+                />
+            )}
         </div>
     );
 };
@@ -255,7 +278,7 @@ const RewardStage = ({ word }) => (
 );
 
 /* 4) LessonScreen main */
-const LessonScreen = ({ unit, wordData, progress }) => {
+const LessonScreen = ({ unit, lesson, wordData, audioTrack, progress, mode }) => {
     const [currentStep, setCurrentStep] = useState(0); // 0 Learn, 1 Play, 2 Reward
     const [isStepCompleted, setIsStepCompleted] = useState(false);
 
@@ -266,6 +289,7 @@ const LessonScreen = ({ unit, wordData, progress }) => {
         wrongOptions: [],
     };
     const safeUnit = unit || { id: 1, title: "Lesson" };
+    const safeLesson = lesson || null;
 
     const currentLesson = progress?.current || 1;
     const totalLessons = progress?.total || 1;
@@ -320,6 +344,11 @@ const LessonScreen = ({ unit, wordData, progress }) => {
                         <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest">
                             {safeUnit.title}
                         </span>
+                        {safeLesson?.title ? (
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                · {safeLesson.title}
+                            </span>
+                        ) : null}
                     </div>
                     <button
                         onClick={() => router.visit("/map")}
@@ -372,6 +401,8 @@ const LessonScreen = ({ unit, wordData, progress }) => {
                 {currentStep === 0 && (
                     <LearnStage
                         wordData={safeWordData}
+                        audioTrack={audioTrack}
+                        lesson={safeLesson}
                         onComplete={() => setIsStepCompleted(true)}
                     />
                 )}
