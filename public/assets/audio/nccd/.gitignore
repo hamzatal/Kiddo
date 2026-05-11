@@ -1,0 +1,5 @@
+# Downloaded NCCD audio tracks are fetched at runtime via:
+#   php artisan nccd:download
+# Do not commit the binary files — the URLs are already in audio_tracks.
+*
+!.gitignore

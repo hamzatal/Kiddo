@@ -44,6 +44,11 @@ Route::middleware(['auth'])->group(function () {
         ->whereNumber('unit')
         ->name('lesson.complete');
 
+    Route::post('/lesson/{unit}/{lesson}/result', [LessonController::class, 'submitResult'])
+        ->whereNumber('unit')
+        ->whereNumber('lesson')
+        ->name('lesson.result');
+
     Route::get('/quiz/{unit}', [QuizController::class, 'show'])
         ->whereNumber('unit')
         ->name('quiz.show');

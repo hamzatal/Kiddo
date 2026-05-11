@@ -12,9 +12,11 @@ class Lesson extends Model
     protected $fillable = [
         'unit_id',
         'lesson_number',
+        'page_number',
         'title',
         'type',
         'config',
+        'audio_track_id',
     ];
 
     protected $casts = [
@@ -24,6 +26,11 @@ class Lesson extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function audioTrack()
+    {
+        return $this->belongsTo(AudioTrack::class);
     }
 
     public function gameResults()
