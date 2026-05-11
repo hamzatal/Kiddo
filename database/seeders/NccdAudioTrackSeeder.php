@@ -6,162 +6,281 @@ use App\Models\AudioTrack;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds every audio track from the official NCCD directory
- *     https://qr.nccd.gov.jo/QR/Eng/1/ab/
+ * Full audio index for the NCCD Team Together 1A (Jordan) curriculum.
  *
- * The directory listing that backs this seeder was captured from the
- * Jordanian MoE server on 2024-07-31 / 2024-09-04. Activity labels and
- * "kind" classification come from the Team Together 1A Activity Book
- * pages 4-20 (Welcome + Unit 1 "Family and friends") as mapped by the
- * project owner.
+ * Sources mirrored from:
+ *   https://qr.nccd.gov.jo/QR/Eng/1/ab/   (Activity Book, 2024)
+ *   https://qr.nccd.gov.jo/QR/Eng/1/pb/   (Pupil's Book, 2024)
  *
- * Pages 21-37 belong to later units (Semester 1 remainder) and are
- * seeded with generic labels so they can be bound to lessons once the
- * corresponding book pages are wired up.
+ * Codes follow a simple scheme consumed by CurriculumSeeder:
+ *   AB{page}[_{track}][V]   — Activity Book  (V suffix = mp4 video)
+ *   PB{page}[_{track}][V]   — Pupil's Book
+ *
+ * Activity labels reflect the 5-part book structure provided by the
+ * project owner (Welcome p4-5; U1 Family p6-13; U2 School bag p14-21;
+ * U3 Classroom p22-29; U4 Toy p30-37; Learning Club p38-39).
  */
 class NccdAudioTrackSeeder extends Seeder
 {
-    private const BASE_URL = 'https://qr.nccd.gov.jo/QR/Eng/1/ab/';
+    private const BASE = 'https://qr.nccd.gov.jo/QR/Eng/1/';
 
     public function run(): void
     {
-        foreach ($this->tracks() as $t) {
-            $file = $t['file'];                                  // e.g. p4.mp3
-            $format = str_ends_with($file, '.mp4') ? 'mp4' : 'mp3';
-            $code = $this->codeFor($file, $format);
-
-            AudioTrack::updateOrCreate(
-                ['code' => $code],
-                [
-                    'source'    => 'ab',
-                    'book_type' => 'ab',
-                    'semester'  => 1,
-                    'page'      => $t['page'],
-                    'track_no'  => $t['track_no'],
-                    'label'     => $t['label'],
-                    'kind'      => $t['kind'],
-                    'url'       => self::BASE_URL . $file,
-                    'format'    => $format,
-                    'file_size' => $t['size'] ?? null,
-                ]
-            );
+        foreach ($this->abTracks() as $t) {
+            $this->upsert('ab', $t);
+        }
+        foreach ($this->pbTracks() as $t) {
+            $this->upsert('pb', $t);
         }
     }
 
-    /**
-     * Convert a file name into a stable uppercase code.
-     *  p4.mp3      -> AB4
-     *  p4.2.mp3    -> AB4_2
-     *  p12.mp4     -> AB12V
-     */
-    private function codeFor(string $file, string $format): string
+    private function upsert(string $source, array $t): void
     {
-        $base = rtrim(basename($file), '.mp3');
-        $base = str_replace(['.mp4', '.mp3'], '', $base);      // p4, p4.2, p12
-        $parts = explode('.', substr($base, 1));               // ["4"] or ["4","2"]
-        $page = (int) $parts[0];
-        $trackSuffix = isset($parts[1]) ? '_' . $parts[1] : '';
+        $file = $t['file'];
+        $format = str_ends_with($file, '.mp4') ? 'mp4' : 'mp3';
+        $code = $this->codeFor($source, $file, $format);
+        $bookType = $source === 'pb' ? 'pb' : 'ab';
 
-        return 'AB' . $page . $trackSuffix . ($format === 'mp4' ? 'V' : '');
+        AudioTrack::updateOrCreate(
+            ['code' => $code],
+            [
+                'source'    => $source,
+                'book_type' => $bookType,
+                'semester'  => 1,
+                'page'      => $t['page'],
+                'track_no'  => $t['track_no'],
+                'label'     => $t['label'],
+                'kind'      => $t['kind'],
+                'url'       => self::BASE . $source . '/' . $file,
+                'format'    => $format,
+                'file_size' => $t['size'] ?? null,
+            ]
+        );
     }
 
     /**
-     * Full manifest of files in /QR/Eng/1/ab/.
-     * Labels on pages 4-20 come from the project owner's book analysis.
+     * p4.mp3   -> AB4 / PB4
+     * p4.2.mp3 -> AB4_2 / PB4_2
+     * p12.mp4  -> AB12V / PB12V
      */
-    private function tracks(): array
+    private function codeFor(string $source, string $file, string $format): string
+    {
+        $prefix = $source === 'pb' ? 'PB' : 'AB';
+        $base = str_replace(['.mp3', '.mp4'], '', $file);       // p4 | p4.2 | p12
+        $parts = explode('.', substr($base, 1));                // ["4"] or ["4","2"]
+        $page = (int) $parts[0];
+        $suffix = isset($parts[1]) ? '_' . $parts[1] : '';
+        return $prefix . $page . $suffix . ($format === 'mp4' ? 'V' : '');
+    }
+
+    // ══════════════════════════════════════════════════════
+    // /ab/  — Activity Book tracks (42 files)
+    // ══════════════════════════════════════════════════════
+
+    private function abTracks(): array
     {
         return [
-            // ───── Welcome: Hello! (pages 4-9) ─────
+            // ── Welcome: Hello! (p4-5) ──
             ['file' => 'p4.mp3',    'page' => 4,  'track_no' => 1, 'kind' => 'listen_and_point',
-             'label' => 'Welcome: Listen and point (greetings scene)',       'size' => 2178608],
+             'label' => 'Welcome p4: Listen and point (Hello/Hi/Good morning scene)'],
             ['file' => 'p4.2.mp3',  'page' => 4,  'track_no' => 2, 'kind' => 'listen_point_say',
-             'label' => 'Welcome: Listen, point and say (Hello/Hi/Good morning; Bill, Hala, Malek, Lama)', 'size' => 653046],
-
+             'label' => 'Welcome p4: Listen, point and say (characters Bill, Hala, Malek, Lama)'],
             ['file' => 'p5.mp3',    'page' => 5,  'track_no' => 1, 'kind' => 'listen_point_say',
-             'label' => 'Colours: Listen, point and say (blue, green, orange, red, yellow, brown)', 'size' => 937876],
+             'label' => 'Welcome p5: Listen, point and say (colours & numbers 1-10)'],
 
-            ['file' => 'p6.mp3',    'page' => 6,  'track_no' => 1, 'kind' => 'listen_and_count',
-             'label' => 'Numbers 1-5: Listen and count, point and say',       'size' => 2675652],
-
-            ['file' => 'p7.mp3',    'page' => 7,  'track_no' => 1, 'kind' => 'story',
-             'label' => 'Story: Find Ann (Listen and read)',                  'size' => 678086],
-            ['file' => 'p7.2.mp3',  'page' => 7,  'track_no' => 2, 'kind' => 'listen_and_point',
-             'label' => 'Story: Listen and point',                            'size' => 621120],
-
-            // Note: page 8 revision has no dedicated track on NCCD.
-
-            ['file' => 'p9.mp3',    'page' => 9,  'track_no' => 1, 'kind' => 'listen_and_count',
-             'label' => 'Numbers 6-10: Listen and count, point and say',      'size' => 1119416],
-
-            // ───── Unit 1: Family and friends (pages 10-20) ─────
-            ['file' => 'p10.mp3',   'page' => 10, 'track_no' => 1, 'kind' => 'listen_point_say',
-             'label' => 'Family intro: Listen, point and say (girl, boy, cat, friend)', 'size' => 638648],
-            ['file' => 'p10.2.mp3', 'page' => 10, 'track_no' => 2, 'kind' => 'listen_and_point',
-             'label' => 'Family intro: Listen and point',                     'size' => 693736],
-
-            ['file' => 'p11.mp3',   'page' => 11, 'track_no' => 1, 'kind' => 'listen_point_say',
-             'label' => 'Trace and circle + match: teacher prompts',          'size' => 1433042],
-            ['file' => 'p11.2.mp3', 'page' => 11, 'track_no' => 2, 'kind' => 'listen_and_point',
-             'label' => 'Listen and point',                                   'size' => 1111278],
-
-            ['file' => 'p12.mp3',   'page' => 12, 'track_no' => 1, 'kind' => 'listen_point_say',
-             'label' => 'Family members: Listen, point and say (mum, dad, brother, sister)', 'size' => 1174504],
-            ['file' => 'p12.2.mp3', 'page' => 12, 'track_no' => 2, 'kind' => 'listen_and_point',
-             'label' => 'Family members: Listen and point (This is my mum!)', 'size' => 669322],
+            // ── U1 Family and friends (p6-13) ──
+            ['file' => 'p6.mp3',    'page' => 6,  'track_no' => 1, 'kind' => 'listen_point_say',
+             'label' => 'U1 L1 p6: Listen, point and say (boy, brother, cat, dad, friend, girl, mum, sister)'],
+            ['file' => 'p7.mp3',    'page' => 7,  'track_no' => 1, 'kind' => 'listen_and_circle',
+             'label' => 'U1 L3 p7: Language practice — Listen and circle'],
+            ['file' => 'p7.2.mp3',  'page' => 7,  'track_no' => 2, 'kind' => 'listen_point_say',
+             'label' => 'U1 L3 p7: Listen and number'],
+            ['file' => 'p9.mp3',    'page' => 9,  'track_no' => 1, 'kind' => 'song',
+             'label' => 'U1 L7 p9: Listen again / Listen and match / Listen and sing'],
+            ['file' => 'p10.mp3',   'page' => 10, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U1 L9 p10: Phonics Ss, Dd — Listen, point and say (sing, dig, sun, duck)'],
+            ['file' => 'p10.2.mp3', 'page' => 10, 'track_no' => 2, 'kind' => 'phonics',
+             'label' => 'U1 L9 p10: Listen and circle the sound'],
+            ['file' => 'p11.mp3',   'page' => 11, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U1 L10 p11: Phonics Cc, Aa — Listen, point and say (cut, cap, apple, ant)'],
+            ['file' => 'p11.2.mp3', 'page' => 11, 'track_no' => 2, 'kind' => 'phonics',
+             'label' => 'U1 L10 p11: Listen and circle the sound'],
+            ['file' => 'p12.mp3',   'page' => 12, 'track_no' => 1, 'kind' => 'song',
+             'label' => 'U1 L11 p12: Finger puppets project — Sing and play'],
+            ['file' => 'p12.2.mp3', 'page' => 12, 'track_no' => 2, 'kind' => 'dialogue',
+             'label' => 'U1 L11 p12: Make and show instructions'],
             ['file' => 'p12.mp4',   'page' => 12, 'track_no' => 1, 'kind' => 'dialogue',
-             'label' => 'Family members: animated scene (video)',             'size' => 25980965],
-
+             'label' => 'U1 L11 p12: Finger puppets video'],
             ['file' => 'p13.mp3',   'page' => 13, 'track_no' => 1, 'kind' => 'listen_and_trace',
-             'label' => 'Listen and trace (This is my sister / dad / cat)',   'size' => 908454],
+             'label' => 'U1 Picture dictionary p13: Listen and trace (8 family words)'],
 
-            ['file' => 'p14.mp3',   'page' => 14, 'track_no' => 1, 'kind' => 'phonics',
-             'label' => 'Phonics Ss & Dd: Listen, point and say + circle the sound', 'size' => 3772404],
-
-            ['file' => 'p15.mp3',   'page' => 15, 'track_no' => 1, 'kind' => 'listen_and_trace',
-             'label' => 'Phonics Ss & Dd: Listen and trace',                  'size' => 669948],
+            // ── U2 My school bag (p14-21) ──
+            ['file' => 'p14.mp3',   'page' => 14, 'track_no' => 1, 'kind' => 'listen_point_say',
+             'label' => 'U2 L1 p14: Listen, point and say (pen, eraser, ruler, bag; pencil case, crayon, book, pencil)'],
+            ['file' => 'p15.mp3',   'page' => 15, 'track_no' => 1, 'kind' => 'listen_and_circle',
+             'label' => 'U2 L3 p15: Language practice — Listen and circle (I\'ve got / I haven\'t got)'],
             ['file' => 'p15.2.mp3', 'page' => 15, 'track_no' => 2, 'kind' => 'listen_point_say',
-             'label' => 'Phonics Ss & Dd: Look, write and say prompts',       'size' => 698744],
+             'label' => 'U2 L3 p15: Listen and number'],
+            ['file' => 'p18.mp3',   'page' => 18, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U2 L9 p18: Phonics Pp, Rr — Listen, point and say (pen, pink, pencil; rabbit, red, run, ruler)'],
+            ['file' => 'p18.2.mp3', 'page' => 18, 'track_no' => 2, 'kind' => 'phonics',
+             'label' => 'U2 L9 p18: Listen and circle the sound'],
+            ['file' => 'p19.mp3',   'page' => 19, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U2 L10 p19: Phonics Ee, Bb — Listen, point and say (elephant, egg; book, ball, bag, boy)'],
+            ['file' => 'p19.2.mp3', 'page' => 19, 'track_no' => 2, 'kind' => 'phonics',
+             'label' => 'U2 L10 p19: Listen and circle the sound'],
+            ['file' => 'p20.mp3',   'page' => 20, 'track_no' => 1, 'kind' => 'song',
+             'label' => 'U2 L11 p20: A school bag project — Sing and play'],
+            ['file' => 'p20.2.mp3', 'page' => 20, 'track_no' => 2, 'kind' => 'dialogue',
+             'label' => 'U2 L11 p20: Make and show instructions'],
+            ['file' => 'p20.mp4',   'page' => 20, 'track_no' => 1, 'kind' => 'dialogue',
+             'label' => 'U2 L11 p20: School bag project video'],
+            ['file' => 'p21.mp3',   'page' => 21, 'track_no' => 1, 'kind' => 'listen_and_trace',
+             'label' => 'U2 Picture dictionary p21: Listen and trace (8 school objects)'],
 
-            // Note: pages 16-17 (Phonics c, a) have no audio on NCCD /ab/; p14 covers s/d.
+            // ── U3 Our classroom (p22-29) ──
+            ['file' => 'p22.mp3',   'page' => 22, 'track_no' => 1, 'kind' => 'listen_point_say',
+             'label' => 'U3 L1 p22: Listen, point and say (teacher, whiteboard, door, window; chair, desk, floor, wall)'],
+            ['file' => 'p23.mp3',   'page' => 23, 'track_no' => 1, 'kind' => 'listen_point_say',
+             'label' => 'U3 L3 p23: Language practice — Listen and number (on/in/under)'],
+            ['file' => 'p23.2.mp3', 'page' => 23, 'track_no' => 2, 'kind' => 'listen_and_circle',
+             'label' => 'U3 L3 p23: Listen and tick'],
+            ['file' => 'p26.mp3',   'page' => 26, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U3 L9 p26: Phonics Tt, Mm — Listen, point and say (teddy, teacher; mouse, milk, moon, mum)'],
+            ['file' => 'p27.mp3',   'page' => 27, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U3 L10 p27: Phonics Ww, Ii — Listen, point and say (wave, wall, water, whiteboard; insect, ink, igloo)'],
+            ['file' => 'p27.2.mp3', 'page' => 27, 'track_no' => 2, 'kind' => 'phonics',
+             'label' => 'U3 L10 p27: Listen and circle the sound'],
+            ['file' => 'p28.mp3',   'page' => 28, 'track_no' => 1, 'kind' => 'song',
+             'label' => 'U3 L11 p28: A pen pot project — Listen and play'],
+            ['file' => 'p28.2.mp3', 'page' => 28, 'track_no' => 2, 'kind' => 'dialogue',
+             'label' => 'U3 L11 p28: Make and show instructions'],
+            ['file' => 'p28.mp4',   'page' => 28, 'track_no' => 1, 'kind' => 'dialogue',
+             'label' => 'U3 L11 p28: Pen pot project video'],
+            ['file' => 'p29.mp3',   'page' => 29, 'track_no' => 1, 'kind' => 'listen_and_trace',
+             'label' => 'U3 Picture dictionary p29: Listen and trace (8 classroom words)'],
 
-            ['file' => 'p18.mp3',   'page' => 18, 'track_no' => 1, 'kind' => 'story',
-             'label' => 'Story Let\'s play: Listen and read',                  'size' => 657428],
-            ['file' => 'p18.2.mp3', 'page' => 18, 'track_no' => 2, 'kind' => 'listen_and_point',
-             'label' => 'Story Let\'s play: Listen and point',                 'size' => 1404246],
+            // ── U4 My favourite toy (p30-37) ──
+            ['file' => 'p30.mp3',   'page' => 30, 'track_no' => 1, 'kind' => 'listen_point_say',
+             'label' => 'U4 L1 p30: Listen, point and say (car, ball, teddy, robot; doll, plane, train, yoyo)'],
+            ['file' => 'p31.mp3',   'page' => 31, 'track_no' => 1, 'kind' => 'listen_and_circle',
+             'label' => 'U4 L3 p31: Language practice — Listen and circle (What colour is it?)'],
+            ['file' => 'p31.2.mp3', 'page' => 31, 'track_no' => 2, 'kind' => 'listen_point_say',
+             'label' => 'U4 L3 p31: Listen and number'],
+            ['file' => 'p32.mp3',   'page' => 32, 'track_no' => 1, 'kind' => 'story',
+             'label' => 'U4 L5 p32: Story Find Sue — Listen and read (value: share)'],
+            ['file' => 'p34.mp3',   'page' => 34, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U4 L9 p34: CVC words — sound blending (red, cat, mat, sit, bed, web)'],
+            ['file' => 'p35.mp3',   'page' => 35, 'track_no' => 1, 'kind' => 'phonics',
+             'label' => 'U4 L10 p35: CVC words — Listen, order and write (sad, wet, map, bat, cap, tap)'],
+            ['file' => 'p36.mp4',   'page' => 36, 'track_no' => 1, 'kind' => 'dialogue',
+             'label' => 'U4 L11 p36: A toy box project video'],
+            ['file' => 'p37.mp3',   'page' => 37, 'track_no' => 1, 'kind' => 'listen_and_trace',
+             'label' => 'U4 Picture dictionary p37: Listen and trace (8 toy words)'],
+        ];
+    }
 
-            ['file' => 'p19.mp3',   'page' => 19, 'track_no' => 1, 'kind' => 'revision',
-             'label' => 'Revision: Count and circle prompts',                 'size' => 979192],
-            ['file' => 'p19.2.mp3', 'page' => 19, 'track_no' => 2, 'kind' => 'listen_and_trace',
-             'label' => 'Revision: Listen and trace (A boy and a dad, A cat and a doll)', 'size' => 745694],
+    // ══════════════════════════════════════════════════════
+    // /pb/  — Pupil's Book tracks (77 files)
+    // ══════════════════════════════════════════════════════
 
-            ['file' => 'p20.mp3',   'page' => 20, 'track_no' => 1, 'kind' => 'listen_write_colour',
-             'label' => 'Review: Listen, write and colour',                   'size' => 1180138],
-            ['file' => 'p20.2.mp3', 'page' => 20, 'track_no' => 2, 'kind' => 'listen_and_match',
-             'label' => 'Review: Look, match and trace prompts',              'size' => 681216],
-            ['file' => 'p20.mp4',   'page' => 20, 'track_no' => 1, 'kind' => 'revision',
-             'label' => 'Review: animated recap (video)',                     'size' => 25876403],
+    private function pbTracks(): array
+    {
+        return [
+            // ── Welcome ──
+            ['file' => 'p4.mp3',    'page' => 4,  'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB Welcome p4: Listen, point and say'],
+            ['file' => 'p5.mp3',    'page' => 5,  'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB Welcome p5: Colours and numbers'],
 
-            // ───── Pages 21-37 (upcoming units, labels are provisional) ─────
-            ['file' => 'p21.mp3',   'page' => 21, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 21 audio',  'size' => 768856],
-            ['file' => 'p22.mp3',   'page' => 22, 'track_no' => 1, 'kind' => 'story',       'label' => 'Page 22 story',  'size' => 2475958],
-            ['file' => 'p23.mp3',   'page' => 23, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 23 audio',  'size' => 689980],
-            ['file' => 'p23.2.mp3', 'page' => 23, 'track_no' => 2, 'kind' => 'other',       'label' => 'Page 23 audio 2','size' => 870894],
-            ['file' => 'p26.mp3',   'page' => 26, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 26 audio',  'size' => 650542],
-            ['file' => 'p27.mp3',   'page' => 27, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 27 audio',  'size' => 966672],
-            ['file' => 'p27.2.mp3', 'page' => 27, 'track_no' => 2, 'kind' => 'other',       'label' => 'Page 27 audio 2','size' => 527846],
-            ['file' => 'p28.mp3',   'page' => 28, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 28 audio',  'size' => 1473106],
-            ['file' => 'p28.2.mp3', 'page' => 28, 'track_no' => 2, 'kind' => 'other',       'label' => 'Page 28 audio 2','size' => 657428],
-            ['file' => 'p28.mp4',   'page' => 28, 'track_no' => 1, 'kind' => 'dialogue',    'label' => 'Page 28 video',  'size' => 52510638],
-            ['file' => 'p29.mp3',   'page' => 29, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 29 audio',  'size' => 976062],
-            ['file' => 'p30.mp3',   'page' => 30, 'track_no' => 1, 'kind' => 'story',       'label' => 'Page 30 story',  'size' => 2815876],
-            ['file' => 'p31.mp3',   'page' => 31, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 31 audio',  'size' => 684972],
-            ['file' => 'p31.2.mp3', 'page' => 31, 'track_no' => 2, 'kind' => 'other',       'label' => 'Page 31 audio 2','size' => 1141326],
-            ['file' => 'p32.mp3',   'page' => 32, 'track_no' => 1, 'kind' => 'revision',    'label' => 'Page 32 revision','size' => 1153220],
-            ['file' => 'p34.mp3',   'page' => 34, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 34 audio',  'size' => 636144],
-            ['file' => 'p35.mp3',   'page' => 35, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 35 audio',  'size' => 1011744],
-            ['file' => 'p36.mp4',   'page' => 36, 'track_no' => 1, 'kind' => 'revision',    'label' => 'Page 36 video',  'size' => 44487947],
-            ['file' => 'p37.mp3',   'page' => 37, 'track_no' => 1, 'kind' => 'other',       'label' => 'Page 37 audio',  'size' => 1046174],
+            // ── U1 Family and friends ──
+            ['file' => 'p6.mp3',    'page' => 6,  'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB U1 L1 p6: Listen and follow (family vocabulary)'],
+            ['file' => 'p6.2.mp3',  'page' => 6,  'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U1 L1 p6: Listen, point and say'],
+            ['file' => 'p7.mp3',    'page' => 7,  'track_no' => 1, 'kind' => 'listen_and_circle', 'label' => 'PB U1 L3 p7: Listen and circle'],
+            ['file' => 'p7.2.mp3',  'page' => 7,  'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U1 L3 p7: Listen and number'],
+            ['file' => 'p7.3.mp3',  'page' => 7,  'track_no' => 3, 'kind' => 'listen_point_say', 'label' => 'PB U1 L3 p7: Listen. Then say'],
+            ['file' => 'p8.mp3',    'page' => 8,  'track_no' => 1, 'kind' => 'story',            'label' => 'PB U1 L5 p8: Story Find Ann — Listen and read (value: be helpful)'],
+            ['file' => 'p9.mp3',    'page' => 9,  'track_no' => 1, 'kind' => 'listen_and_match', 'label' => 'PB U1 L7 p9: Listen again'],
+            ['file' => 'p9.2.mp3',  'page' => 9,  'track_no' => 2, 'kind' => 'listen_and_match', 'label' => 'PB U1 L7 p9: Listen and match'],
+            ['file' => 'p9.3.mp3',  'page' => 9,  'track_no' => 3, 'kind' => 'song',             'label' => 'PB U1 L7 p9: Listen and sing'],
+            ['file' => 'p9.4.mp3',  'page' => 9,  'track_no' => 4, 'kind' => 'song',             'label' => 'PB U1 L7 p9: Song karaoke'],
+            ['file' => 'p10.mp3',   'page' => 10, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U1 L9 p10: Phonics Ss, Dd — Listen, point and say'],
+            ['file' => 'p10.2.mp3', 'page' => 10, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U1 L9 p10: Listen and circle the sound'],
+            ['file' => 'p11.mp3',   'page' => 11, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U1 L10 p11: Phonics Cc, Aa — Listen, point and say'],
+            ['file' => 'p11.2.mp3', 'page' => 11, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U1 L10 p11: Listen and circle the sound'],
+            ['file' => 'p12.2.mp3', 'page' => 12, 'track_no' => 2, 'kind' => 'song',             'label' => 'PB U1 L11 p12: Finger puppets — Sing and play'],
+            ['file' => 'p12.mp4',   'page' => 12, 'track_no' => 1, 'kind' => 'dialogue',         'label' => 'PB U1 L11 p12: Finger puppets video'],
+            ['file' => 'p13.mp3',   'page' => 13, 'track_no' => 1, 'kind' => 'listen_and_trace', 'label' => 'PB U1 Picture dictionary p13: Listen and trace'],
+            ['file' => 'p13.2.mp3', 'page' => 13, 'track_no' => 2, 'kind' => 'listen_and_trace', 'label' => 'PB U1 Picture dictionary p13 (alt)'],
+
+            // ── U2 My school bag ──
+            ['file' => 'p14.mp3',   'page' => 14, 'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB U2 L1 p14: Listen and follow (school items)'],
+            ['file' => 'p14.2.mp3', 'page' => 14, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U2 L1 p14: Listen, point and say'],
+            ['file' => 'p15.mp3',   'page' => 15, 'track_no' => 1, 'kind' => 'listen_and_circle', 'label' => 'PB U2 L3 p15: Listen and circle'],
+            ['file' => 'p15.2.mp3', 'page' => 15, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U2 L3 p15: Listen and number'],
+            ['file' => 'p15.3.mp3', 'page' => 15, 'track_no' => 3, 'kind' => 'listen_point_say', 'label' => 'PB U2 L3 p15: Listen. Then say'],
+            ['file' => 'p16.mp3',   'page' => 16, 'track_no' => 1, 'kind' => 'story',            'label' => 'PB U2 L5 p16: Story Find Lama — Listen and read (value: look after your things)'],
+            ['file' => 'p17.mp3',   'page' => 17, 'track_no' => 1, 'kind' => 'listen_and_match', 'label' => 'PB U2 L7 p17: Listen again'],
+            ['file' => 'p17.2.mp3', 'page' => 17, 'track_no' => 2, 'kind' => 'listen_and_match', 'label' => 'PB U2 L7 p17: Listen and match'],
+            ['file' => 'p17.3.mp3', 'page' => 17, 'track_no' => 3, 'kind' => 'song',             'label' => 'PB U2 L7 p17: Listen and sing'],
+            ['file' => 'p17.4.mp3', 'page' => 17, 'track_no' => 4, 'kind' => 'song',             'label' => 'PB U2 L7 p17: Song karaoke'],
+            ['file' => 'p18.mp3',   'page' => 18, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U2 L9 p18: Phonics Pp, Rr — Listen, point and say'],
+            ['file' => 'p18.2.mp3', 'page' => 18, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U2 L9 p18: Listen and circle'],
+            ['file' => 'p19.mp3',   'page' => 19, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U2 L10 p19: Phonics Ee, Bb — Listen, point and say'],
+            ['file' => 'p19.2.mp3', 'page' => 19, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U2 L10 p19: Listen and circle'],
+            ['file' => 'p20.2.mp3', 'page' => 20, 'track_no' => 2, 'kind' => 'song',             'label' => 'PB U2 L11 p20: School bag project — Sing and play'],
+            ['file' => 'p20.mp4',   'page' => 20, 'track_no' => 1, 'kind' => 'dialogue',         'label' => 'PB U2 L11 p20: Project video'],
+            ['file' => 'p21.mp3',   'page' => 21, 'track_no' => 1, 'kind' => 'listen_and_trace', 'label' => 'PB U2 Picture dictionary p21: Listen and trace'],
+            ['file' => 'p21.2.mp3', 'page' => 21, 'track_no' => 2, 'kind' => 'listen_and_trace', 'label' => 'PB U2 Picture dictionary p21 (alt)'],
+
+            // ── U3 Our classroom ──
+            ['file' => 'p22.mp3',   'page' => 22, 'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB U3 L1 p22: Listen and follow (classroom)'],
+            ['file' => 'p22.2.mp3', 'page' => 22, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U3 L1 p22: Listen, point and say'],
+            ['file' => 'p23.mp3',   'page' => 23, 'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB U3 L3 p23: Listen and number'],
+            ['file' => 'p23.2.mp3', 'page' => 23, 'track_no' => 2, 'kind' => 'listen_and_circle', 'label' => 'PB U3 L3 p23: Listen and tick'],
+            ['file' => 'p23.3.mp3', 'page' => 23, 'track_no' => 3, 'kind' => 'listen_point_say', 'label' => 'PB U3 L3 p23: Listen. Then say'],
+            ['file' => 'p24.mp3',   'page' => 24, 'track_no' => 1, 'kind' => 'story',            'label' => 'PB U3 L5 p24: Story Find the pens — Listen and read (value: be tidy)'],
+            ['file' => 'p25.mp3',   'page' => 25, 'track_no' => 1, 'kind' => 'listen_and_match', 'label' => 'PB U3 L7 p25: Listen again'],
+            ['file' => 'p25.2.mp3', 'page' => 25, 'track_no' => 2, 'kind' => 'listen_and_match', 'label' => 'PB U3 L7 p25: Listen and match'],
+            ['file' => 'p25.3.mp3', 'page' => 25, 'track_no' => 3, 'kind' => 'song',             'label' => 'PB U3 L7 p25: Listen and sing'],
+            ['file' => 'p25.4.mp3', 'page' => 25, 'track_no' => 4, 'kind' => 'song',             'label' => 'PB U3 L7 p25: Song karaoke'],
+            ['file' => 'p26.mp3',   'page' => 26, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U3 L9 p26: Phonics Tt, Mm — Listen, point and say'],
+            ['file' => 'p26.2.mp3', 'page' => 26, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U3 L9 p26: Listen and circle'],
+            ['file' => 'p27.mp3',   'page' => 27, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U3 L10 p27: Phonics Ww, Ii — Listen, point and say'],
+            ['file' => 'p27.2.mp3', 'page' => 27, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U3 L10 p27: Listen and circle'],
+            ['file' => 'p28.2.mp3', 'page' => 28, 'track_no' => 2, 'kind' => 'song',             'label' => 'PB U3 L11 p28: Pen pot — Listen and play'],
+            ['file' => 'p28.mp4',   'page' => 28, 'track_no' => 1, 'kind' => 'dialogue',         'label' => 'PB U3 L11 p28: Pen pot video'],
+            ['file' => 'p29.mp3',   'page' => 29, 'track_no' => 1, 'kind' => 'listen_and_trace', 'label' => 'PB U3 Picture dictionary p29: Listen and trace'],
+            ['file' => 'p29.2.mp3', 'page' => 29, 'track_no' => 2, 'kind' => 'listen_and_trace', 'label' => 'PB U3 Picture dictionary p29 (alt)'],
+
+            // ── U4 My favourite toy ──
+            ['file' => 'p30.mp3',   'page' => 30, 'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'PB U4 L1 p30: Listen and follow (toys)'],
+            ['file' => 'p30.2.mp3', 'page' => 30, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U4 L1 p30: Listen, point and say'],
+            ['file' => 'p31.mp3',   'page' => 31, 'track_no' => 1, 'kind' => 'listen_and_circle', 'label' => 'PB U4 L3 p31: Listen and circle'],
+            ['file' => 'p31.2.mp3', 'page' => 31, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'PB U4 L3 p31: Listen and number'],
+            ['file' => 'p31.3.mp3', 'page' => 31, 'track_no' => 3, 'kind' => 'listen_point_say', 'label' => 'PB U4 L3 p31: Listen. Then say'],
+            ['file' => 'p32.mp3',   'page' => 32, 'track_no' => 1, 'kind' => 'story',            'label' => 'PB U4 L5 p32: Story Find Sue — Listen and read (value: share)'],
+            ['file' => 'p33.mp3',   'page' => 33, 'track_no' => 1, 'kind' => 'listen_and_match', 'label' => 'PB U4 L7 p33: Listen again'],
+            ['file' => 'p33.2.mp3', 'page' => 33, 'track_no' => 2, 'kind' => 'listen_and_match', 'label' => 'PB U4 L7 p33: Listen and match'],
+            ['file' => 'p33.3.mp3', 'page' => 33, 'track_no' => 3, 'kind' => 'song',             'label' => 'PB U4 L7 p33: Listen and sing'],
+            ['file' => 'p33.4.mp3', 'page' => 33, 'track_no' => 4, 'kind' => 'song',             'label' => 'PB U4 L7 p33: Song karaoke'],
+            ['file' => 'p34.mp3',   'page' => 34, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U4 L9 p34: CVC words — sound blending (red, cat, mat, sit, bed, web)'],
+            ['file' => 'p34.2.mp3', 'page' => 34, 'track_no' => 2, 'kind' => 'phonics',          'label' => 'PB U4 L9 p34: Listen and circle'],
+            ['file' => 'p35.mp3',   'page' => 35, 'track_no' => 1, 'kind' => 'phonics',          'label' => 'PB U4 L10 p35: CVC words — Listen, order and write (sad, wet, map, bat, cap, tap)'],
+            ['file' => 'p36.2.mp3', 'page' => 36, 'track_no' => 2, 'kind' => 'song',             'label' => 'PB U4 L11 p36: A toy box — Sing and play'],
+            ['file' => 'p36.mp4',   'page' => 36, 'track_no' => 1, 'kind' => 'dialogue',         'label' => 'PB U4 L11 p36: Toy box video'],
+            ['file' => 'p37.mp3',   'page' => 37, 'track_no' => 1, 'kind' => 'listen_and_trace', 'label' => 'PB U4 Picture dictionary p37: Listen and trace'],
+            ['file' => 'p37.2.mp3', 'page' => 37, 'track_no' => 2, 'kind' => 'listen_and_trace', 'label' => 'PB U4 Picture dictionary p37 (alt)'],
+
+            // ── Learning Club: Days of the week (p38-39) ──
+            ['file' => 'p38.mp3',   'page' => 38, 'track_no' => 1, 'kind' => 'listen_point_say', 'label' => 'LC p38: Listen and follow (days of the week)'],
+            ['file' => 'p38.2.mp3', 'page' => 38, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'LC p38: Listen, point and say (Sunday → Saturday)'],
+            ['file' => 'p39.mp3',   'page' => 39, 'track_no' => 1, 'kind' => 'listen_and_circle', 'label' => 'LC p39: Listen and circle'],
+            ['file' => 'p39.2.mp3', 'page' => 39, 'track_no' => 2, 'kind' => 'listen_point_say', 'label' => 'LC p39: Look, order and say / Listen. Then say'],
+
+            // ── Extras present in /pb/ (p40-43) — bonus tracks ──
+            ['file' => 'p40.mp3',   'page' => 40, 'track_no' => 1, 'kind' => 'other', 'label' => 'PB bonus p40'],
+            ['file' => 'p41.mp3',   'page' => 41, 'track_no' => 1, 'kind' => 'other', 'label' => 'PB bonus p41'],
+            ['file' => 'p42.mp3',   'page' => 42, 'track_no' => 1, 'kind' => 'other', 'label' => 'PB bonus p42'],
+            ['file' => 'p43.mp3',   'page' => 43, 'track_no' => 1, 'kind' => 'other', 'label' => 'PB bonus p43'],
         ];
     }
 }
