@@ -10,26 +10,18 @@ return new class extends Migration
     {
         Schema::create('lessons', function (Blueprint $table) {
             $table->id();
+
             $table->foreignId('unit_id')
                 ->constrained('units')
                 ->cascadeOnDelete();
 
             $table->unsignedInteger('lesson_number'); // 1,2,3...
             $table->string('title'); // e.g. Colours and numbers
-            $table->enum('type', [
-                'intro',        // عرض تعريفي / أغنية
-                'vocab-game',   // لعبة مفردات
-                'phonics-game', // لعبة أصوات
-                'story',        // نشاط قصة
-                'project',      // نشاط يدوي (craft)
-                'review',       // مراجعة
-                'quiz'          // ممكن لامتحانات صغيرة داخل الوحدة
-            ])->default('vocab-game');
+
+            // Flexible lesson type:
+            $table->string('type')->default('vocab-game');
 
             // JSON flexible config:
-            // - الكلمات المستخدمة (ids)
-            // - اسم الكومبوننت في الفرونت
-            // - audio track code + segments
             $table->json('config')->nullable();
 
             $table->timestamps();
