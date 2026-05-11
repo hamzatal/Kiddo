@@ -50,7 +50,7 @@ class LessonDeckBuilder
                     'id'        => $w->id,
                     'word'      => $w->word,
                     'imagePath' => $this->assetUrl($w->image_path),
-                    'audioPath' => $this->assetUrl($w->audio_path),
+                    'audioClip' => $w->audioClip(),
                 ])->all(),
             ],
         ];
@@ -66,7 +66,7 @@ class LessonDeckBuilder
         $opts    = (int) ($cfg['options_per_round'] ?? 3);
         $pool    = $cfg['decoy_pool'] ?? 'same_category';
 
-        $deck = $targets->shuffle()->take($rounds)->values()->map(
+        $deck = $targets->loadMissing('audioTrack')->shuffle()->take($rounds)->values()->map(
             fn (Word $target, int $i) => $this->makeRound("r{$i}", $target, $style, $opts, $pool, $lesson->unit_id)
         );
 
@@ -82,7 +82,8 @@ class LessonDeckBuilder
     private function buildPhonicsGame(Lesson $lesson, array $cfg): array
     {
         $sets = $cfg['phonics_sets'] ?? [];
-        $targets = Word::where('unit_id', $lesson->unit_id)
+        $targets = Word::with('audioTrack')
+            ->where('unit_id', $lesson->unit_id)
             ->where('type', 'phonics')
             ->when(! empty($sets), fn ($q) => $q->whereIn('category', $sets))
             ->inRandomOrder()
@@ -96,7 +97,8 @@ class LessonDeckBuilder
             // Phonics decoys: prefer words from the OTHER set in the pair
             // so a /s/ target shows /d/ distractors -> teaches contrast.
             $others = array_values(array_diff($sets, [$target->category]));
-            $decoys = Word::where('unit_id', $lesson->unit_id)
+            $decoys = Word::with('audioTrack')
+                ->where('unit_id', $lesson->unit_id)
                 ->where('type', 'phonics')
                 ->when(! empty($others), fn ($q) => $q->whereIn('category', $others))
                 ->where('id', '!=', $target->id)
@@ -106,7 +108,8 @@ class LessonDeckBuilder
 
             if ($decoys->count() < $opts - 1) {
                 $decoys = $decoys->concat(
-                    Word::where('unit_id', $lesson->unit_id)
+                    Word::with('audioTrack')
+                        ->where('unit_id', $lesson->unit_id)
                         ->where('id', '!=', $target->id)
                         ->whereNotIn('id', $decoys->pluck('id'))
                         ->inRandomOrder()
@@ -134,7 +137,8 @@ class LessonDeckBuilder
         $styles     = $cfg['styles'] ?? ['word-to-image', 'image-to-word'];
         $opts       = (int) ($cfg['options_per_round'] ?? 3);
 
-        $targets = Word::where('unit_id', $lesson->unit_id)
+        $targets = Word::with('audioTrack')
+            ->where('unit_id', $lesson->unit_id)
             ->when($categories, fn ($q) => $q->whereIn('category', $categories))
             ->inRandomOrder()
             ->take($rounds)
@@ -156,7 +160,7 @@ class LessonDeckBuilder
 
     private function selectTargets(Lesson $lesson, array $cfg): Collection
     {
-        $q = Word::where('unit_id', $lesson->unit_id);
+        $q = Word::where('unit_id', $lesson->unit_id)->with('audioTrack');
 
         if (! empty($cfg['word_filter'])) {
             $q->whereIn('word', $cfg['word_filter']);
@@ -169,7 +173,7 @@ class LessonDeckBuilder
         $words = $q->get();
 
         if ($words->isEmpty()) {
-            $words = Word::where('unit_id', $lesson->unit_id)->limit(8)->get();
+            $words = Word::with('audioTrack')->where('unit_id', $lesson->unit_id)->limit(8)->get();
         }
 
         return $words;
@@ -187,7 +191,7 @@ class LessonDeckBuilder
             'id'        => "o{$id}_{$i}",
             'word'      => $w->word,
             'imagePath' => $this->assetUrl($w->image_path),
-            'audioPath' => $this->assetUrl($w->audio_path),
+            'audioClip' => $w->audioClip(),
             'isCorrect' => $w->is($target),
         ])->shuffle()->values()->all();
 
@@ -198,7 +202,7 @@ class LessonDeckBuilder
                 'kind'      => in_array($style, ['image-to-word', 'audio-to-image']) ? 'image' : 'word',
                 'text'      => $target->word,
                 'imagePath' => $this->assetUrl($target->image_path),
-                'audioPath' => $this->assetUrl($target->audio_path),
+                'audioClip' => $target->audioClip(),
             ],
             'options' => $options,
         ];
@@ -207,6 +211,9 @@ class LessonDeckBuilder
     private function pickDecoys(Word $target, int $n, string $pool, int $unitId): Collection
     {
         // 1. Hand-authored wrong_options win if rich enough.
+        // Returned Word instances stay transient so they carry image + word
+        // text but no audio_track binding (which is fine: these rows are
+        // only used to render decoy cards, not to speak them).
         if (is_array($target->wrong_options) && count($target->wrong_options) >= $n) {
             return collect($target->wrong_options)
                 ->shuffle()
@@ -218,7 +225,7 @@ class LessonDeckBuilder
         }
 
         // 2. Query DB: same category first, then fallback to unit.
-        $q = Word::where('unit_id', $unitId)->where('id', '!=', $target->id);
+        $q = Word::where('unit_id', $unitId)->where('id', '!=', $target->id)->with('audioTrack');
         if ($pool === 'same_category' && $target->category) {
             $q->where('category', $target->category);
         }
@@ -226,7 +233,8 @@ class LessonDeckBuilder
 
         if ($candidates->count() < $n) {
             $candidates = $candidates->concat(
-                Word::where('unit_id', $unitId)
+                Word::with('audioTrack')
+                    ->where('unit_id', $unitId)
                     ->where('id', '!=', $target->id)
                     ->whereNotIn('id', $candidates->pluck('id'))
                     ->inRandomOrder()
