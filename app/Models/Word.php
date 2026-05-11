@@ -14,17 +14,68 @@ class Word extends Model
         'word',
         'type',
         'audio_path',
+        'audio_track_id',
+        'segment_start_ms',
+        'segment_end_ms',
         'image_path',
         'wrong_options',
         'category',
     ];
 
     protected $casts = [
-        'wrong_options' => 'array',
+        'wrong_options'     => 'array',
+        'segment_start_ms'  => 'integer',
+        'segment_end_ms'    => 'integer',
     ];
 
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function audioTrack()
+    {
+        return $this->belongsTo(AudioTrack::class);
+    }
+
+    /**
+     * Build a front-end friendly audio clip descriptor. Prefers a
+     * segment of a shared NCCD track (streamed, no download needed)
+     * and falls back to the per-word audio_path if no track is linked.
+     *
+     * Shape:
+     *   [
+     *     'src'        => '/api/audio/PB6'          // or an asset path
+     *     'startMs'    => 0,                        // null = play from start
+     *     'endMs'      => 1800,                     // null = play to end
+     *     'trackCode'  => 'PB6',
+     *     'label'      => 'Boy (from PB6, 0.0–1.8s)'
+     *   ]
+     */
+    public function audioClip(): ?array
+    {
+        if ($this->audio_track_id && $this->audioTrack) {
+            $code = $this->audioTrack->code;
+            return [
+                'src'       => "/api/audio/{$code}",
+                'startMs'   => $this->segment_start_ms,
+                'endMs'     => $this->segment_end_ms,
+                'trackCode' => $code,
+                'label'     => $this->word,
+                'remoteUrl' => $this->audioTrack->url,
+            ];
+        }
+
+        if ($this->audio_path) {
+            return [
+                'src'       => '/' . ltrim($this->audio_path, '/'),
+                'startMs'   => null,
+                'endMs'     => null,
+                'trackCode' => null,
+                'label'     => $this->word,
+            ];
+        }
+
+        return null;
     }
 }

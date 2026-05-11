@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\AudioStreamController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\LessonController;
@@ -12,6 +13,13 @@ use App\Http\Controllers\AiController;
 use App\Http\Controllers\AuthController;
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Streams an NCCD audio track by its stable code (e.g. AB6, PB12).
+// The browser issues HTTP Range requests so only the bytes needed for
+// the current clip are downloaded; no local copy is required.
+Route::get('/api/audio/{code}', AudioStreamController::class)
+    ->whereAlphaNumeric('code')
+    ->name('audio.stream');
 
 Route::get('/about', function () {
     return Inertia::render('AboutScreen');
