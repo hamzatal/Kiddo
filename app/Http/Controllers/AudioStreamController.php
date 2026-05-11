@@ -18,9 +18,11 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
  *     The browser then issues Range requests directly against NCCD
  *     (it supports them), so only the requested bytes are downloaded.
  *
- * This endpoint is cheap and stable, which lets the frontend <audio>
- * element point at /api/audio/{code} and seek to any millisecond
- * segment without any extra plumbing.
+ * The frontend uses the same URL plus optional `?s=1800&e=3600`
+ * query params (milliseconds) to document which segment it wants;
+ * the server doesn't actually slice the MP3 — that's handled in JS
+ * by seeking and stopping on timeupdate. The query params stay in
+ * the URL so they can also be read by other code or logged.
  */
 class AudioStreamController extends Controller
 {
@@ -39,9 +41,6 @@ class AudioStreamController extends Controller
             }
         }
 
-        // Stream directly from NCCD: the browser will issue its own
-        // Range requests against their server. 302 keeps this handler
-        // stateless and avoids proxying bytes through Laravel.
         return redirect()->away($track->url, 302, [
             'Cache-Control' => 'public, max-age=86400',
         ]);

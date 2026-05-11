@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import AppLayout from "@/Layouts/AppLayout";
+import HomeAISection from "@/learning/components/ai/HomeAISection";
 
 /* ═══════════════════════════════════════════════════════════════
    PolicyModal
@@ -599,6 +600,9 @@ const HomeScreen = ({ units }) => {
                             </div>
                         </div>
                     </section>
+
+                    {/* AI marketing block — sits below the units grid */}
+                    <HomeAISection />
 
                     {/* FEATURES */}
                     <section className="w-full py-10 sm:py-14 bg-gradient-to-b from-[#F8FAFF] to-[#F0F4FF]">

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 
 const AppLayout = ({ children, active = "home" }) => {
-    const { user } = usePage().props;
+    const { user, auth } = usePage().props;
+    const currentUser = user || auth?.user;
     const [menuOpen, setMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -19,6 +20,9 @@ const AppLayout = ({ children, active = "home" }) => {
         { key: "lessons", icon: "📖", label: "Lessons", path: "/map" },
         { key: "help", icon: "❓", label: "Help", path: "/help" },
         { key: "progress", icon: "📊", label: "Progress", path: "/progress" },
+        ...(currentUser?.isAdmin
+            ? [{ key: "admin", icon: "🛠️", label: "Admin", path: "/admin" }]
+            : []),
     ];
 
     return (

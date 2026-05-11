@@ -2,42 +2,45 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\OpenAiService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
-     */
     public function share(Request $request): array
     {
+        /** @var OpenAiService $ai */
+        $ai = app(OpenAiService::class);
+
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user() ? $request->user()->only('id', 'name', 'level', 'total_stars', 'xp') : null,
+                'user' => $request->user()
+                    ? array_merge(
+                        $request->user()->only('id', 'name', 'level', 'total_stars', 'xp', 'role'),
+                        ['isAdmin' => $request->user()->isAdmin()]
+                    )
+                    : null,
+            ],
+
+            // Lets the UI conditionally show the Fox/AI widgets.
+            // If no OPENAI_API_KEY is set, the endpoints still work with
+            // safe canned replies, but we mark this as "offline" so the
+            // UI can show a subtle "Offline helper" label.
+            'ai' => [
+                'enabled' => $ai->isConfigured(),
+            ],
+
+            'flash' => [
+                'lessonResult' => fn () => $request->session()->get('lessonResult'),
+                'quizResult'   => fn () => $request->session()->get('quizResult'),
             ],
         ]);
     }

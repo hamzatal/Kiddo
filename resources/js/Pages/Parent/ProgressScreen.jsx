@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
+import ParentAIInsight from "@/learning/components/ai/ParentAIInsight";
 
 const ProgressScreen = ({ user, stats, unitsList }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -182,6 +183,12 @@ const ProgressScreen = ({ user, stats, unitsList }) => {
                                 }
                             />
                         </div>
+
+                        {/* AI Insight card (uses OpenAI if configured, safe fallback otherwise) */}
+                        <ParentAIInsight
+                            childName={user?.name || "your child"}
+                            aiEnabled={usePage().props?.ai?.enabled}
+                        />
 
                         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8">
                             {/* Left column */}

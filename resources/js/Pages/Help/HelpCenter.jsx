@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import AppLayout from "@/Layouts/AppLayout";
+import HelpAIChat from "@/learning/components/ai/HelpAIChat";
 
 const ContactInfoCard = ({ emoji, title, value, sub, bg, textColor }) => (
     <div
@@ -233,6 +234,11 @@ const HelpCenter = () => {
                             {faqs.map((f) => (
                                 <FaqItem key={f.q} {...f} />
                             ))}
+                        </div>
+
+                        {/* Kiddo AI chat: parents can ask for home activities */}
+                        <div className="mt-12">
+                            <HelpAIChat aiEnabled={usePage().props?.ai?.enabled} />
                         </div>
                     </div>
                 </section>
