@@ -1,11 +1,45 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { router, usePage } from "@inertiajs/react";
+import MascotBuddy from "@/learning/components/ai/MascotBuddy";
 
+/**
+ * Global top-bar / footer shell for the student-facing site.
+ *
+ * Auth UX contract (FIX 4):
+ *   - Not signed in -> show a single green "Login / Register" pill.
+ *   - Signed in    -> hide the green pill entirely; show a user pill
+ *                     (avatar + truncated name + chevron) that opens a
+ *                     dropdown with Admin panel (if admin), My progress,
+ *                     Continue learning, and Logout.
+ *   - Mobile menu mirrors the same behaviour.
+ *
+ * Mascot (FIX 8): the fox MascotBuddy mounts here, after the footer, only
+ * when a user is signed in. It uses z-40 so the lesson-page FoxHelper
+ * (higher z) always sits on top.
+ */
 const AppLayout = ({ children, active = "home" }) => {
     const { user, auth } = usePage().props;
     const currentUser = user || auth?.user;
+
     const [menuOpen, setMenuOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const userMenuRef = useRef(null);
+
+    // Close the user dropdown when the user clicks anywhere outside.
+    useEffect(() => {
+        if (!userMenuOpen) return;
+        const handler = (e) => {
+            if (
+                userMenuRef.current &&
+                !userMenuRef.current.contains(e.target)
+            ) {
+                setUserMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [userMenuOpen]);
 
     useEffect(() => {
         const el = document.getElementById("app-scroll");
@@ -24,6 +58,23 @@ const AppLayout = ({ children, active = "home" }) => {
             ? [{ key: "admin", icon: "🛠️", label: "Admin", path: "/admin" }]
             : []),
     ];
+
+    const truncatedName = (() => {
+        const n = currentUser?.name || "";
+        return n.length > 12 ? n.slice(0, 12) + "…" : n;
+    })();
+
+    const handleLogout = () => {
+        setUserMenuOpen(false);
+        setMenuOpen(false);
+        router.post("/logout");
+    };
+
+    const goTo = (path) => {
+        setUserMenuOpen(false);
+        setMenuOpen(false);
+        router.visit(path);
+    };
 
     return (
         <div
@@ -73,22 +124,69 @@ const AppLayout = ({ children, active = "home" }) => {
                     </ul>
 
                     {/* Desktop auth actions */}
-                    <div className="hidden sm:flex items-center gap-4">
-                        <button
-                            onClick={() =>
-                                router.visit(user ? "/map" : "/login")
-                            }
-                            className="relative inline-flex items-center justify-center gap-2 font-black select-none cursor-pointer px-5 py-2.5 text-sm text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px] shadow-none border-none"
-                        >
-                            {user ? "Continue Learning" : "Login / Register"}
-                        </button>
-                        {user && (
+                    <div className="hidden sm:flex items-center gap-3">
+                        {!currentUser ? (
                             <button
-                                onClick={() => router.post("/logout")}
-                                className="text-gray-400 hover:text-red-500 font-bold text-sm"
+                                onClick={() => router.visit("/login")}
+                                className="relative inline-flex items-center justify-center gap-2 font-black select-none cursor-pointer px-5 py-2.5 text-sm text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px] shadow-none border-none"
                             >
-                                Logout
+                                Login / Register
                             </button>
+                        ) : (
+                            <div className="relative" ref={userMenuRef}>
+                                <button
+                                    onClick={() =>
+                                        setUserMenuOpen((v) => !v)
+                                    }
+                                    className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors shadow-sm"
+                                    aria-haspopup="menu"
+                                    aria-expanded={userMenuOpen}
+                                >
+                                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center text-lg">
+                                        {currentUser.avatar || "👦🏻"}
+                                    </span>
+                                    <span className="font-black text-[#1E293B] text-sm">
+                                        {truncatedName}
+                                    </span>
+                                    <span className="text-gray-400 text-xs">
+                                        ▾
+                                    </span>
+                                </button>
+                                {userMenuOpen && (
+                                    <div
+                                        role="menu"
+                                        className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50"
+                                    >
+                                        {currentUser.isAdmin && (
+                                            <button
+                                                onClick={() => goTo("/admin")}
+                                                className="w-full text-left px-4 py-2 text-sm font-black text-[#1E293B] hover:bg-purple-50 hover:text-[#7C3AED] flex items-center gap-2"
+                                            >
+                                                <span>🛠️</span> Admin panel
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => goTo("/progress")}
+                                            className="w-full text-left px-4 py-2 text-sm font-black text-[#1E293B] hover:bg-purple-50 hover:text-[#7C3AED] flex items-center gap-2"
+                                        >
+                                            <span>📊</span> My progress
+                                        </button>
+                                        <button
+                                            onClick={() => goTo("/map")}
+                                            className="w-full text-left px-4 py-2 text-sm font-black text-[#1E293B] hover:bg-purple-50 hover:text-[#7C3AED] flex items-center gap-2"
+                                        >
+                                            <span>📖</span> Continue learning
+                                        </button>
+                                        <div className="my-1 border-t border-gray-100" />
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full text-left px-4 py-2 text-sm font-black text-red-500 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                            <span>🚪</span> Logout
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -130,17 +228,55 @@ const AppLayout = ({ children, active = "home" }) => {
                                 {item.icon} {item.label}
                             </button>
                         ))}
-                        <div className="pt-2">
-                            <button
-                                onClick={() =>
-                                    router.visit(user ? "/map" : "/login")
-                                }
-                                className="w-full justify-center relative inline-flex items-center justify-center gap-2 font-black select-none cursor-pointer px-5 py-2.5 text-sm text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px]"
-                            >
-                                {user
-                                    ? "Continue Learning"
-                                    : "Login / Register"}
-                            </button>
+                        <div className="pt-2 flex flex-col gap-2">
+                            {!currentUser ? (
+                                <button
+                                    onClick={() => {
+                                        router.visit("/login");
+                                        setMenuOpen(false);
+                                    }}
+                                    className="w-full justify-center relative inline-flex items-center gap-2 font-black select-none cursor-pointer px-5 py-2.5 text-sm text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px]"
+                                >
+                                    Login / Register
+                                </button>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-3 px-1">
+                                        <span className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center text-xl">
+                                            {currentUser.avatar || "👦🏻"}
+                                        </span>
+                                        <span className="font-black text-[#1E293B] text-sm truncate">
+                                            {currentUser.name}
+                                        </span>
+                                    </div>
+                                    {currentUser.isAdmin && (
+                                        <button
+                                            onClick={() => goTo("/admin")}
+                                            className="w-full text-left px-4 py-2 rounded-xl bg-purple-50 text-[#7C3AED] font-black text-sm"
+                                        >
+                                            🛠️ Admin panel
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => goTo("/progress")}
+                                        className="w-full text-left px-4 py-2 rounded-xl bg-gray-50 text-[#1E293B] font-black text-sm"
+                                    >
+                                        📊 My progress
+                                    </button>
+                                    <button
+                                        onClick={() => goTo("/map")}
+                                        className="w-full text-left px-4 py-2 rounded-xl bg-gray-50 text-[#1E293B] font-black text-sm"
+                                    >
+                                        📖 Continue learning
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full text-left px-4 py-2 rounded-xl bg-red-50 text-red-500 font-black text-sm"
+                                    >
+                                        🚪 Logout
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}
@@ -204,12 +340,7 @@ const AppLayout = ({ children, active = "home" }) => {
                                                <button
                                                    key={link}
                                                    onClick={() => {
-                                                       if (
-                                                           link === "Privacy Policy" ||
-                                                           link === "Terms of Use"
-                                                       ) {
-                                                           setActiveModal(link);
-                                                       } else {
+                                                       if (link === "Help Center") {
                                                            router.visit("/contact");
                                                        }
                                                    }}
@@ -231,6 +362,9 @@ const AppLayout = ({ children, active = "home" }) => {
                                    </div>
                                </div>
                            </footer>
+
+            {/* Global fox mascot buddy (FIX 8) — only for signed-in users. */}
+            {currentUser ? <MascotBuddy /> : null}
         </div>
     );
 };

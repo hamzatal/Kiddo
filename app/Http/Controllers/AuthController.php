@@ -39,7 +39,12 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('map');
+        // Admins land on the admin dashboard; everyone else goes to the map.
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return redirect()->intended('/admin');
+        }
+
+        return redirect()->intended('/map');
     }
 
     public function login(Request $request)
@@ -57,7 +62,13 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->route('map');
+        // Send admins straight to the admin panel; regular students to /map.
+        $user = Auth::user();
+        if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return redirect()->intended('/admin');
+        }
+
+        return redirect()->intended('/map');
     }
 
     public function logout(Request $request)

@@ -23,6 +23,21 @@ class LessonController extends Controller
         $user = $request->user();
         $unit = Unit::with('lessons.audioTrack')->findOrFail($unitId);
 
+        // FIX 6: strict sequential access.
+        //   - U0 is always reachable.
+        //   - U_N (N>0) requires progress on U_{N-1} with status='done'.
+        if ((int) $unit->unit_number > 0) {
+            $previousUnit = Unit::where('unit_number', $unit->unit_number - 1)->first();
+            if ($previousUnit) {
+                $prevProgress = UserProgress::where('user_id', $user->id)
+                    ->where('unit_id', $previousUnit->id)
+                    ->first();
+                if (! $prevProgress || $prevProgress->status !== 'done') {
+                    return redirect()->route('map');
+                }
+            }
+        }
+
         $progress = UserProgress::firstOrCreate(
             ['user_id' => $user->id, 'unit_id' => $unit->id],
             [

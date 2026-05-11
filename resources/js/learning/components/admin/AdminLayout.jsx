@@ -6,8 +6,14 @@ import { router, Link, usePage } from "@inertiajs/react";
  * header and renders children inside the main area. The active tab
  * is highlighted via the `active` prop.
  *
- * The sidebar intentionally re-uses the same visual language as the
- * Parent Dashboard so admins feel at home.
+ * Layout rules:
+ *   - Outer container pins to the viewport height (h-[100dvh]) and hides
+ *     its own overflow so only the <main> region scrolls. Without this the
+ *     admin pages previously grew past the bottom edge with no scroll bar.
+ *   - The right-hand column uses `flex-1 min-w-0 flex flex-col h-full` so
+ *     its height matches the container and its children can size against it.
+ *   - The <main> region itself is `flex-1 overflow-y-auto` so long tables
+ *     (Words, Tracks) scroll inside the layout while the sidebar stays put.
  */
 const AdminLayout = ({ active, children }) => {
     const { auth } = usePage().props;
@@ -22,19 +28,27 @@ const AdminLayout = ({ active, children }) => {
     ];
 
     return (
-        <div className="min-h-[100dvh] w-full bg-[#F4F8FB] font-sans flex relative">
+        <div className="h-[100dvh] w-full bg-[#F4F8FB] font-sans flex relative overflow-hidden">
             {/* Sidebar */}
-            <aside className="hidden lg:flex w-[260px] shrink-0 flex-col bg-white border-r border-gray-100 shadow-sm">
-                <div className="h-[72px] px-5 flex items-center justify-between border-b border-gray-50">
-                    <span className="font-black text-[#1E293B] text-lg">
-                        Kiddo Admin
-                    </span>
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 uppercase tracking-widest">
-                        Admin
-                    </span>
+            <aside className="hidden lg:flex w-[260px] shrink-0 flex-col bg-white border-r border-gray-100 shadow-sm h-full">
+                <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-3">
+                    <img
+                        src="/assets/ui/hero/title-logo.png"
+                        alt="Kiddo"
+                        className="h-10 w-auto shrink-0"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                    />
+                    <div className="flex flex-col leading-tight min-w-0">
+                        <span className="font-black text-[#1E293B] text-base truncate">
+                            Kiddo Admin
+                        </span>
+                        <span className="self-start mt-1 text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 uppercase tracking-widest">
+                            Admin
+                        </span>
+                    </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-1">
+                <nav className="flex-1 overflow-y-auto p-4 space-y-1">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
@@ -66,12 +80,21 @@ const AdminLayout = ({ active, children }) => {
                 </div>
             </aside>
 
-            {/* Mobile header */}
-            <div className="flex-1 min-w-0 flex flex-col">
-                <header className="lg:hidden h-14 bg-white border-b border-gray-100 px-4 flex items-center justify-between">
-                    <span className="font-black text-[#1E293B]">
-                        Kiddo Admin
-                    </span>
+            {/* Main column */}
+            <div className="flex-1 min-w-0 flex flex-col h-full">
+                {/* Mobile header */}
+                <header className="lg:hidden h-14 bg-white border-b border-gray-100 px-4 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <img
+                            src="/assets/ui/hero/title-logo.png"
+                            alt="Kiddo"
+                            className="h-8 w-auto shrink-0"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                        />
+                        <span className="font-black text-[#1E293B] truncate">
+                            Kiddo Admin
+                        </span>
+                    </div>
                     <select
                         value={active}
                         onChange={(e) => router.visit(tabs.find((t) => t.key === e.target.value)?.href || "/admin")}
@@ -83,7 +106,7 @@ const AdminLayout = ({ active, children }) => {
                     </select>
                 </header>
 
-                <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                     {children}
                 </main>
             </div>

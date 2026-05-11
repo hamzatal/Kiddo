@@ -153,6 +153,15 @@ const MapScreen = ({ user, units: propUnits }) => {
     const completedCount = units.filter((u) => u.status === "done").length;
     const activeUnit = units.find((u) => u.status === "active");
 
+    // FIX 11: compute total stars either from the backend (user.total_stars)
+    // or by summing per-unit earned stars on the frontend as a fallback.
+    const totalStars =
+        typeof user?.total_stars === "number"
+            ? user.total_stars
+            : units.reduce((sum, u) => sum + (u.stars_earned || u.stars || 0), 0);
+
+    const unitsTotal = units.length || 3;
+
     const xp = user?.xp || 0;
     const maxXp = 600;
     const xpPct = Math.min((xp / maxXp) * 100, 100);
@@ -214,7 +223,7 @@ const MapScreen = ({ user, units: propUnits }) => {
                                 ⭐
                             </span>
                             <span className="font-black text-amber-600 text-sm leading-none">
-                                {user?.total_stars || 0}
+                                {totalStars}
                             </span>
                         </div>
 
@@ -273,8 +282,13 @@ const MapScreen = ({ user, units: propUnits }) => {
                                     >
                                         <UnitNode
                                             unit={u}
-                                            onClick={() =>
-                                                router.visit(`/lesson/${u.id}`)
+                                            onClick={
+                                                u.status === "locked"
+                                                    ? () => {}
+                                                    : () =>
+                                                          router.visit(
+                                                              `/lesson/${u.id}`,
+                                                          )
                                             }
                                         />
                                     </div>
@@ -353,7 +367,7 @@ const MapScreen = ({ user, units: propUnits }) => {
                             <div className="flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-slate-100">
                                     <span className="text-base font-black text-[#1E293B]">
-                                        {completedCount}/5
+                                        {completedCount}/{unitsTotal}
                                     </span>
                                 </div>
                                 <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center">
@@ -361,8 +375,8 @@ const MapScreen = ({ user, units: propUnits }) => {
                                 </p>
                             </div>
                             <div className="flex flex-col items-center justify-center bg-amber-50 p-3 rounded-xl border border-amber-100">
-                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-amber-100 text-xl">
-                                    ⭐
+                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-amber-100 text-xl font-black text-amber-600">
+                                    {totalStars > 0 ? totalStars : "⭐"}
                                 </div>
                                 <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center">
                                     Total Stars

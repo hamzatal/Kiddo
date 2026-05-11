@@ -18,8 +18,10 @@ return new class extends Migration
             $table->unsignedInteger('lesson_number'); // 1,2,3...
             $table->string('title'); // e.g. Colours and numbers
 
-            // Flexible lesson type:
-            $table->string('type')->default('vocab-game');
+            // Flexible lesson type. Kept as a string (not enum) so that new
+            // lesson types (e.g. song, picture-dict) don't require a schema migration.
+            // See config JSON for per-type settings.
+            $table->string('type', 32)->default('vocab-game');
 
             // JSON flexible config:
             $table->json('config')->nullable();
