@@ -9,19 +9,31 @@ use App\Models\Word;
 use Illuminate\Database\Seeder;
 
 /**
- * Team Together 1A (Jordan reprint) — full curriculum seeder.
+ * Team Together 1A (Jordan) — exact book structure.
  *
- * Structure supplied by the project owner:
- *   U0  Welcome: Hello!           p4-5
- *   U1  Family and friends        p6-13   (Lessons 1, 3, 5, 7, 9, 10, 11, Picture dict.)
- *   U2  My school bag             p14-21  (same 8-lesson pattern)
- *   U3  Our classroom             p22-29
- *   U4  My favourite toy          p30-37
- *   U5  Learning Club             p38-39  (Days of the week)
+ *   Welcome: Hello!              p4-5    (2 lessons)     -> U0
+ *   U1  Family and friends        p6-13   (8 lessons)     -> U1
+ *   U2  My school bag             p14-21  (8 lessons)     -> U2
+ *   U3  Our classroom             p22-29  (8 lessons)     -> U3
+ *   U4  My favourite toy          p30-37  (8 lessons)     -> U4
+ *   Learning Club (days of week)  p38-39  (2 lessons)     -> U5
+ *                                          TOTAL = 36 lessons
  *
- * Each lesson is bound by code to its NCCD audio track (see
- * NccdAudioTrackSeeder), so LessonDeckBuilder can ship the real
- * MoE audio straight to the React engine.
+ * Each unit follows the Team Together lesson pattern:
+ *   Lesson 1  — Vocabulary intro      (Listen & follow, Listen, point and say)
+ *   Lesson 3  — Language practice     (Listen & circle/number, "Listen. Then say")
+ *   Lesson 5  — Story + value         (Listen and read)
+ *   Lesson 7  — Listen again & sing   (match + song)
+ *   Lesson 9  — Phonics set A
+ *   Lesson 10 — Phonics set B
+ *   Lesson 11 — Project (make & show, sing & play, video)
+ *   Picture dictionary                 (Listen and trace)
+ *
+ * Every Word row is linked to its primary audio track (PB code) so
+ * the React engine can stream the right MP3 from qr.nccd.gov.jo and
+ * play a specific millisecond segment per click — no local download.
+ * Segment start/end ms are intentionally NULL so the teacher can
+ * fine-tune them later via a small UI without editing this file.
  */
 class CurriculumSeeder extends Seeder
 {
@@ -30,7 +42,7 @@ class CurriculumSeeder extends Seeder
         $u0 = $this->upsertUnit([
             'code' => 'U0', 'unit_number' => 0,
             'title' => 'Welcome: Hello!',
-            'description' => 'Meet the characters, greetings, colours and numbers 1-10.',
+            'description' => 'Characters, greetings, colours and numbers 1-10.',
             'image_path' => 'assets/lessons/welcome/hut.png',
             'color_key' => 'purple',
         ]);
@@ -39,7 +51,7 @@ class CurriculumSeeder extends Seeder
         $u1 = $this->upsertUnit([
             'code' => 'U1', 'unit_number' => 1,
             'title' => 'Family and friends',
-            'description' => 'Family members, pets, and phonics Ss, Dd, Cc, Aa.',
+            'description' => 'Family members, pets, phonics Ss Dd Cc Aa.',
             'image_path' => 'assets/lessons/family/treehouse.png',
             'color_key' => 'green',
         ]);
@@ -48,7 +60,7 @@ class CurriculumSeeder extends Seeder
         $u2 = $this->upsertUnit([
             'code' => 'U2', 'unit_number' => 2,
             'title' => 'My school bag',
-            'description' => 'School items, I\'ve got / I haven\'t got, phonics Pp, Rr, Ee, Bb.',
+            'description' => "School items, I've got / I haven't got, phonics Pp Rr Ee Bb.",
             'image_path' => 'assets/lessons/schoolbag/bag.png',
             'color_key' => 'blue',
         ]);
@@ -57,7 +69,7 @@ class CurriculumSeeder extends Seeder
         $u3 = $this->upsertUnit([
             'code' => 'U3', 'unit_number' => 3,
             'title' => 'Our classroom',
-            'description' => 'Classroom objects, locations, phonics Tt, Mm, Ww, Ii.',
+            'description' => 'Classroom objects, prepositions, phonics Tt Mm Ww Ii.',
             'image_path' => 'assets/lessons/classroom/desk.png',
             'color_key' => 'orange',
         ]);
@@ -66,7 +78,7 @@ class CurriculumSeeder extends Seeder
         $u4 = $this->upsertUnit([
             'code' => 'U4', 'unit_number' => 4,
             'title' => 'My favourite toy',
-            'description' => 'Toys, colours, feelings, and CVC word blending.',
+            'description' => 'Toys, colours, feelings, CVC words blending.',
             'image_path' => 'assets/lessons/toy/toy.png',
             'color_key' => 'pink',
         ]);
@@ -82,519 +94,680 @@ class CurriculumSeeder extends Seeder
         $this->seedLearningClub($u5->id);
     }
 
-    // ══════════════════════════════════════════════════════════
-    // U0  Welcome: Hello!  (pages 4-5)
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // U0 — Welcome: Hello!  (pages 4-5)  — 2 lessons
+    // ═══════════════════════════════════════════════════════════════
     protected function seedWelcome(int $unitId): void
     {
         $folder = 'welcome';
-        $words = [
-            // Greetings
-            ['w' => 'Hello',        'cat' => 'greeting',  'img' => 'hello.png',
-             'w1' => 'Hi',          'w1img' => 'hi.png',           'w2' => 'Good morning', 'w2img' => 'goodmorning.png'],
-            ['w' => 'Hi',           'cat' => 'greeting',  'img' => 'hi.png',
-             'w1' => 'Hello',       'w1img' => 'hello.png',        'w2' => 'Good morning', 'w2img' => 'goodmorning.png'],
-            ['w' => 'Good morning', 'cat' => 'greeting',  'img' => 'goodmorning.png',
-             'w1' => 'Hello',       'w1img' => 'hello.png',        'w2' => 'Hi',           'w2img' => 'hi.png'],
-            // Characters
-            ['w' => 'Hala',  'cat' => 'character', 'img' => 'hala.png',  'w1' => 'Bill',  'w1img' => 'bill.png',  'w2' => 'Lama',  'w2img' => 'lama.png'],
-            ['w' => 'Meg',   'cat' => 'character', 'img' => 'meg.png',   'w1' => 'Lama',  'w1img' => 'lama.png',  'w2' => 'Hala',  'w2img' => 'hala.png'],
-            ['w' => 'Lama',  'cat' => 'character', 'img' => 'lama.png',  'w1' => 'Hala',  'w1img' => 'hala.png',  'w2' => 'Meg',   'w2img' => 'meg.png'],
-            ['w' => 'Tom',   'cat' => 'character', 'img' => 'tom.png',   'w1' => 'Bill',  'w1img' => 'bill.png',  'w2' => 'Malek', 'w2img' => 'malek.png'],
-            ['w' => 'Bill',  'cat' => 'character', 'img' => 'bill.png',  'w1' => 'Tom',   'w1img' => 'tom.png',   'w2' => 'Malek', 'w2img' => 'malek.png'],
-            ['w' => 'Malek', 'cat' => 'character', 'img' => 'malek.png', 'w1' => 'Bill',  'w1img' => 'bill.png',  'w2' => 'Tom',   'w2img' => 'tom.png'],
-            // Colours
-            ['w' => 'Blue',   'cat' => 'colour', 'img' => 'blue.png',   'w1' => 'Red',    'w1img' => 'red.png',    'w2' => 'Green',  'w2img' => 'green.png'],
-            ['w' => 'Green',  'cat' => 'colour', 'img' => 'green.png',  'w1' => 'Blue',   'w1img' => 'blue.png',   'w2' => 'Orange', 'w2img' => 'orange.png'],
-            ['w' => 'Orange', 'cat' => 'colour', 'img' => 'orange.png', 'w1' => 'Red',    'w1img' => 'red.png',    'w2' => 'Brown',  'w2img' => 'brown.png'],
-            ['w' => 'Red',    'cat' => 'colour', 'img' => 'red.png',    'w1' => 'Blue',   'w1img' => 'blue.png',   'w2' => 'Yellow', 'w2img' => 'yellow.png'],
-            ['w' => 'Yellow', 'cat' => 'colour', 'img' => 'yellow.png', 'w1' => 'Green',  'w1img' => 'green.png',  'w2' => 'Orange', 'w2img' => 'orange.png'],
-            ['w' => 'Brown',  'cat' => 'colour', 'img' => 'brown.png',  'w1' => 'Red',    'w1img' => 'red.png',    'w2' => 'Blue',   'w2img' => 'blue.png'],
-            // Numbers 1-10
-            ['w' => 'One',   'cat' => 'number', 'img' => 'one.png',   'w1' => 'Two',   'w1img' => 'two.png',   'w2' => 'Three', 'w2img' => 'three.png'],
-            ['w' => 'Two',   'cat' => 'number', 'img' => 'two.png',   'w1' => 'One',   'w1img' => 'one.png',   'w2' => 'Four',  'w2img' => 'four.png'],
-            ['w' => 'Three', 'cat' => 'number', 'img' => 'three.png', 'w1' => 'Two',   'w1img' => 'two.png',   'w2' => 'Five',  'w2img' => 'five.png'],
-            ['w' => 'Four',  'cat' => 'number', 'img' => 'four.png',  'w1' => 'Three', 'w1img' => 'three.png', 'w2' => 'Five',  'w2img' => 'five.png'],
-            ['w' => 'Five',  'cat' => 'number', 'img' => 'five.png',  'w1' => 'Four',  'w1img' => 'four.png',  'w2' => 'Six',   'w2img' => 'six.png'],
-            ['w' => 'Six',   'cat' => 'number', 'img' => 'six.png',   'w1' => 'Seven', 'w1img' => 'seven.png', 'w2' => 'Eight', 'w2img' => 'eight.png'],
-            ['w' => 'Seven', 'cat' => 'number', 'img' => 'seven.png', 'w1' => 'Six',   'w1img' => 'six.png',   'w2' => 'Eight', 'w2img' => 'eight.png'],
-            ['w' => 'Eight', 'cat' => 'number', 'img' => 'eight.png', 'w1' => 'Seven', 'w1img' => 'seven.png', 'w2' => 'Nine',  'w2img' => 'nine.png'],
-            ['w' => 'Nine',  'cat' => 'number', 'img' => 'nine.png',  'w1' => 'Eight', 'w1img' => 'eight.png', 'w2' => 'Ten',   'w2img' => 'ten.png'],
-            ['w' => 'Ten',   'cat' => 'number', 'img' => 'ten.png',   'w1' => 'Nine',  'w1img' => 'nine.png',  'w2' => 'Eight', 'w2img' => 'eight.png'],
-        ];
-        $this->createWords($unitId, $folder, $words, 'vocab');
+        $trackP4 = $this->trackId('PB4');
+        $trackP5 = $this->trackId('PB5');
+
+        // Greetings + characters share page 4 audio
+        $this->upsertWord($unitId, $folder, 'Hello',        'greeting',  'hello.png',        $trackP4, [['Hi', 'hi.png'], ['Good morning', 'goodmorning.png']]);
+        $this->upsertWord($unitId, $folder, 'Hi',           'greeting',  'hi.png',           $trackP4, [['Hello', 'hello.png'], ['Good morning', 'goodmorning.png']]);
+        $this->upsertWord($unitId, $folder, 'Good morning', 'greeting',  'goodmorning.png',  $trackP4, [['Hello', 'hello.png'], ['Hi', 'hi.png']]);
+
+        $this->upsertWord($unitId, $folder, 'Hala',  'character', 'hala.png',  $trackP4, [['Bill', 'bill.png'], ['Lama', 'lama.png']]);
+        $this->upsertWord($unitId, $folder, 'Meg',   'character', 'meg.png',   $trackP4, [['Lama', 'lama.png'], ['Hala', 'hala.png']]);
+        $this->upsertWord($unitId, $folder, 'Lama',  'character', 'lama.png',  $trackP4, [['Hala', 'hala.png'], ['Meg', 'meg.png']]);
+        $this->upsertWord($unitId, $folder, 'Tom',   'character', 'tom.png',   $trackP4, [['Bill', 'bill.png'], ['Malek', 'malek.png']]);
+        $this->upsertWord($unitId, $folder, 'Bill',  'character', 'bill.png',  $trackP4, [['Tom', 'tom.png'], ['Malek', 'malek.png']]);
+        $this->upsertWord($unitId, $folder, 'Malek', 'character', 'malek.png', $trackP4, [['Bill', 'bill.png'], ['Tom', 'tom.png']]);
+
+        // Colours (p5)
+        $this->upsertWord($unitId, $folder, 'Blue',   'colour', 'blue.png',   $trackP5, [['Red', 'red.png'], ['Green', 'green.png']]);
+        $this->upsertWord($unitId, $folder, 'Green',  'colour', 'green.png',  $trackP5, [['Blue', 'blue.png'], ['Orange', 'orange.png']]);
+        $this->upsertWord($unitId, $folder, 'Orange', 'colour', 'orange.png', $trackP5, [['Red', 'red.png'], ['Brown', 'brown.png']]);
+        $this->upsertWord($unitId, $folder, 'Red',    'colour', 'red.png',    $trackP5, [['Blue', 'blue.png'], ['Yellow', 'yellow.png']]);
+        $this->upsertWord($unitId, $folder, 'Yellow', 'colour', 'yellow.png', $trackP5, [['Green', 'green.png'], ['Orange', 'orange.png']]);
+        $this->upsertWord($unitId, $folder, 'Brown',  'colour', 'brown.png',  $trackP5, [['Red', 'red.png'], ['Blue', 'blue.png']]);
+
+        // Numbers 1-10 (p5)
+        foreach (['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'] as $i => $n) {
+            $img = strtolower($n) . '.png';
+            $next = $i < 9 ? ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][$i + 1] : 'Nine';
+            $prev = $i > 0 ? ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][$i - 1] : 'Two';
+            $this->upsertWord(
+                $unitId,
+                $folder,
+                $n,
+                'number',
+                $img,
+                $trackP5,
+                [[$next, strtolower($next) . '.png'], [$prev, strtolower($prev) . '.png']]
+            );
+        }
 
         $this->createLessons($unitId, [
-            ['num' => 1, 'title' => 'Greetings', 'page' => 4, 'type' => 'intro',
-             'audio' => 'PB4', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Hello', 'Hi', 'Good morning'],
-                'prompt' => 'Listen, point and say.',
-                'audio_tracks' => ['AB4', 'AB4_2', 'PB4'],
-             ]],
-            ['num' => 2, 'title' => 'Meet the characters', 'page' => 4, 'type' => 'vocab-game',
-             'audio' => 'AB4_2', 'conf' => [
-                'mode' => 'vocab-game',
-                'category' => 'character', 'rounds' => 6, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Who is this?',
-             ]],
-            ['num' => 3, 'title' => 'Colours', 'page' => 5, 'type' => 'vocab-game',
-             'audio' => 'AB5', 'conf' => [
-                'mode' => 'vocab-game',
-                'category' => 'colour', 'rounds' => 6, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Find the colour!',
-             ]],
-            ['num' => 4, 'title' => 'Numbers 1-10', 'page' => 5, 'type' => 'vocab-game',
-             'audio' => 'PB5', 'conf' => [
-                'mode' => 'vocab-game',
-                'category' => 'number', 'rounds' => 8, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Listen and count!',
-             ]],
+            [
+                'num' => 1, 'title' => 'Greetings & characters', 'page' => 4, 'book_lesson' => 'Lesson 1',
+                'type' => 'intro', 'audio' => 'PB4',
+                'conf' => [
+                    'mode' => 'intro',
+                    'word_filter' => ['Hello', 'Hi', 'Good morning', 'Hala', 'Bill', 'Lama', 'Malek', 'Meg', 'Tom'],
+                    'prompt' => 'Listen, point and say.',
+                    'audio_tracks' => ['PB4', 'PB4_2', 'AB4', 'AB4_2'],
+                    'instruction_key' => 'listen_point_say',
+                ],
+            ],
+            [
+                'num' => 2, 'title' => 'Colours & Numbers 1-10', 'page' => 5, 'book_lesson' => 'Lesson 2',
+                'type' => 'vocab-game', 'audio' => 'PB5',
+                'conf' => [
+                    'mode' => 'vocab-game',
+                    'categories' => ['colour', 'number'],
+                    'rounds' => 8, 'question_style' => 'word-to-image',
+                    'options_per_round' => 3, 'decoy_pool' => 'same_category',
+                    'prompt' => 'Find the colour or number!',
+                    'audio_tracks' => ['PB5', 'AB5'],
+                ],
+            ],
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════
-    // U1  Family and friends  (pages 6-13)
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // U1 — Family and friends  (pages 6-13)  — 8 lessons
+    // ═══════════════════════════════════════════════════════════════
     protected function seedFamily(int $unitId): void
     {
         $folder = 'family';
-        $words = [
-            // Vocab
-            ['w' => 'Boy',     'cat' => 'family', 'img' => 'boy.png',     'w1' => 'Girl',    'w1img' => 'girl.png',    'w2' => 'Friend',  'w2img' => 'friend.png'],
-            ['w' => 'Brother', 'cat' => 'family', 'img' => 'brother.png', 'w1' => 'Sister',  'w1img' => 'sister.png',  'w2' => 'Dad',     'w2img' => 'dad.png'],
-            ['w' => 'Cat',     'cat' => 'family', 'img' => 'cat.png',    'w1' => 'Friend',  'w1img' => 'friend.png',  'w2' => 'Boy',     'w2img' => 'boy.png'],
-            ['w' => 'Dad',     'cat' => 'family', 'img' => 'dad.png',     'w1' => 'Mum',     'w1img' => 'mum.png',     'w2' => 'Brother', 'w2img' => 'brother.png'],
-            ['w' => 'Friend',  'cat' => 'family', 'img' => 'friend.png',  'w1' => 'Boy',     'w1img' => 'boy.png',     'w2' => 'Girl',    'w2img' => 'girl.png'],
-            ['w' => 'Girl',    'cat' => 'family', 'img' => 'girl.png',    'w1' => 'Boy',     'w1img' => 'boy.png',     'w2' => 'Friend',  'w2img' => 'friend.png'],
-            ['w' => 'Mum',     'cat' => 'family', 'img' => 'mum.png',     'w1' => 'Dad',     'w1img' => 'dad.png',     'w2' => 'Sister',  'w2img' => 'sister.png'],
-            ['w' => 'Sister',  'cat' => 'family', 'img' => 'sister.png',  'w1' => 'Brother', 'w1img' => 'brother.png', 'w2' => 'Mum',     'w2img' => 'mum.png'],
-        ];
-        $this->createWords($unitId, $folder, $words, 'vocab');
+        $p6 = $this->trackId('PB6');
+        $p10 = $this->trackId('PB10');
+        $p11 = $this->trackId('PB11');
 
-        // Phonics Ss, Dd, Cc, Aa
-        $phonics = [
-            ['w' => 'Sing',      'cat' => 's', 'img' => 'sing.png',      'w1' => 'Sun',   'w1img' => 'sun.png',   'w2' => 'Sister', 'w2img' => 'sister.png'],
-            ['w' => 'Sun',       'cat' => 's', 'img' => 'sun.png',       'w1' => 'Sing',  'w1img' => 'sing.png',  'w2' => 'Six',    'w2img' => 'six.png'],
-            ['w' => 'Dig',       'cat' => 'd', 'img' => 'dig.png',       'w1' => 'Duck',  'w1img' => 'duck.png',  'w2' => 'Doll',   'w2img' => 'doll.png'],
-            ['w' => 'Duck',      'cat' => 'd', 'img' => 'duck.png',      'w1' => 'Doll',  'w1img' => 'doll.png',  'w2' => 'Dig',    'w2img' => 'dig.png'],
-            ['w' => 'Doll',      'cat' => 'd', 'img' => 'doll.png',      'w1' => 'Duck',  'w1img' => 'duck.png',  'w2' => 'Dig',    'w2img' => 'dig.png'],
-            ['w' => 'Cut',       'cat' => 'c', 'img' => 'cut.png',       'w1' => 'Cup',   'w1img' => 'cup.png',   'w2' => 'Cap',    'w2img' => 'cap.png'],
-            ['w' => 'Cap',       'cat' => 'c', 'img' => 'cap.png',       'w1' => 'Cup',   'w1img' => 'cup.png',   'w2' => 'Cut',    'w2img' => 'cut.png'],
-            ['w' => 'Cup',       'cat' => 'c', 'img' => 'cup.png',       'w1' => 'Cap',   'w1img' => 'cap.png',   'w2' => 'Cut',    'w2img' => 'cut.png'],
-            ['w' => 'Apple',     'cat' => 'a', 'img' => 'apple.png',     'w1' => 'Ant',   'w1img' => 'ant.png',   'w2' => 'Alligator', 'w2img' => 'alligator.png'],
-            ['w' => 'Ant',       'cat' => 'a', 'img' => 'ant.png',       'w1' => 'Apple', 'w1img' => 'apple.png', 'w2' => 'Alligator', 'w2img' => 'alligator.png'],
-            ['w' => 'Alligator', 'cat' => 'a', 'img' => 'alligator.png', 'w1' => 'Ant',   'w1img' => 'ant.png',   'w2' => 'Apple',  'w2img' => 'apple.png'],
+        // Core family vocabulary (shared on page 6)
+        $fam = [
+            ['Boy', 'boy.png'], ['Brother', 'brother.png'], ['Cat', 'cat.png'],
+            ['Dad', 'dad.png'], ['Friend', 'friend.png'], ['Girl', 'girl.png'],
+            ['Mum', 'mum.png'], ['Sister', 'sister.png'],
         ];
-        $this->createWords($unitId, $folder, $phonics, 'phonics');
+        foreach ($fam as $i => [$w, $img]) {
+            $siblings = array_values(array_filter($fam, fn ($x) => $x[0] !== $w));
+            $this->upsertWord($unitId, $folder, $w, 'family', $img, $p6, [
+                [$siblings[0][0], $siblings[0][1]],
+                [$siblings[1][0], $siblings[1][1]],
+            ]);
+        }
+
+        // Phonics Ss (p10)
+        foreach ([['Sing', 'sing.png'], ['Sun', 'sun.png'], ['Six', 'six.png'], ['Sister', 'sister.png']] as $row) {
+            $this->upsertWord($unitId, $folder, $row[0] . ' (Ss)', 's', $row[1], $p10,
+                [['Dig', 'dig.png'], ['Doll', 'doll.png']], 'phonics');
+        }
+        // Phonics Dd (p10)
+        foreach ([['Dig', 'dig.png'], ['Duck', 'duck.png'], ['Doll', 'doll.png'], ['Dad', 'dad.png']] as $row) {
+            $this->upsertWord($unitId, $folder, $row[0] . ' (Dd)', 'd', $row[1], $p10,
+                [['Sing', 'sing.png'], ['Sun', 'sun.png']], 'phonics');
+        }
+        // Phonics Cc (p11)
+        foreach ([['Cut', 'cut.png'], ['Cup', 'cup.png'], ['Cap', 'cap.png'], ['Cat', 'cat.png']] as $row) {
+            $this->upsertWord($unitId, $folder, $row[0] . ' (Cc)', 'c', $row[1], $p11,
+                [['Apple', 'apple.png'], ['Ant', 'ant.png']], 'phonics');
+        }
+        // Phonics Aa (p11)
+        foreach ([['Apple', 'apple.png'], ['Ant', 'ant.png'], ['Alligator', 'alligator.png'], ['Ann', 'ann.png']] as $row) {
+            $this->upsertWord($unitId, $folder, $row[0] . ' (Aa)', 'a', $row[1], $p11,
+                [['Cup', 'cup.png'], ['Cap', 'cap.png']], 'phonics');
+        }
 
         $this->createLessons($unitId, [
-            ['num' => 1, 'title' => 'Meet my family', 'page' => 6, 'type' => 'intro',
-             'audio' => 'PB6', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Boy', 'Brother', 'Cat', 'Dad', 'Friend', 'Girl', 'Mum', 'Sister'],
-                'prompt' => 'Listen, point and say.',
-                'audio_tracks' => ['AB6', 'PB6', 'PB6_2'],
-             ]],
-            ['num' => 2, 'title' => 'Language practice', 'page' => 7, 'type' => 'vocab-game',
-             'audio' => 'PB7', 'conf' => [
-                'mode' => 'vocab-game', 'category' => 'family',
-                'rounds' => 6, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => "Listen and circle.",
-                'audio_tracks' => ['AB7', 'AB7_2', 'PB7', 'PB7_2', 'PB7_3'],
-             ]],
-            ['num' => 3, 'title' => 'Story: Find Ann', 'page' => 8, 'type' => 'intro',
-             'audio' => 'PB8', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Mum', 'Dad', 'Cat', 'Girl', 'Boy'],
-                'prompt' => 'Listen and read — Find Ann.',
-                'value' => 'Be helpful.',
-                'audio_tracks' => ['PB8'],
-             ]],
-            ['num' => 4, 'title' => 'Sing & match', 'page' => 9, 'type' => 'review',
-             'audio' => 'PB9_3', 'conf' => [
-                'mode' => 'review', 'categories' => ['family'],
-                'rounds' => 6, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen, match and sing!',
-                'audio_tracks' => ['AB9', 'PB9', 'PB9_2', 'PB9_3'],
-             ]],
-            ['num' => 5, 'title' => 'Phonics: Ss and Dd', 'page' => 10, 'type' => 'phonics-game',
-             'audio' => 'PB10', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['s', 'd'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and circle the sound.',
-                'audio_tracks' => ['AB10', 'AB10_2', 'PB10', 'PB10_2'],
-             ]],
-            ['num' => 6, 'title' => 'Phonics: Cc and Aa', 'page' => 11, 'type' => 'phonics-game',
-             'audio' => 'PB11', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['c', 'a'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and circle the sound.',
-                'audio_tracks' => ['AB11', 'AB11_2', 'PB11', 'PB11_2'],
-             ]],
-            ['num' => 7, 'title' => 'Project: Finger puppets', 'page' => 12, 'type' => 'intro',
-             'audio' => 'PB12_2', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Mum', 'Dad', 'Brother', 'Sister'],
-                'prompt' => 'Make your finger puppets and sing!',
-                'audio_tracks' => ['AB12', 'AB12_2', 'PB12_2'],
-                'video_track' => 'PB12V',
-             ]],
-            ['num' => 8, 'title' => 'Picture dictionary', 'page' => 13, 'type' => 'review',
-             'audio' => 'PB13', 'conf' => [
-                'mode' => 'review', 'categories' => ['family'],
-                'rounds' => 8, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen and trace.',
-                'audio_tracks' => ['AB13', 'PB13', 'PB13_2'],
-             ]],
+            [
+                'num' => 1, 'title' => 'Meet my family', 'page' => 6, 'book_lesson' => 'Lesson 1',
+                'type' => 'intro', 'audio' => 'PB6',
+                'conf' => [
+                    'mode' => 'intro',
+                    'word_filter' => ['Boy', 'Brother', 'Cat', 'Dad', 'Friend', 'Girl', 'Mum', 'Sister'],
+                    'prompt' => 'Listen, point and say.',
+                    'audio_tracks' => ['PB6', 'PB6_2', 'AB6', 'AB6_2'],
+                    'instruction_key' => 'listen_follow_point_say',
+                ],
+            ],
+            [
+                'num' => 2, 'title' => 'Language practice', 'page' => 7, 'book_lesson' => 'Lesson 3',
+                'type' => 'vocab-game', 'audio' => 'PB7',
+                'conf' => [
+                    'mode' => 'vocab-game', 'category' => 'family',
+                    'rounds' => 6, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3, 'decoy_pool' => 'same_category',
+                    'prompt' => 'Listen and circle.',
+                    'audio_tracks' => ['PB7', 'PB7_2', 'PB7_3', 'AB7', 'AB7_2'],
+                ],
+            ],
+            [
+                'num' => 3, 'title' => 'Story: Find Ann', 'page' => 8, 'book_lesson' => 'Lesson 5',
+                'type' => 'story', 'audio' => 'PB8',
+                'conf' => [
+                    'mode' => 'story',
+                    'story_title' => 'Find Ann',
+                    'value' => 'Be helpful.',
+                    'characters' => ['Hala', 'Bill', 'Ann'],
+                    'audio_tracks' => ['PB8'],
+                ],
+            ],
+            [
+                'num' => 4, 'title' => 'Listen, match & sing', 'page' => 9, 'book_lesson' => 'Lesson 7',
+                'type' => 'song', 'audio' => 'PB9_3',
+                'conf' => [
+                    'mode' => 'song', 'categories' => ['family'],
+                    'rounds' => 4, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3,
+                    'song_title' => 'The family song',
+                    'prompt' => 'Listen, match and sing!',
+                    'audio_tracks' => ['PB9', 'PB9_2', 'PB9_3'],
+                ],
+            ],
+            [
+                'num' => 5, 'title' => 'Phonics: Ss and Dd', 'page' => 10, 'book_lesson' => 'Lesson 9',
+                'type' => 'phonics-game', 'audio' => 'PB10',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['s', 'd'],
+                    'rounds' => 8, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and circle the sound.',
+                    'audio_tracks' => ['PB10', 'PB10_2', 'AB10', 'AB10_2'],
+                ],
+            ],
+            [
+                'num' => 6, 'title' => 'Phonics: Cc and Aa', 'page' => 11, 'book_lesson' => 'Lesson 10',
+                'type' => 'phonics-game', 'audio' => 'PB11',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['c', 'a'],
+                    'rounds' => 8, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and circle the sound.',
+                    'audio_tracks' => ['PB11', 'PB11_2', 'AB11', 'AB11_2'],
+                ],
+            ],
+            [
+                'num' => 7, 'title' => 'Project: Finger puppets', 'page' => 12, 'book_lesson' => 'Lesson 11',
+                'type' => 'project', 'audio' => 'PB12_2',
+                'conf' => [
+                    'mode' => 'project',
+                    'project_title' => 'Finger puppets',
+                    'word_filter' => ['Mum', 'Dad', 'Brother', 'Sister'],
+                    'steps' => [
+                        'Colour the four family puppets.',
+                        'Cut them out carefully.',
+                        'Tape each one into a small ring.',
+                        'Put them on your fingers and sing!',
+                    ],
+                    'audio_tracks' => ['PB12_2', 'AB12', 'AB12_2'],
+                    'video_track' => 'PB12V',
+                ],
+            ],
+            [
+                'num' => 8, 'title' => 'Picture dictionary', 'page' => 13, 'book_lesson' => 'Picture dict.',
+                'type' => 'picture-dict', 'audio' => 'PB13',
+                'conf' => [
+                    'mode' => 'picture-dict',
+                    'word_filter' => ['Boy', 'Brother', 'Cat', 'Dad', 'Friend', 'Girl', 'Mum', 'Sister'],
+                    'prompt' => 'Listen and trace.',
+                    'audio_tracks' => ['PB13', 'PB13_2', 'AB13'],
+                ],
+            ],
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════
-    // U2  My school bag  (pages 14-21)
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // U2 — My school bag  (pages 14-21)  — 8 lessons
+    // ═══════════════════════════════════════════════════════════════
     protected function seedSchoolBag(int $unitId): void
     {
         $folder = 'schoolbag';
-        $words = [
-            ['w' => 'Bag',         'cat' => 'object', 'img' => 'bag.png',         'w1' => 'Book',   'w1img' => 'book.png',   'w2' => 'Pencil', 'w2img' => 'pencil.png'],
-            ['w' => 'Book',        'cat' => 'object', 'img' => 'book.png',        'w1' => 'Bag',    'w1img' => 'bag.png',    'w2' => 'Ruler',  'w2img' => 'ruler.png'],
-            ['w' => 'Crayon',      'cat' => 'object', 'img' => 'crayon.png',      'w1' => 'Pen',    'w1img' => 'pen.png',    'w2' => 'Pencil', 'w2img' => 'pencil.png'],
-            ['w' => 'Eraser',      'cat' => 'object', 'img' => 'eraser.png',      'w1' => 'Ruler',  'w1img' => 'ruler.png',  'w2' => 'Bag',    'w2img' => 'bag.png'],
-            ['w' => 'Pen',         'cat' => 'object', 'img' => 'pen.png',         'w1' => 'Pencil', 'w1img' => 'pencil.png', 'w2' => 'Crayon', 'w2img' => 'crayon.png'],
-            ['w' => 'Pencil',      'cat' => 'object', 'img' => 'pencil.png',      'w1' => 'Pen',    'w1img' => 'pen.png',    'w2' => 'Eraser', 'w2img' => 'eraser.png'],
-            ['w' => 'Pencil case', 'cat' => 'object', 'img' => 'pencilcase.png',  'w1' => 'Bag',    'w1img' => 'bag.png',    'w2' => 'Book',   'w2img' => 'book.png'],
-            ['w' => 'Ruler',       'cat' => 'object', 'img' => 'ruler.png',       'w1' => 'Pen',    'w1img' => 'pen.png',    'w2' => 'Crayon', 'w2img' => 'crayon.png'],
-        ];
-        $this->createWords($unitId, $folder, $words, 'vocab');
+        $p14 = $this->trackId('PB14');
+        $p18 = $this->trackId('PB18');
+        $p19 = $this->trackId('PB19');
 
-        $phonics = [
-            ['w' => 'Pink',     'cat' => 'p', 'img' => 'pink.png',     'w1' => 'Pen',    'w1img' => 'pen.png',    'w2' => 'Pencil', 'w2img' => 'pencil.png'],
-            ['w' => 'Pen',      'cat' => 'p', 'img' => 'pen.png',      'w1' => 'Pink',   'w1img' => 'pink.png',   'w2' => 'Pencil', 'w2img' => 'pencil.png'],
-            ['w' => 'Pencil',   'cat' => 'p', 'img' => 'pencil.png',   'w1' => 'Pen',    'w1img' => 'pen.png',    'w2' => 'Pink',   'w2img' => 'pink.png'],
-            ['w' => 'Rabbit',   'cat' => 'r', 'img' => 'rabbit.png',   'w1' => 'Run',    'w1img' => 'run.png',    'w2' => 'Ruler',  'w2img' => 'ruler.png'],
-            ['w' => 'Red',      'cat' => 'r', 'img' => 'red.png',      'w1' => 'Rabbit', 'w1img' => 'rabbit.png', 'w2' => 'Run',    'w2img' => 'run.png'],
-            ['w' => 'Run',      'cat' => 'r', 'img' => 'run.png',      'w1' => 'Ruler',  'w1img' => 'ruler.png',  'w2' => 'Rabbit', 'w2img' => 'rabbit.png'],
-            ['w' => 'Egg',      'cat' => 'e', 'img' => 'egg.png',      'w1' => 'Elbow',  'w1img' => 'elbow.png',  'w2' => 'Elephant', 'w2img' => 'elephant.png'],
-            ['w' => 'Elephant', 'cat' => 'e', 'img' => 'elephant.png', 'w1' => 'Egg',    'w1img' => 'egg.png',    'w2' => 'Elbow',  'w2img' => 'elbow.png'],
-            ['w' => 'Ball',     'cat' => 'b', 'img' => 'ball.png',     'w1' => 'Bag',    'w1img' => 'bag.png',    'w2' => 'Book',   'w2img' => 'book.png'],
-            ['w' => 'Boy',      'cat' => 'b', 'img' => 'boy.png',      'w1' => 'Bag',    'w1img' => 'bag.png',    'w2' => 'Ball',   'w2img' => 'ball.png'],
+        $items = [
+            ['Bag', 'bag.png'], ['Book', 'book.png'], ['Crayon', 'crayon.png'],
+            ['Eraser', 'eraser.png'], ['Pen', 'pen.png'], ['Pencil', 'pencil.png'],
+            ['Pencil case', 'pencilcase.png'], ['Ruler', 'ruler.png'],
         ];
-        $this->createWords($unitId, $folder, $phonics, 'phonics');
+        foreach ($items as $i => [$w, $img]) {
+            $sib = array_values(array_filter($items, fn ($x) => $x[0] !== $w));
+            $this->upsertWord($unitId, $folder, $w, 'object', $img, $p14, [
+                [$sib[0][0], $sib[0][1]], [$sib[1][0], $sib[1][1]],
+            ]);
+        }
+
+        // Phonics Pp (p18)
+        foreach ([['Pen', 'pen.png'], ['Pencil', 'pencil.png'], ['Pink', 'pink.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Pp)', 'p', $r[1], $p18,
+                [['Rabbit', 'rabbit.png'], ['Red', 'red.png']], 'phonics');
+        }
+        // Phonics Rr (p18)
+        foreach ([['Rabbit', 'rabbit.png'], ['Red', 'red.png'], ['Run', 'run.png'], ['Ruler', 'ruler.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Rr)', 'r', $r[1], $p18,
+                [['Pen', 'pen.png'], ['Pink', 'pink.png']], 'phonics');
+        }
+        // Phonics Ee (p19)
+        foreach ([['Elephant', 'elephant.png'], ['Egg', 'egg.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Ee)', 'e', $r[1], $p19,
+                [['Book', 'book.png'], ['Ball', 'ball.png']], 'phonics');
+        }
+        // Phonics Bb (p19)
+        foreach ([['Book', 'book.png'], ['Ball', 'ball.png'], ['Bag', 'bag.png'], ['Boy', 'boy.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Bb)', 'b', $r[1], $p19,
+                [['Elephant', 'elephant.png'], ['Egg', 'egg.png']], 'phonics');
+        }
 
         $this->createLessons($unitId, [
-            ['num' => 1, 'title' => "What's in my bag?", 'page' => 14, 'type' => 'intro',
-             'audio' => 'PB14', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Pen', 'Eraser', 'Ruler', 'Bag', 'Book', 'Pencil', 'Crayon', 'Pencil case'],
-                'prompt' => 'Listen, point and say.',
-                'audio_tracks' => ['AB14', 'PB14', 'PB14_2'],
-             ]],
-            ['num' => 2, 'title' => "I've got / I haven't got", 'page' => 15, 'type' => 'vocab-game',
-             'audio' => 'PB15', 'conf' => [
-                'mode' => 'vocab-game', 'category' => 'object',
-                'rounds' => 6, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Listen and circle.',
-                'audio_tracks' => ['AB15', 'AB15_2', 'PB15', 'PB15_2', 'PB15_3'],
-             ]],
-            ['num' => 3, 'title' => 'Story: Find Lama', 'page' => 16, 'type' => 'intro',
-             'audio' => 'PB16', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Bag', 'Pen', 'Ruler', 'Book'],
-                'prompt' => 'Listen and read — Find Lama.',
-                'value' => 'Look after your things.',
-                'audio_tracks' => ['PB16'],
-             ]],
-            ['num' => 4, 'title' => 'Sing & match', 'page' => 17, 'type' => 'review',
-             'audio' => 'PB17_3', 'conf' => [
-                'mode' => 'review', 'categories' => ['object'],
-                'rounds' => 6, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen, match and sing!',
-                'audio_tracks' => ['PB17', 'PB17_2', 'PB17_3', 'PB17_4'],
-             ]],
-            ['num' => 5, 'title' => 'Phonics: Pp and Rr', 'page' => 18, 'type' => 'phonics-game',
-             'audio' => 'PB18', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['p', 'r'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and circle the sound.',
-                'audio_tracks' => ['AB18', 'AB18_2', 'PB18', 'PB18_2'],
-             ]],
-            ['num' => 6, 'title' => 'Phonics: Ee and Bb', 'page' => 19, 'type' => 'phonics-game',
-             'audio' => 'PB19', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['e', 'b'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and circle the sound.',
-                'audio_tracks' => ['AB19', 'AB19_2', 'PB19', 'PB19_2'],
-             ]],
-            ['num' => 7, 'title' => 'Project: A school bag', 'page' => 20, 'type' => 'intro',
-             'audio' => 'PB20_2', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Bag', 'Book', 'Pen', 'Pencil', 'Ruler', 'Crayon'],
-                'prompt' => 'Make your school bag and sing!',
-                'audio_tracks' => ['AB20', 'AB20_2', 'PB20_2'],
-                'video_track' => 'PB20V',
-             ]],
-            ['num' => 8, 'title' => 'Picture dictionary', 'page' => 21, 'type' => 'review',
-             'audio' => 'PB21', 'conf' => [
-                'mode' => 'review', 'categories' => ['object'],
-                'rounds' => 8, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen and trace.',
-                'audio_tracks' => ['AB21', 'PB21', 'PB21_2'],
-             ]],
+            [
+                'num' => 1, 'title' => "What's in my bag?", 'page' => 14, 'book_lesson' => 'Lesson 1',
+                'type' => 'intro', 'audio' => 'PB14',
+                'conf' => [
+                    'mode' => 'intro',
+                    'word_filter' => ['Pen', 'Eraser', 'Ruler', 'Bag', 'Book', 'Pencil', 'Crayon', 'Pencil case'],
+                    'prompt' => 'Listen, point and say.',
+                    'audio_tracks' => ['PB14', 'PB14_2', 'AB14', 'AB14_2'],
+                ],
+            ],
+            [
+                'num' => 2, 'title' => "I've got / I haven't got", 'page' => 15, 'book_lesson' => 'Lesson 3',
+                'type' => 'vocab-game', 'audio' => 'PB15',
+                'conf' => [
+                    'mode' => 'vocab-game', 'category' => 'object',
+                    'rounds' => 6, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3, 'decoy_pool' => 'same_category',
+                    'prompt' => "Listen and circle — I've got / I haven't got.",
+                    'audio_tracks' => ['PB15', 'PB15_2', 'PB15_3', 'AB15', 'AB15_2'],
+                ],
+            ],
+            [
+                'num' => 3, 'title' => 'Story: Find Lama', 'page' => 16, 'book_lesson' => 'Lesson 5',
+                'type' => 'story', 'audio' => 'PB16',
+                'conf' => [
+                    'mode' => 'story',
+                    'story_title' => 'Find Lama',
+                    'value' => 'Look after your things.',
+                    'characters' => ['Lama', 'Malek', 'Hala'],
+                    'audio_tracks' => ['PB16', 'AB16'],
+                ],
+            ],
+            [
+                'num' => 4, 'title' => 'Listen, match & sing', 'page' => 17, 'book_lesson' => 'Lesson 7',
+                'type' => 'song', 'audio' => 'PB17_3',
+                'conf' => [
+                    'mode' => 'song', 'categories' => ['object'],
+                    'rounds' => 4, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3,
+                    'song_title' => 'My school bag song',
+                    'prompt' => 'Listen, match and sing!',
+                    'audio_tracks' => ['PB17', 'PB17_2', 'PB17_3', 'PB17_4'],
+                ],
+            ],
+            [
+                'num' => 5, 'title' => 'Phonics: Pp and Rr', 'page' => 18, 'book_lesson' => 'Lesson 9',
+                'type' => 'phonics-game', 'audio' => 'PB18',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['p', 'r'],
+                    'rounds' => 8, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and circle the sound.',
+                    'audio_tracks' => ['PB18', 'PB18_2', 'AB18', 'AB18_2'],
+                ],
+            ],
+            [
+                'num' => 6, 'title' => 'Phonics: Ee and Bb', 'page' => 19, 'book_lesson' => 'Lesson 10',
+                'type' => 'phonics-game', 'audio' => 'PB19',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['e', 'b'],
+                    'rounds' => 8, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and circle the sound.',
+                    'audio_tracks' => ['PB19', 'PB19_2', 'AB19', 'AB19_2'],
+                ],
+            ],
+            [
+                'num' => 7, 'title' => 'Project: A school bag', 'page' => 20, 'book_lesson' => 'Lesson 11',
+                'type' => 'project', 'audio' => 'PB20_2',
+                'conf' => [
+                    'mode' => 'project',
+                    'project_title' => 'A school bag',
+                    'word_filter' => ['Bag', 'Book', 'Pen', 'Pencil', 'Ruler', 'Crayon'],
+                    'steps' => [
+                        'Draw and colour a big school bag.',
+                        'Draw the items you have inside.',
+                        'Show your bag and sing the song!',
+                    ],
+                    'audio_tracks' => ['PB20_2', 'AB20', 'AB20_2'],
+                    'video_track' => 'PB20V',
+                ],
+            ],
+            [
+                'num' => 8, 'title' => 'Picture dictionary', 'page' => 21, 'book_lesson' => 'Picture dict.',
+                'type' => 'picture-dict', 'audio' => 'PB21',
+                'conf' => [
+                    'mode' => 'picture-dict',
+                    'word_filter' => ['Bag', 'Book', 'Crayon', 'Eraser', 'Pen', 'Pencil', 'Pencil case', 'Ruler'],
+                    'prompt' => 'Listen and trace.',
+                    'audio_tracks' => ['PB21', 'PB21_2', 'AB21'],
+                ],
+            ],
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════
-    // U3  Our classroom  (pages 22-29)
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // U3 — Our classroom  (pages 22-29)  — 8 lessons
+    // ═══════════════════════════════════════════════════════════════
     protected function seedClassroom(int $unitId): void
     {
         $folder = 'classroom';
-        $words = [
-            ['w' => 'Chair',      'cat' => 'classroom', 'img' => 'chair.png',      'w1' => 'Desk',       'w1img' => 'desk.png',       'w2' => 'Floor',  'w2img' => 'floor.png'],
-            ['w' => 'Desk',       'cat' => 'classroom', 'img' => 'desk.png',       'w1' => 'Chair',      'w1img' => 'chair.png',      'w2' => 'Wall',   'w2img' => 'wall.png'],
-            ['w' => 'Door',       'cat' => 'classroom', 'img' => 'door.png',       'w1' => 'Window',     'w1img' => 'window.png',     'w2' => 'Wall',   'w2img' => 'wall.png'],
-            ['w' => 'Floor',      'cat' => 'classroom', 'img' => 'floor.png',      'w1' => 'Chair',      'w1img' => 'chair.png',      'w2' => 'Desk',   'w2img' => 'desk.png'],
-            ['w' => 'Teacher',    'cat' => 'classroom', 'img' => 'teacher.png',    'w1' => 'Wall',       'w1img' => 'wall.png',       'w2' => 'Door',   'w2img' => 'door.png'],
-            ['w' => 'Wall',       'cat' => 'classroom', 'img' => 'wall.png',       'w1' => 'Whiteboard', 'w1img' => 'whiteboard.png', 'w2' => 'Window', 'w2img' => 'window.png'],
-            ['w' => 'Whiteboard', 'cat' => 'classroom', 'img' => 'whiteboard.png', 'w1' => 'Wall',       'w1img' => 'wall.png',       'w2' => 'Door',   'w2img' => 'door.png'],
-            ['w' => 'Window',     'cat' => 'classroom', 'img' => 'window.png',     'w1' => 'Door',       'w1img' => 'door.png',       'w2' => 'Wall',   'w2img' => 'wall.png'],
-        ];
-        $this->createWords($unitId, $folder, $words, 'vocab');
+        $p22 = $this->trackId('PB22');
+        $p26 = $this->trackId('PB26');
+        $p27 = $this->trackId('PB27');
 
-        $phonics = [
-            ['w' => 'Teddy',   'cat' => 't', 'img' => 'teddy.png',   'w1' => 'Teacher', 'w1img' => 'teacher.png', 'w2' => 'Ten',    'w2img' => 'ten.png'],
-            ['w' => 'Teacher', 'cat' => 't', 'img' => 'teacher.png', 'w1' => 'Teddy',   'w1img' => 'teddy.png',   'w2' => 'Two',    'w2img' => 'two.png'],
-            ['w' => 'Ten',     'cat' => 't', 'img' => 'ten.png',     'w1' => 'Two',     'w1img' => 'two.png',     'w2' => 'Teddy',  'w2img' => 'teddy.png'],
-            ['w' => 'Mouse',   'cat' => 'm', 'img' => 'mouse.png',   'w1' => 'Milk',    'w1img' => 'milk.png',    'w2' => 'Moon',   'w2img' => 'moon.png'],
-            ['w' => 'Milk',    'cat' => 'm', 'img' => 'milk.png',    'w1' => 'Moon',    'w1img' => 'moon.png',    'w2' => 'Mouse',  'w2img' => 'mouse.png'],
-            ['w' => 'Moon',    'cat' => 'm', 'img' => 'moon.png',    'w1' => 'Milk',    'w1img' => 'milk.png',    'w2' => 'Mouse',  'w2img' => 'mouse.png'],
-            ['w' => 'Mum',     'cat' => 'm', 'img' => 'mum.png',     'w1' => 'Milk',    'w1img' => 'milk.png',    'w2' => 'Moon',   'w2img' => 'moon.png'],
-            ['w' => 'Wave',    'cat' => 'w', 'img' => 'wave.png',    'w1' => 'Wall',    'w1img' => 'wall.png',    'w2' => 'Water',  'w2img' => 'water.png'],
-            ['w' => 'Wall',    'cat' => 'w', 'img' => 'wall.png',    'w1' => 'Water',   'w1img' => 'water.png',   'w2' => 'Wave',   'w2img' => 'wave.png'],
-            ['w' => 'Water',   'cat' => 'w', 'img' => 'water.png',   'w1' => 'Wall',    'w1img' => 'wall.png',    'w2' => 'Wave',   'w2img' => 'wave.png'],
-            ['w' => 'Insect',  'cat' => 'i', 'img' => 'insect.png',  'w1' => 'Ink',     'w1img' => 'ink.png',     'w2' => 'Igloo',  'w2img' => 'igloo.png'],
-            ['w' => 'Ink',     'cat' => 'i', 'img' => 'ink.png',     'w1' => 'Insect',  'w1img' => 'insect.png',  'w2' => 'Igloo',  'w2img' => 'igloo.png'],
-            ['w' => 'Igloo',   'cat' => 'i', 'img' => 'igloo.png',   'w1' => 'Ink',     'w1img' => 'ink.png',     'w2' => 'Insect', 'w2img' => 'insect.png'],
+        $items = [
+            ['Chair', 'chair.png'], ['Desk', 'desk.png'], ['Door', 'door.png'],
+            ['Floor', 'floor.png'], ['Teacher', 'teacher.png'], ['Wall', 'wall.png'],
+            ['Whiteboard', 'whiteboard.png'], ['Window', 'window.png'],
         ];
-        $this->createWords($unitId, $folder, $phonics, 'phonics');
+        foreach ($items as [$w, $img]) {
+            $sib = array_values(array_filter($items, fn ($x) => $x[0] !== $w));
+            $this->upsertWord($unitId, $folder, $w, 'classroom', $img, $p22, [
+                [$sib[0][0], $sib[0][1]], [$sib[1][0], $sib[1][1]],
+            ]);
+        }
+
+        // Phonics Tt (p26)
+        foreach ([['Teddy', 'teddy.png'], ['Teacher', 'teacher.png'], ['Ten', 'ten.png'], ['Two', 'two.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Tt)', 't', $r[1], $p26,
+                [['Mouse', 'mouse.png'], ['Milk', 'milk.png']], 'phonics');
+        }
+        // Phonics Mm (p26)
+        foreach ([['Mouse', 'mouse.png'], ['Milk', 'milk.png'], ['Moon', 'moon.png'], ['Mum', 'mum.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Mm)', 'm', $r[1], $p26,
+                [['Teddy', 'teddy.png'], ['Ten', 'ten.png']], 'phonics');
+        }
+        // Phonics Ww (p27)
+        foreach ([['Wave', 'wave.png'], ['Wall', 'wall.png'], ['Water', 'water.png'], ['Whiteboard', 'whiteboard.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Ww)', 'w', $r[1], $p27,
+                [['Insect', 'insect.png'], ['Ink', 'ink.png']], 'phonics');
+        }
+        // Phonics Ii (p27)
+        foreach ([['Insect', 'insect.png'], ['Ink', 'ink.png'], ['Igloo', 'igloo.png']] as $r) {
+            $this->upsertWord($unitId, $folder, $r[0] . ' (Ii)', 'i', $r[1], $p27,
+                [['Wave', 'wave.png'], ['Wall', 'wall.png']], 'phonics');
+        }
 
         $this->createLessons($unitId, [
-            ['num' => 1, 'title' => 'Our classroom', 'page' => 22, 'type' => 'intro',
-             'audio' => 'PB22', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Teacher', 'Whiteboard', 'Door', 'Window', 'Chair', 'Desk', 'Floor', 'Wall'],
-                'prompt' => 'Listen, point and say.',
-                'audio_tracks' => ['AB22', 'PB22', 'PB22_2'],
-             ]],
-            ['num' => 2, 'title' => "What's this?", 'page' => 23, 'type' => 'vocab-game',
-             'audio' => 'PB23', 'conf' => [
-                'mode' => 'vocab-game', 'category' => 'classroom',
-                'rounds' => 6, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Listen and number.',
-                'audio_tracks' => ['AB23', 'AB23_2', 'PB23', 'PB23_2', 'PB23_3'],
-             ]],
-            ['num' => 3, 'title' => 'Story: Find the pens', 'page' => 24, 'type' => 'intro',
-             'audio' => 'PB24', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Desk', 'Chair', 'Pen', 'Bag'],
-                'prompt' => 'Listen and read — Find the pens.',
-                'value' => 'Be tidy.',
-                'audio_tracks' => ['PB24'],
-             ]],
-            ['num' => 4, 'title' => 'Sing & match', 'page' => 25, 'type' => 'review',
-             'audio' => 'PB25_3', 'conf' => [
-                'mode' => 'review', 'categories' => ['classroom'],
-                'rounds' => 6, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen, match and sing!',
-                'audio_tracks' => ['PB25', 'PB25_2', 'PB25_3', 'PB25_4'],
-             ]],
-            ['num' => 5, 'title' => 'Phonics: Tt and Mm', 'page' => 26, 'type' => 'phonics-game',
-             'audio' => 'PB26', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['t', 'm'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and circle the sound.',
-                'audio_tracks' => ['AB26', 'PB26', 'PB26_2'],
-             ]],
-            ['num' => 6, 'title' => 'Phonics: Ww and Ii', 'page' => 27, 'type' => 'phonics-game',
-             'audio' => 'PB27', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['w', 'i'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and circle the sound.',
-                'audio_tracks' => ['AB27', 'AB27_2', 'PB27', 'PB27_2'],
-             ]],
-            ['num' => 7, 'title' => 'Project: A pen pot', 'page' => 28, 'type' => 'intro',
-             'audio' => 'PB28_2', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Pen', 'Pencil', 'Crayon', 'Ruler'],
-                'prompt' => 'Make your pen pot and play!',
-                'audio_tracks' => ['AB28', 'AB28_2', 'PB28_2'],
-                'video_track' => 'PB28V',
-             ]],
-            ['num' => 8, 'title' => 'Picture dictionary', 'page' => 29, 'type' => 'review',
-             'audio' => 'PB29', 'conf' => [
-                'mode' => 'review', 'categories' => ['classroom'],
-                'rounds' => 8, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen and trace.',
-                'audio_tracks' => ['AB29', 'PB29', 'PB29_2'],
-             ]],
+            [
+                'num' => 1, 'title' => 'Our classroom', 'page' => 22, 'book_lesson' => 'Lesson 1',
+                'type' => 'intro', 'audio' => 'PB22',
+                'conf' => [
+                    'mode' => 'intro',
+                    'word_filter' => ['Teacher', 'Whiteboard', 'Door', 'Window', 'Chair', 'Desk', 'Floor', 'Wall'],
+                    'prompt' => 'Listen, point and say.',
+                    'audio_tracks' => ['PB22', 'PB22_2', 'AB22', 'AB22_2'],
+                ],
+            ],
+            [
+                'num' => 2, 'title' => "What's this? Where is it?", 'page' => 23, 'book_lesson' => 'Lesson 3',
+                'type' => 'vocab-game', 'audio' => 'PB23',
+                'conf' => [
+                    'mode' => 'vocab-game', 'category' => 'classroom',
+                    'rounds' => 6, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3, 'decoy_pool' => 'same_category',
+                    'prompt' => 'Listen and number / Listen and tick.',
+                    'audio_tracks' => ['PB23', 'PB23_2', 'PB23_3', 'AB23', 'AB23_2'],
+                ],
+            ],
+            [
+                'num' => 3, 'title' => 'Story: Find the pens', 'page' => 24, 'book_lesson' => 'Lesson 5',
+                'type' => 'story', 'audio' => 'PB24',
+                'conf' => [
+                    'mode' => 'story',
+                    'story_title' => 'Find the pens',
+                    'value' => 'Be tidy.',
+                    'characters' => ['Malek', 'Hala', 'Bill'],
+                    'audio_tracks' => ['PB24'],
+                ],
+            ],
+            [
+                'num' => 4, 'title' => 'Listen, match & sing', 'page' => 25, 'book_lesson' => 'Lesson 7',
+                'type' => 'song', 'audio' => 'PB25_3',
+                'conf' => [
+                    'mode' => 'song', 'categories' => ['classroom'],
+                    'rounds' => 4, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3,
+                    'song_title' => 'The classroom song',
+                    'prompt' => 'Listen, match and sing!',
+                    'audio_tracks' => ['PB25', 'PB25_2', 'PB25_3', 'PB25_4'],
+                ],
+            ],
+            [
+                'num' => 5, 'title' => 'Phonics: Tt and Mm', 'page' => 26, 'book_lesson' => 'Lesson 9',
+                'type' => 'phonics-game', 'audio' => 'PB26',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['t', 'm'],
+                    'rounds' => 8, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and circle the sound.',
+                    'audio_tracks' => ['PB26', 'PB26_2', 'AB26'],
+                ],
+            ],
+            [
+                'num' => 6, 'title' => 'Phonics: Ww and Ii', 'page' => 27, 'book_lesson' => 'Lesson 10',
+                'type' => 'phonics-game', 'audio' => 'PB27',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['w', 'i'],
+                    'rounds' => 8, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and circle the sound.',
+                    'audio_tracks' => ['PB27', 'PB27_2', 'AB27', 'AB27_2'],
+                ],
+            ],
+            [
+                'num' => 7, 'title' => 'Project: A pen pot', 'page' => 28, 'book_lesson' => 'Lesson 11',
+                'type' => 'project', 'audio' => 'PB28_2',
+                'conf' => [
+                    'mode' => 'project',
+                    'project_title' => 'A pen pot',
+                    'word_filter' => ['Pen', 'Pencil', 'Crayon', 'Ruler'],
+                    'steps' => [
+                        'Cover a small cup with coloured paper.',
+                        'Decorate it with stickers.',
+                        'Put your pens and pencils inside!',
+                    ],
+                    'audio_tracks' => ['PB28_2', 'AB28', 'AB28_2'],
+                    'video_track' => 'PB28V',
+                ],
+            ],
+            [
+                'num' => 8, 'title' => 'Picture dictionary', 'page' => 29, 'book_lesson' => 'Picture dict.',
+                'type' => 'picture-dict', 'audio' => 'PB29',
+                'conf' => [
+                    'mode' => 'picture-dict',
+                    'word_filter' => ['Chair', 'Desk', 'Door', 'Floor', 'Teacher', 'Wall', 'Whiteboard', 'Window'],
+                    'prompt' => 'Listen and trace.',
+                    'audio_tracks' => ['PB29', 'PB29_2', 'AB29'],
+                ],
+            ],
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════
-    // U4  My favourite toy  (pages 30-37)
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // U4 — My favourite toy  (pages 30-37)  — 8 lessons
+    // ═══════════════════════════════════════════════════════════════
     protected function seedToy(int $unitId): void
     {
         $folder = 'toy';
-        $words = [
-            ['w' => 'Ball',   'cat' => 'toy', 'img' => 'ball.png',   'w1' => 'Car',    'w1img' => 'car.png',    'w2' => 'Doll',  'w2img' => 'dolltoy.png'],
-            ['w' => 'Car',    'cat' => 'toy', 'img' => 'car.png',    'w1' => 'Ball',   'w1img' => 'ball.png',   'w2' => 'Train', 'w2img' => 'train.png'],
-            ['w' => 'Doll',   'cat' => 'toy', 'img' => 'dolltoy.png','w1' => 'Robot',  'w1img' => 'robot.png',  'w2' => 'Teddy', 'w2img' => 'teddy.png'],
-            ['w' => 'Plane',  'cat' => 'toy', 'img' => 'plane.png',  'w1' => 'Car',    'w1img' => 'car.png',    'w2' => 'Train', 'w2img' => 'train.png'],
-            ['w' => 'Robot',  'cat' => 'toy', 'img' => 'robot.png',  'w1' => 'Doll',   'w1img' => 'dolltoy.png','w2' => 'Teddy', 'w2img' => 'teddy.png'],
-            ['w' => 'Teddy',  'cat' => 'toy', 'img' => 'teddy.png',  'w1' => 'Ball',   'w1img' => 'ball.png',   'w2' => 'Doll',  'w2img' => 'dolltoy.png'],
-            ['w' => 'Train',  'cat' => 'toy', 'img' => 'train.png',  'w1' => 'Car',    'w1img' => 'car.png',    'w2' => 'Plane', 'w2img' => 'plane.png'],
-            ['w' => 'Yoyo',   'cat' => 'toy', 'img' => 'yoyo.png',   'w1' => 'Ball',   'w1img' => 'ball.png',   'w2' => 'Doll',  'w2img' => 'dolltoy.png'],
-            // Feelings
-            ['w' => 'Happy',  'cat' => 'feeling', 'img' => 'happy.png', 'w1' => 'Sad',   'w1img' => 'sad.png',   'w2' => 'Ball',  'w2img' => 'ball.png'],
-            ['w' => 'Sad',    'cat' => 'feeling', 'img' => 'sad.png',   'w1' => 'Happy', 'w1img' => 'happy.png', 'w2' => 'Doll',  'w2img' => 'dolltoy.png'],
-        ];
-        $this->createWords($unitId, $folder, $words, 'vocab');
+        $p30 = $this->trackId('PB30');
+        $p34 = $this->trackId('PB34');
+        $p35 = $this->trackId('PB35');
 
-        // CVC words (Unit 4 Lessons 9-10)
-        $cvc = [
-            ['w' => 'Red', 'cat' => 'cvc', 'img' => 'red.png', 'w1' => 'Bed', 'w1img' => 'bed.png', 'w2' => 'Web', 'w2img' => 'web.png'],
-            ['w' => 'Cat', 'cat' => 'cvc', 'img' => 'cat.png', 'w1' => 'Bat', 'w1img' => 'bat.png', 'w2' => 'Mat', 'w2img' => 'mat.png'],
-            ['w' => 'Mat', 'cat' => 'cvc', 'img' => 'mat.png', 'w1' => 'Cat', 'w1img' => 'cat.png', 'w2' => 'Bat', 'w2img' => 'bat.png'],
-            ['w' => 'Sit', 'cat' => 'cvc', 'img' => 'sit.png', 'w1' => 'Sad', 'w1img' => 'sad.png', 'w2' => 'Tap', 'w2img' => 'tap.png'],
-            ['w' => 'Bed', 'cat' => 'cvc', 'img' => 'bed.png', 'w1' => 'Red', 'w1img' => 'red.png', 'w2' => 'Web', 'w2img' => 'web.png'],
-            ['w' => 'Web', 'cat' => 'cvc', 'img' => 'web.png', 'w1' => 'Wet', 'w1img' => 'wet.png', 'w2' => 'Red', 'w2img' => 'red.png'],
-            ['w' => 'Sad', 'cat' => 'cvc', 'img' => 'sad.png', 'w1' => 'Sit', 'w1img' => 'sit.png', 'w2' => 'Cap', 'w2img' => 'cap.png'],
-            ['w' => 'Wet', 'cat' => 'cvc', 'img' => 'wet.png', 'w1' => 'Web', 'w1img' => 'web.png', 'w2' => 'Red', 'w2img' => 'red.png'],
-            ['w' => 'Map', 'cat' => 'cvc', 'img' => 'map.png', 'w1' => 'Mat', 'w1img' => 'mat.png', 'w2' => 'Cap', 'w2img' => 'cap.png'],
-            ['w' => 'Bat', 'cat' => 'cvc', 'img' => 'bat.png', 'w1' => 'Cat', 'w1img' => 'cat.png', 'w2' => 'Mat', 'w2img' => 'mat.png'],
-            ['w' => 'Cap', 'cat' => 'cvc', 'img' => 'cap.png', 'w1' => 'Cat', 'w1img' => 'cat.png', 'w2' => 'Map', 'w2img' => 'map.png'],
-            ['w' => 'Tap', 'cat' => 'cvc', 'img' => 'tap.png', 'w1' => 'Cat', 'w1img' => 'cat.png', 'w2' => 'Cap', 'w2img' => 'cap.png'],
+        $toys = [
+            ['Ball', 'ball.png'], ['Car', 'car.png'], ['Doll', 'dolltoy.png'],
+            ['Plane', 'plane.png'], ['Robot', 'robot.png'], ['Teddy', 'teddy.png'],
+            ['Train', 'train.png'], ['Yoyo', 'yoyo.png'],
         ];
-        $this->createWords($unitId, $folder, $cvc, 'cvc');
+        foreach ($toys as [$w, $img]) {
+            $sib = array_values(array_filter($toys, fn ($x) => $x[0] !== $w));
+            $this->upsertWord($unitId, $folder, $w, 'toy', $img, $p30, [
+                [$sib[0][0], $sib[0][1]], [$sib[1][0], $sib[1][1]],
+            ]);
+        }
+        // Feelings
+        $this->upsertWord($unitId, $folder, 'Happy', 'feeling', 'happy.png', $p30, [['Sad', 'sad.png'], ['Ball', 'ball.png']]);
+        $this->upsertWord($unitId, $folder, 'Sad', 'feeling', 'sad.png', $p30, [['Happy', 'happy.png'], ['Doll', 'dolltoy.png']]);
+
+        // CVC (p34-35)
+        $cvc = [
+            ['Red', 'red.png'], ['Cat', 'cat.png'], ['Mat', 'mat.png'], ['Sit', 'sit.png'],
+            ['Bed', 'bed.png'], ['Web', 'web.png'], ['Sad', 'sad.png'], ['Wet', 'wet.png'],
+            ['Map', 'map.png'], ['Bat', 'bat.png'], ['Cap', 'cap.png'], ['Tap', 'tap.png'],
+        ];
+        foreach ($cvc as [$w, $img]) {
+            $sib = array_values(array_filter($cvc, fn ($x) => $x[0] !== $w));
+            $this->upsertWord($unitId, $folder, $w . ' (CVC)', 'cvc', $img, $p34, [
+                [$sib[0][0], $sib[0][1]], [$sib[1][0], $sib[1][1]],
+            ], 'cvc');
+        }
 
         $this->createLessons($unitId, [
-            ['num' => 1, 'title' => 'My favourite toy', 'page' => 30, 'type' => 'intro',
-             'audio' => 'PB30', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Car', 'Ball', 'Teddy', 'Robot', 'Doll', 'Plane', 'Train', 'Yoyo'],
-                'prompt' => 'Listen, point and say.',
-                'audio_tracks' => ['AB30', 'PB30', 'PB30_2'],
-             ]],
-            ['num' => 2, 'title' => 'What colour is it?', 'page' => 31, 'type' => 'vocab-game',
-             'audio' => 'PB31', 'conf' => [
-                'mode' => 'vocab-game', 'category' => 'toy',
-                'rounds' => 6, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Listen and circle.',
-                'audio_tracks' => ['AB31', 'AB31_2', 'PB31', 'PB31_2', 'PB31_3'],
-             ]],
-            ['num' => 3, 'title' => 'Story: Find Sue', 'page' => 32, 'type' => 'intro',
-             'audio' => 'PB32', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Ball', 'Car', 'Doll', 'Teddy'],
-                'prompt' => 'Listen and read — Find Sue.',
-                'value' => 'Share.',
-                'audio_tracks' => ['AB32', 'PB32'],
-             ]],
-            ['num' => 4, 'title' => 'Sing & match (feelings)', 'page' => 33, 'type' => 'review',
-             'audio' => 'PB33_3', 'conf' => [
-                'mode' => 'review', 'categories' => ['toy', 'feeling'],
-                'rounds' => 6, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'How do you feel? Listen, match and sing!',
-                'audio_tracks' => ['PB33', 'PB33_2', 'PB33_3', 'PB33_4'],
-             ]],
-            ['num' => 5, 'title' => 'CVC words 1', 'page' => 34, 'type' => 'phonics-game',
-             'audio' => 'PB34', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['cvc'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen and blend the sounds.',
-                'audio_tracks' => ['AB34', 'AB34_2', 'PB34', 'PB34_2'],
-             ]],
-            ['num' => 6, 'title' => 'CVC words 2', 'page' => 35, 'type' => 'phonics-game',
-             'audio' => 'PB35', 'conf' => [
-                'mode' => 'phonics-game', 'phonics_sets' => ['cvc'],
-                'rounds' => 6, 'question_style' => 'sound-to-word',
-                'options_per_round' => 3,
-                'prompt' => 'Listen, order and write.',
-                'audio_tracks' => ['AB35', 'PB35'],
-             ]],
-            ['num' => 7, 'title' => 'Project: A toy box', 'page' => 36, 'type' => 'intro',
-             'audio' => 'PB36_2', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Ball', 'Car', 'Teddy', 'Robot', 'Doll'],
-                'prompt' => 'Make your toy box and sing!',
-                'audio_tracks' => ['PB36_2'],
-                'video_track' => 'PB36V',
-             ]],
-            ['num' => 8, 'title' => 'Picture dictionary', 'page' => 37, 'type' => 'review',
-             'audio' => 'PB37', 'conf' => [
-                'mode' => 'review', 'categories' => ['toy'],
-                'rounds' => 8, 'styles' => ['word-to-image', 'image-to-word'],
-                'prompt' => 'Listen and trace.',
-                'audio_tracks' => ['AB37', 'PB37', 'PB37_2'],
-             ]],
+            [
+                'num' => 1, 'title' => 'My favourite toy', 'page' => 30, 'book_lesson' => 'Lesson 1',
+                'type' => 'intro', 'audio' => 'PB30',
+                'conf' => [
+                    'mode' => 'intro',
+                    'word_filter' => ['Ball', 'Car', 'Doll', 'Plane', 'Robot', 'Teddy', 'Train', 'Yoyo'],
+                    'prompt' => 'Listen, point and say.',
+                    'audio_tracks' => ['PB30', 'PB30_2', 'AB30', 'AB30_2'],
+                ],
+            ],
+            [
+                'num' => 2, 'title' => 'What colour is it?', 'page' => 31, 'book_lesson' => 'Lesson 3',
+                'type' => 'vocab-game', 'audio' => 'PB31',
+                'conf' => [
+                    'mode' => 'vocab-game', 'categories' => ['toy', 'feeling'],
+                    'rounds' => 6, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3, 'decoy_pool' => 'same_category',
+                    'prompt' => 'Listen and circle / number.',
+                    'audio_tracks' => ['PB31', 'PB31_2', 'PB31_3', 'AB31', 'AB31_2'],
+                ],
+            ],
+            [
+                'num' => 3, 'title' => 'Story: Find Sue', 'page' => 32, 'book_lesson' => 'Lesson 5',
+                'type' => 'story', 'audio' => 'PB32',
+                'conf' => [
+                    'mode' => 'story',
+                    'story_title' => 'Find Sue',
+                    'value' => 'Share.',
+                    'characters' => ['Sue', 'Bill', 'Hala'],
+                    'audio_tracks' => ['PB32', 'AB32'],
+                ],
+            ],
+            [
+                'num' => 4, 'title' => 'Listen, match & sing', 'page' => 33, 'book_lesson' => 'Lesson 7',
+                'type' => 'song', 'audio' => 'PB33_3',
+                'conf' => [
+                    'mode' => 'song', 'categories' => ['toy', 'feeling'],
+                    'rounds' => 4, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3,
+                    'song_title' => 'The toys song',
+                    'prompt' => 'How do you feel? Listen, match and sing!',
+                    'audio_tracks' => ['PB33', 'PB33_2', 'PB33_3', 'PB33_4'],
+                ],
+            ],
+            [
+                'num' => 5, 'title' => 'CVC words — blend', 'page' => 34, 'book_lesson' => 'Lesson 9',
+                'type' => 'phonics-game', 'audio' => 'PB34',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['cvc'],
+                    'rounds' => 6, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen and blend the sounds.',
+                    'audio_tracks' => ['PB34', 'PB34_2', 'AB34', 'AB34_2'],
+                ],
+            ],
+            [
+                'num' => 6, 'title' => 'CVC words — order & write', 'page' => 35, 'book_lesson' => 'Lesson 10',
+                'type' => 'phonics-game', 'audio' => 'PB35',
+                'conf' => [
+                    'mode' => 'phonics-game', 'phonics_sets' => ['cvc'],
+                    'rounds' => 6, 'question_style' => 'sound-to-word',
+                    'options_per_round' => 3,
+                    'prompt' => 'Listen, order and write.',
+                    'audio_tracks' => ['PB35', 'AB35'],
+                ],
+            ],
+            [
+                'num' => 7, 'title' => 'Project: A toy box', 'page' => 36, 'book_lesson' => 'Lesson 11',
+                'type' => 'project', 'audio' => 'PB36_2',
+                'conf' => [
+                    'mode' => 'project',
+                    'project_title' => 'A toy box',
+                    'word_filter' => ['Ball', 'Car', 'Teddy', 'Robot', 'Doll'],
+                    'steps' => [
+                        'Decorate a small box with colours.',
+                        'Draw your favourite toys on it.',
+                        'Sing the toys song and show your box!',
+                    ],
+                    'audio_tracks' => ['PB36_2'],
+                    'video_track' => 'PB36V',
+                ],
+            ],
+            [
+                'num' => 8, 'title' => 'Picture dictionary', 'page' => 37, 'book_lesson' => 'Picture dict.',
+                'type' => 'picture-dict', 'audio' => 'PB37',
+                'conf' => [
+                    'mode' => 'picture-dict',
+                    'word_filter' => ['Ball', 'Car', 'Doll', 'Plane', 'Robot', 'Teddy', 'Train', 'Yoyo'],
+                    'prompt' => 'Listen and trace.',
+                    'audio_tracks' => ['PB37', 'PB37_2', 'AB37'],
+                ],
+            ],
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════
-    // U5  Learning Club: Days of the week  (pages 38-39)
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // U5 — Learning Club: Days of the week  (pages 38-39)  — 2 lessons
+    // ═══════════════════════════════════════════════════════════════
     protected function seedLearningClub(int $unitId): void
     {
         $folder = 'lc';
+        $p38 = $this->trackId('PB38');
         $days = [
-            ['w' => 'Sunday',    'cat' => 'day', 'img' => 'sunday.png',    'w1' => 'Monday',   'w1img' => 'monday.png',   'w2' => 'Saturday', 'w2img' => 'saturday.png'],
-            ['w' => 'Monday',    'cat' => 'day', 'img' => 'monday.png',    'w1' => 'Tuesday',  'w1img' => 'tuesday.png',  'w2' => 'Sunday',   'w2img' => 'sunday.png'],
-            ['w' => 'Tuesday',   'cat' => 'day', 'img' => 'tuesday.png',   'w1' => 'Wednesday','w1img' => 'wednesday.png','w2' => 'Monday',   'w2img' => 'monday.png'],
-            ['w' => 'Wednesday', 'cat' => 'day', 'img' => 'wednesday.png', 'w1' => 'Thursday', 'w1img' => 'thursday.png', 'w2' => 'Tuesday',  'w2img' => 'tuesday.png'],
-            ['w' => 'Thursday',  'cat' => 'day', 'img' => 'thursday.png',  'w1' => 'Friday',   'w1img' => 'friday.png',   'w2' => 'Wednesday','w2img' => 'wednesday.png'],
-            ['w' => 'Friday',    'cat' => 'day', 'img' => 'friday.png',    'w1' => 'Saturday', 'w1img' => 'saturday.png', 'w2' => 'Thursday', 'w2img' => 'thursday.png'],
-            ['w' => 'Saturday',  'cat' => 'day', 'img' => 'saturday.png',  'w1' => 'Sunday',   'w1img' => 'sunday.png',   'w2' => 'Friday',   'w2img' => 'friday.png'],
+            ['Sunday', 'sunday.png'], ['Monday', 'monday.png'], ['Tuesday', 'tuesday.png'],
+            ['Wednesday', 'wednesday.png'], ['Thursday', 'thursday.png'],
+            ['Friday', 'friday.png'], ['Saturday', 'saturday.png'],
         ];
-        $this->createWords($unitId, $folder, $days, 'vocab');
+        foreach ($days as [$w, $img]) {
+            $sib = array_values(array_filter($days, fn ($x) => $x[0] !== $w));
+            $this->upsertWord($unitId, $folder, $w, 'day', $img, $p38, [
+                [$sib[0][0], $sib[0][1]], [$sib[1][0], $sib[1][1]],
+            ]);
+        }
 
         $this->createLessons($unitId, [
-            ['num' => 1, 'title' => 'Days of the week', 'page' => 38, 'type' => 'intro',
-             'audio' => 'PB38', 'conf' => [
-                'mode' => 'intro',
-                'word_filter' => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-                'prompt' => 'Listen, point and say.',
-                'audio_tracks' => ['PB38', 'PB38_2'],
-             ]],
-            ['num' => 2, 'title' => 'Practice: days', 'page' => 39, 'type' => 'vocab-game',
-             'audio' => 'PB39', 'conf' => [
-                'mode' => 'vocab-game', 'category' => 'day',
-                'rounds' => 7, 'question_style' => 'word-to-image',
-                'options_per_round' => 3, 'decoy_pool' => 'same_category',
-                'prompt' => 'Listen and circle / Look, order and say.',
-                'audio_tracks' => ['PB39', 'PB39_2'],
-             ]],
+            [
+                'num' => 1, 'title' => 'Days of the week', 'page' => 38, 'book_lesson' => 'LC intro',
+                'type' => 'intro', 'audio' => 'PB38',
+                'conf' => [
+                    'mode' => 'intro',
+                    'word_filter' => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                    'prompt' => 'Listen, point and say.',
+                    'audio_tracks' => ['PB38', 'PB38_2'],
+                ],
+            ],
+            [
+                'num' => 2, 'title' => 'Days practice', 'page' => 39, 'book_lesson' => 'LC practice',
+                'type' => 'vocab-game', 'audio' => 'PB39',
+                'conf' => [
+                    'mode' => 'vocab-game', 'category' => 'day',
+                    'rounds' => 7, 'question_style' => 'audio-to-image',
+                    'options_per_round' => 3, 'decoy_pool' => 'same_category',
+                    'prompt' => 'Listen and circle / Look, order and say.',
+                    'audio_tracks' => ['PB39', 'PB39_2'],
+                ],
+            ],
         ]);
     }
 
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
     // Helpers
-    // ══════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
     protected function upsertUnit(array $d): Unit
     {
         return Unit::updateOrCreate(
@@ -611,46 +784,48 @@ class CurriculumSeeder extends Seeder
     }
 
     /**
-     * Seed words with a shared type (vocab / phonics / cvc).
-     * An existing (unit_id, word) row is updated; its type and
-     * category may shift if the same word appears in a different
-     * pedagogical role. For phonics/cvc rows we append a suffix to
-     * word so vocab and phonics rows for the same word can coexist.
+     * Insert/update one Word with all the goodies wired.
+     *
+     * $wrong is a list of [word, image] pairs (2 of them) used as decoys
+     * in matching games. We always store the raw assets path so the
+     * frontend can render them immediately without an extra lookup.
      */
-    protected function createWords(int $unitId, string $folder, array $items, string $type): void
-    {
-        foreach ($items as $it) {
-            $isVocab = $type === 'vocab';
-            $wordKey = $isVocab ? $it['w'] : "{$it['w']} ({$type}:{$it['cat']})";
-
-            $wrong = null;
-            if (isset($it['w1'], $it['w2'])) {
-                $wrong = [
-                    ['word' => $it['w1'], 'image_path' => "assets/lessons/{$folder}/{$it['w1img']}"],
-                    ['word' => $it['w2'], 'image_path' => "assets/lessons/{$folder}/{$it['w2img']}"],
-                ];
-            }
-
-            Word::updateOrCreate(
-                ['unit_id' => $unitId, 'word' => $wordKey],
-                [
-                    'type'          => $type,
-                    'category'      => $it['cat'] ?? null,
-                    'image_path'    => isset($it['img']) ? "assets/lessons/{$folder}/{$it['img']}" : null,
-                    'audio_path'    => 'assets/audio/words/' . $folder . '/'
-                        . strtolower(str_replace(' ', '', $it['w'])) . '.mp3',
-                    'wrong_options' => $wrong,
-                ]
-            );
-        }
+    protected function upsertWord(
+        int $unitId,
+        string $folder,
+        string $word,
+        string $category,
+        string $image,
+        ?int $audioTrackId,
+        array $wrong,
+        string $type = 'vocab'
+    ): void {
+        Word::updateOrCreate(
+            ['unit_id' => $unitId, 'word' => $word],
+            [
+                'type'             => $type,
+                'category'         => $category,
+                'image_path'       => "assets/lessons/{$folder}/{$image}",
+                'audio_path'       => null,  // no per-word file; everything streams via audio_track
+                'audio_track_id'   => $audioTrackId,
+                'segment_start_ms' => null, // Filled later by the teacher-admin tool.
+                'segment_end_ms'   => null,
+                'wrong_options'    => [
+                    ['word' => $wrong[0][0], 'image_path' => "assets/lessons/{$folder}/{$wrong[0][1]}"],
+                    ['word' => $wrong[1][0], 'image_path' => "assets/lessons/{$folder}/{$wrong[1][1]}"],
+                ],
+            ]
+        );
     }
 
     protected function createLessons(int $unitId, array $lessons): void
     {
         foreach ($lessons as $l) {
-            $trackId = null;
-            if (! empty($l['audio'])) {
-                $trackId = AudioTrack::where('code', $l['audio'])->value('id');
+            $trackId = ! empty($l['audio']) ? $this->trackId($l['audio']) : null;
+
+            $config = $l['conf'];
+            if (! empty($l['book_lesson'])) {
+                $config['book_lesson'] = $l['book_lesson'];
             }
 
             Lesson::updateOrCreate(
@@ -659,12 +834,24 @@ class CurriculumSeeder extends Seeder
                     'title'          => $l['title'],
                     'type'           => $l['type'],
                     'page_number'    => $l['page'] ?? null,
-                    'config'         => $l['conf'],
+                    'config'         => $config,
                     'audio_track_id' => $trackId,
                 ]
             );
         }
 
         Unit::where('id', $unitId)->update(['lessons_count' => count($lessons)]);
+    }
+
+    /**
+     * Tiny cache-on-miss lookup so we don't hit the DB once per word.
+     */
+    private static array $trackCache = [];
+    protected function trackId(string $code): ?int
+    {
+        if (! array_key_exists($code, self::$trackCache)) {
+            self::$trackCache[$code] = AudioTrack::where('code', $code)->value('id');
+        }
+        return self::$trackCache[$code];
     }
 }
