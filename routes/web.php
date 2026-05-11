@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\AudioStreamController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\LessonController;
@@ -74,4 +75,23 @@ Route::middleware(['auth'])->group(function () {
         ->name('ai.parent-report');
     Route::post('/ai/help-center', [AiController::class, 'helpCenter'])
         ->name('ai.help-center');
+
+    // ═══════════════════════════════════════════════════════════
+    // Admin panel — full curriculum + audio control
+    // ═══════════════════════════════════════════════════════════
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/',         [AdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/units',    [AdminController::class, 'units'])->name('units');
+        Route::get('/lessons',  [AdminController::class, 'lessons'])->name('lessons');
+        Route::get('/tracks',   [AdminController::class, 'tracks'])->name('tracks');
+        Route::get('/words',    [AdminController::class, 'words'])->name('words');
+
+        // JSON API (PATCH-style updates the React UI uses)
+        Route::patch('/units/{unit}',        [AdminController::class, 'updateUnit']);
+        Route::patch('/lessons/{lesson}',    [AdminController::class, 'updateLesson']);
+        Route::post('/tracks',               [AdminController::class, 'createTrack']);
+        Route::patch('/tracks/{track}',      [AdminController::class, 'updateTrack']);
+        Route::delete('/tracks/{track}',     [AdminController::class, 'deleteTrack']);
+        Route::patch('/words/{word}',        [AdminController::class, 'updateWord']);
+    });
 });

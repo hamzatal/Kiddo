@@ -35,6 +35,11 @@ class AudioTrack extends Model
         return $this->hasMany(Lesson::class);
     }
 
+    public function words()
+    {
+        return $this->hasMany(Word::class);
+    }
+
     /**
      * Playable URL preferring the locally cached copy.
      * Returns a root-relative path (/assets/...) for local files,
