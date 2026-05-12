@@ -370,22 +370,6 @@ const HomeScreen = ({ units }) => {
             colorKey: "blue",
             isLocked: true,
         },
-        {
-            id: 4,
-            number: "4",
-            title: "Our Classroom",
-            imagePath: "/assets/lessons/classroom/desk.png",
-            colorKey: "pink",
-            isLocked: true,
-        },
-        {
-            id: 5,
-            number: "5",
-            title: "My Favourite Toy",
-            imagePath: "/assets/lessons/toy/toy.png",
-            colorKey: "amber",
-            isLocked: true,
-        },
     ];
 
     const displayLessons =

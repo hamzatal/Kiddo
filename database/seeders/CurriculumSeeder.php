@@ -39,6 +39,11 @@ class CurriculumSeeder extends Seeder
 {
     public function run(): void
     {
+        // Cleanup: ensure any previously-seeded units outside the canonical
+        // U0/U1/U2 set are removed so re-seeding leaves no orphans. Cascading
+        // deletes on lessons/words will handle child rows.
+        Unit::whereNotIn('code', ['U0', 'U1', 'U2'])->delete();
+
         $u0 = $this->upsertUnit([
             'code' => 'U0', 'unit_number' => 0,
             'title' => 'Welcome: Hello!',
@@ -65,33 +70,6 @@ class CurriculumSeeder extends Seeder
             'color_key' => 'blue',
         ]);
         $this->seedSchoolBag($u2->id);
-
-        $u3 = $this->upsertUnit([
-            'code' => 'U3', 'unit_number' => 3,
-            'title' => 'Our classroom',
-            'description' => 'Classroom objects, prepositions, phonics Tt Mm Ww Ii.',
-            'image_path' => 'assets/lessons/classroom/desk.png',
-            'color_key' => 'orange',
-        ]);
-        $this->seedClassroom($u3->id);
-
-        $u4 = $this->upsertUnit([
-            'code' => 'U4', 'unit_number' => 4,
-            'title' => 'My favourite toy',
-            'description' => 'Toys, colours, feelings, CVC words blending.',
-            'image_path' => 'assets/lessons/toy/toy.png',
-            'color_key' => 'pink',
-        ]);
-        $this->seedToy($u4->id);
-
-        $u5 = $this->upsertUnit([
-            'code' => 'U5', 'unit_number' => 5,
-            'title' => 'Learning Club: Days of the week',
-            'description' => 'Language booster — Sunday to Saturday.',
-            'image_path' => 'assets/lessons/lc/calendar.png',
-            'color_key' => 'yellow',
-        ]);
-        $this->seedLearningClub($u5->id);
     }
 
     // ═══════════════════════════════════════════════════════════════

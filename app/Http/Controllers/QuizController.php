@@ -25,17 +25,29 @@ class QuizController extends Controller
         $user = $request->user();
         $unit = Unit::findOrFail($unitId);
 
-        $words = Word::where('unit_id', $unit->id)
+        // Pre-load words with their audio track so every Word->audioClip()
+        // call below resolves without an N+1 query (FIX 7).
+        $words = Word::with('audioTrack')
+            ->where('unit_id', $unit->id)
             ->inRandomOrder()
             ->take(10) // cap attention span for first-graders
             ->get();
 
-        $questions = $words->map(function (Word $word) use ($unit) {
+        // Cache every word in the unit keyed by its lowercase name so we
+        // can resolve audioClips for decoy options coming from wrong_options
+        // (which are stored as plain word/image pairs without a DB id).
+        $allUnitWords = Word::with('audioTrack')
+            ->where('unit_id', $unit->id)
+            ->get()
+            ->keyBy(fn (Word $w) => mb_strtolower($w->word));
+
+        $questions = $words->map(function (Word $word) use ($unit, $allUnitWords) {
             $correct = [
                 'id'        => 'correct_' . $word->id,
                 'word'      => $word->word,
                 'imagePath' => $this->asset($word->image_path),
                 'isCorrect' => true,
+                'audioClip' => $word->audioClip(),
             ];
 
             $options = collect([$correct]);
@@ -43,23 +55,29 @@ class QuizController extends Controller
             // Prefer author-seeded decoys
             if (is_array($word->wrong_options) && count($word->wrong_options) >= 2) {
                 foreach (array_slice($word->wrong_options, 0, 2) as $index => $wrong) {
+                    $decoyWord = $wrong['word'] ?? 'Wrong';
+                    $row = $allUnitWords->get(mb_strtolower($decoyWord));
                     $options->push([
                         'id'        => 'wrong_' . $word->id . '_' . $index,
-                        'word'      => $wrong['word'] ?? 'Wrong',
+                        'word'      => $decoyWord,
                         'imagePath' => $this->asset($wrong['image_path'] ?? null),
                         'isCorrect' => false,
+                        'audioClip' => $row ? $row->audioClip() : null,
                     ]);
                 }
             } else {
                 // Fallback: sibling words in same unit (preferring same category)
-                $q = Word::where('unit_id', $unit->id)->where('id', '!=', $word->id);
+                $q = Word::with('audioTrack')
+                    ->where('unit_id', $unit->id)
+                    ->where('id', '!=', $word->id);
                 if ($word->category) {
                     $q->where('category', $word->category);
                 }
                 $siblings = $q->inRandomOrder()->take(2)->get();
                 if ($siblings->count() < 2) {
                     $siblings = $siblings->concat(
-                        Word::where('unit_id', $unit->id)
+                        Word::with('audioTrack')
+                            ->where('unit_id', $unit->id)
                             ->where('id', '!=', $word->id)
                             ->whereNotIn('id', $siblings->pluck('id'))
                             ->inRandomOrder()
@@ -73,6 +91,7 @@ class QuizController extends Controller
                         'word'      => $sib->word,
                         'imagePath' => $this->asset($sib->image_path),
                         'isCorrect' => false,
+                        'audioClip' => $sib->audioClip(),
                     ]);
                 }
             }
@@ -80,6 +99,7 @@ class QuizController extends Controller
             return [
                 'targetWord' => $word->word,
                 'audioPath'  => $this->asset($word->audio_path),
+                'audioClip'  => $word->audioClip(),
                 'options'    => $options->shuffle()->values()->all(),
             ];
         });

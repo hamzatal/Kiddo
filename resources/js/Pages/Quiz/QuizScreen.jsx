@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { router } from "@inertiajs/react";
+import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 
 const QuizScreen = ({ quizData }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,10 +23,30 @@ const QuizScreen = ({ quizData }) => {
     const currentQ = questions[currentIndex];
     const progressPercentage = (currentIndex / questions.length) * 100;
 
+    // Any time a new question appears or the component unmounts, stop
+    // whatever was playing so audio from the previous question doesn't
+    // bleed into the next.
+    useEffect(() => {
+        stopAllAudio();
+        return () => stopAllAudio();
+    }, [currentIndex]);
+
+    const playTarget = () => {
+        if (currentQ?.audioClip) {
+            playAudio(currentQ.audioClip);
+        } else if (currentQ?.audioPath) {
+            playAudio(currentQ.audioPath);
+        }
+    };
+
     const handleChoice = (opt) => {
+        // Play the option's word so the child hears what they picked.
+        if (opt.audioClip) {
+            playAudio(opt.audioClip);
+        }
+
         if (opt.isCorrect) {
             setSelectedCorrect(opt.id);
-            new Audio("/assets/audio/success.mp3").play().catch(() => {});
             const firstTry = wrongClicks.length === 0;
             const nextStats = [...questionStats, { correct: firstTry }];
             setQuestionStats(nextStats);
@@ -41,7 +62,6 @@ const QuizScreen = ({ quizData }) => {
             }, 1200);
         } else {
             setWrongClicks([...wrongClicks, opt.id]);
-            new Audio("/assets/audio/error.mp3").play().catch(() => {});
         }
     };
 
@@ -104,7 +124,7 @@ const QuizScreen = ({ quizData }) => {
                     key={currentIndex}
                     className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 relative z-10 animate-fade-in-up mt-20"
                 >
-                    <div className="bg-white/90 backdrop-blur-md px-8 py-5 rounded-[2rem] shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-white mb-8">
+                    <div className="bg-white/90 backdrop-blur-md px-8 py-5 rounded-[2rem] shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-white mb-8 flex items-center gap-4">
                         <h2 className="text-3xl sm:text-5xl font-black text-[#1E293B] drop-shadow-sm text-center">
                             Where is{" "}
                             <span className="text-[#7C3AED] uppercase underline decoration-dashed">
@@ -112,9 +132,18 @@ const QuizScreen = ({ quizData }) => {
                             </span>
                             ?
                         </h2>
+                        <button
+                            type="button"
+                            onClick={playTarget}
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#7C3AED] text-white text-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center"
+                            aria-label={`Hear ${currentQ.targetWord}`}
+                            title="Listen again"
+                        >
+                            🔊
+                        </button>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 w-full max-w-4xl">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl">
                         {currentQ.options.map((opt) => {
                             const isWrong = wrongClicks.includes(opt.id);
                             const isCorrectSelected =

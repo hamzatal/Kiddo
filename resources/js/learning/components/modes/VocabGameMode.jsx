@@ -72,7 +72,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     const label = promptText || lesson?.config?.prompt || "Find the correct picture!";
 
     return (
-        <div className="w-full max-w-4xl flex flex-col items-center gap-6 animate-fade-in-up">
+        <div className="w-full max-w-5xl lg:max-w-6xl flex flex-col items-center gap-6 animate-fade-in-up">
             <div className="flex items-center gap-3">
                 <RoundProgress total={rounds.length} current={idx} results={results} />
                 <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
@@ -113,7 +113,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-3xl">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full max-w-3xl lg:max-w-5xl xl:max-w-6xl">
                 {(round.options || []).map((opt) => {
                     let state = "idle";
                     if (correctId === opt.id) state = "correct";

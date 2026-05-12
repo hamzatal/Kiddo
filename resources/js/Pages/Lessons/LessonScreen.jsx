@@ -166,7 +166,7 @@ const LessonScreen = (props) => {
             </header>
 
             {/* Main */}
-            <main className="flex-1 relative z-10 w-full flex justify-center items-start p-4 sm:p-6 pb-28">
+            <main className="flex-1 relative z-10 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex justify-center items-start p-4 sm:p-6 pb-28">
                 {stage === LESSON_STAGES.PLAY && renderMode()}
 
                 {stage === LESSON_STAGES.REWARD && (

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import ParentAIInsight from "@/learning/components/ai/ParentAIInsight";
 
-const ProgressScreen = ({ user, stats, unitsList }) => {
+const ProgressScreen = ({ user, stats, unitsList, achievements = [] }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const unitColors = ["#7C3AED", "#16A34A", "#2563EB", "#DB2777", "#D97706"];
 
@@ -264,44 +264,41 @@ const ProgressScreen = ({ user, stats, unitsList }) => {
                                     <h3 className="font-black text-lg text-[#1E293B] mb-5">
                                         🏆 Recent Achievements
                                     </h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                        {[
-                                            {
-                                                img: "trophy.png",
-                                                label: "Top Score",
-                                            },
-                                            {
-                                                img: "badge.png",
-                                                label: "Fast Learner",
-                                            },
-                                            {
-                                                img: "certificate.png",
-                                                label: "Unit Done",
-                                            },
-                                            {
-                                                img: "achievement.png",
-                                                label: "Explorer",
-                                            },
-                                        ].map((badge, i) => (
-                                            <div
-                                                key={i}
-                                                className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-white hover:shadow-md hover:-translate-y-1 transition-all"
-                                            >
-                                                <img
-                                                    src={`/assets/ui/rewards/${badge.img}`}
-                                                    className="w-14 h-14 object-contain"
-                                                    alt={badge.label}
-                                                    onError={(e) =>
-                                                        (e.currentTarget.outerHTML =
-                                                            '<span class="text-3xl">🏅</span>')
-                                                    }
-                                                />
-                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">
-                                                    {badge.label}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    {achievements && achievements.length > 0 ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            {achievements.map((badge, i) => (
+                                                <div
+                                                    key={`${badge.label}-${i}`}
+                                                    className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-white hover:shadow-md hover:-translate-y-1 transition-all"
+                                                >
+                                                    <img
+                                                        src={`/assets/ui/rewards/${badge.img}`}
+                                                        className="w-14 h-14 object-contain"
+                                                        alt={badge.label}
+                                                        onError={(e) =>
+                                                            (e.currentTarget.outerHTML =
+                                                                '<span class="text-3xl">🏅</span>')
+                                                        }
+                                                    />
+                                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">
+                                                        {badge.label}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-8 flex flex-col items-center gap-3 text-center">
+                                            <span className="text-4xl">🌱</span>
+                                            <p className="font-black text-[#1E293B] text-sm">
+                                                Keep playing to earn badges!
+                                            </p>
+                                            <p className="text-[11px] text-gray-500 font-semibold max-w-xs leading-relaxed">
+                                                Finish a lesson or collect stars
+                                                and your first achievement will
+                                                appear here.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
