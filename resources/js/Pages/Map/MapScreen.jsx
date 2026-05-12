@@ -218,11 +218,11 @@ const MapScreen = ({ user, units: propUnits }) => {
                             </span>
                         </div>
 
-                        <div className="hidden sm:flex items-center gap-2 bg-amber-50 border border-amber-100 px-4 py-2 rounded-full shadow-sm">
-                            <span className="text-lg leading-none drop-shadow-sm">
+                        <div className="hidden sm:flex items-center gap-2 bg-amber-50 border border-amber-100 px-4 py-2 rounded-full shadow-sm max-w-[160px]">
+                            <span className="text-lg leading-none drop-shadow-sm shrink-0">
                                 ⭐
                             </span>
-                            <span className="font-black text-amber-600 text-sm leading-none">
+                            <span className="font-black text-amber-600 text-sm leading-none truncate">
                                 {totalStars}
                             </span>
                         </div>
@@ -260,7 +260,7 @@ const MapScreen = ({ user, units: propUnits }) => {
             <div className="flex-1 flex min-h-0 relative">
                 {/* ── MAP AREA ── */}
                 <main className="flex-1 relative overflow-auto hide-scrollbar bg-[#90D4F5] flex items-center justify-center">
-                    <div className="relative w-full h-full min-w-[1200px] min-h-[700px] lg:min-w-0 lg:min-h-0 lg:aspect-[16/9] lg:h-auto max-w-[1800px] mx-auto">
+                    <div className="relative w-full h-full min-w-[1200px] min-h-[700px] lg:min-w-0 lg:min-h-[600px] xl:min-h-[720px] lg:aspect-[16/9] lg:h-auto max-w-[1800px] mx-auto">
                         <img
                             src="/assets/ui/map/map-bg.png"
                             alt="Map Environment"
@@ -378,7 +378,7 @@ const MapScreen = ({ user, units: propUnits }) => {
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-amber-100 text-xl font-black text-amber-600">
                                     {totalStars > 0 ? totalStars : "⭐"}
                                 </div>
-                                <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center">
+                                <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center break-words whitespace-normal leading-tight max-w-full">
                                     Total Stars
                                 </p>
                             </div>
