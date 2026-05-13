@@ -9,6 +9,8 @@ import VocabGameMode from "@/learning/components/modes/VocabGameMode";
 import StoryMode from "@/learning/components/modes/StoryMode";
 import ProjectMode from "@/learning/components/modes/ProjectMode";
 import PictureDictMode from "@/learning/components/modes/PictureDictMode";
+import DrawCircleMode from "@/learning/components/modes/DrawCircleMode";
+import MatchConnectMode from "@/learning/components/modes/MatchConnectMode";
 
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 import NavAIBadge from "@/learning/components/ai/NavAIBadge";
@@ -89,6 +91,8 @@ const LessonScreen = (props) => {
             case "song":          return <VocabGameMode   {...common} deck={deck} promptText="Listen, match and sing!" />;
             case "review":        return <VocabGameMode   {...common} deck={deck} promptText="Review time — find the word!" />;
             case "phonics-game":  return <VocabGameMode   {...common} deck={deck} promptText="Listen to the sound and choose!" />;
+            case "draw-circle":   return <DrawCircleMode  {...common} deck={deck} />;
+            case "match-connect": return <MatchConnectMode {...common} deck={deck} />;
             case "vocab-game":
             default:              return <VocabGameMode   {...common} deck={deck} />;
         }
@@ -166,7 +170,7 @@ const LessonScreen = (props) => {
             </header>
 
             {/* Main */}
-            <main className="flex-1 relative z-10 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex justify-center items-start p-4 sm:p-6 pb-28">
+            <main className="flex-1 relative z-10 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex justify-center items-start px-4 lg:px-8 py-4 sm:py-6 pb-28">
                 {stage === LESSON_STAGES.PLAY && renderMode()}
 
                 {stage === LESSON_STAGES.REWARD && (

@@ -19,6 +19,8 @@ export const resolveMode = (lesson) => {
         "song",
         "project",
         "picture-dict",
+        "draw-circle",
+        "match-connect",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -55,6 +57,8 @@ export const modeMeta = (mode) => {
         "song":          { label: "Sing",    icon: "🎵", color: "#8B5CF6" },
         "project":       { label: "Project", icon: "✂️", color: "#F97316" },
         "picture-dict":  { label: "Trace",   icon: "✏️", color: "#14B8A6" },
+        "draw-circle":   { label: "Circle",  icon: "⭕", color: "#EF4444" },
+        "match-connect": { label: "Match",   icon: "🔗", color: "#0EA5E9" },
     };
     return map[mode] || map["vocab-game"];
 };

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
@@ -7,12 +7,23 @@ import SegmentEditor from "@/learning/components/admin/SegmentEditor";
 const TYPE_BADGE_CLS =
     "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full";
 
-function WordRow({ w, tracks }) {
+/**
+ * Format playback length in seconds with 2 decimal places, or "—" when
+ * either side of the segment is not yet set.
+ */
+function formatSegmentLength(startMs, endMs) {
+    if (startMs == null || endMs == null) return "—";
+    const diff = Math.max(0, endMs - startMs) / 1000;
+    return diff.toFixed(2) + "s";
+}
+
+function WordRow({ w, tracks, onFocusRow, isFocused }) {
     const [row, setRow] = useState(w);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState(null);
+    const rowRef = useRef(null);
 
     const track = useMemo(
         function () {
@@ -79,8 +90,30 @@ function WordRow({ w, tracks }) {
         segBtnLabel = "Set segment";
     }
 
+    // Signal to the parent page which row is currently "active" (editor
+    // open) so the keyboard shortcuts know where to route keypresses.
+    function toggleOpen() {
+        const next = !open;
+        setOpen(next);
+        if (next && onFocusRow) onFocusRow(w.id);
+        if (!next && isFocused && onFocusRow) onFocusRow(null);
+    }
+
+    useEffect(() => {
+        // If the parent switches focus away (because another row opened),
+        // collapse our editor to avoid multiple editors listening at once.
+        if (open && !isFocused) setOpen(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isFocused]);
+
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-3">
+        <div
+            ref={rowRef}
+            data-word-row-id={w.id}
+            className={`bg-white rounded-xl border ${
+                isFocused ? "border-purple-300 ring-2 ring-purple-100" : "border-gray-100"
+            } p-4 mb-3`}
+        >
             <div className="flex items-start gap-4 flex-wrap">
                 <div className="shrink-0 w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
                     {row.image_path ? (
@@ -117,6 +150,19 @@ function WordRow({ w, tracks }) {
                         ) : null}
                         <span className="text-[10px] font-black text-gray-400 uppercase">
                             {row.unit_title}
+                        </span>
+                        {/* Compact playback length — helps spot overly long clips. */}
+                        <span
+                            className={
+                                TYPE_BADGE_CLS +
+                                " " +
+                                (hasSegment
+                                    ? "bg-emerald-50 text-emerald-600"
+                                    : "bg-gray-50 text-gray-400")
+                            }
+                            title="Playback length (end - start)"
+                        >
+                            ⏱ {formatSegmentLength(row.segment_start_ms, row.segment_end_ms)}
                         </span>
                     </div>
 
@@ -188,7 +234,7 @@ function WordRow({ w, tracks }) {
                 <div className="shrink-0 text-right">
                     <button
                         type="button"
-                        onClick={() => setOpen(!open)}
+                        onClick={toggleOpen}
                         disabled={!trackUrl}
                         className={segBtnCls}
                     >
@@ -209,27 +255,33 @@ function WordRow({ w, tracks }) {
             </div>
 
             {open && trackUrl ? (
-                <SegmentEditor
-                    url={trackUrl}
-                    startMs={row.segment_start_ms}
-                    endMs={row.segment_end_ms}
-                    saving={saving}
-                    saved={saved}
-                    onChange={(payload) =>
-                        setRow(
-                            Object.assign({}, row, {
-                                segment_start_ms: payload.startMs,
-                                segment_end_ms: payload.endMs,
+                <>
+                    <SegmentEditor
+                        url={trackUrl}
+                        startMs={row.segment_start_ms}
+                        endMs={row.segment_end_ms}
+                        saving={saving}
+                        saved={saved}
+                        onChange={(payload) =>
+                            setRow(
+                                Object.assign({}, row, {
+                                    segment_start_ms: payload.startMs,
+                                    segment_end_ms: payload.endMs,
+                                })
+                            )
+                        }
+                        onSave={() =>
+                            save({
+                                segment_start_ms: row.segment_start_ms,
+                                segment_end_ms: row.segment_end_ms,
                             })
-                        )
-                    }
-                    onSave={() =>
-                        save({
-                            segment_start_ms: row.segment_start_ms,
-                            segment_end_ms: row.segment_end_ms,
-                        })
-                    }
-                />
+                        }
+                    />
+                    <p className="text-[11px] font-bold text-gray-500 mt-2 px-1">
+                        <span className="font-black text-purple-600">Keyboard:</span>{" "}
+                        Space = play, S = set start, E = set end, Enter = save
+                    </p>
+                </>
             ) : null}
         </div>
     );
@@ -238,6 +290,8 @@ function WordRow({ w, tracks }) {
 function Words({ units, tracks, words, selected, search }) {
     const [unit, setUnit] = useState(selected || "");
     const [q, setQ] = useState(search || "");
+    const [onlyUnset, setOnlyUnset] = useState(false);
+    const [focusedRowId, setFocusedRowId] = useState(null);
 
     function onFilter(e) {
         e.preventDefault();
@@ -246,6 +300,86 @@ function Words({ units, tracks, words, selected, search }) {
         if (q) params.set("q", q);
         router.visit("/admin/words?" + params.toString());
     }
+
+    // Client-side filter for rows with at least one missing segment bound.
+    const visibleWords = useMemo(() => {
+        const all = words?.data || [];
+        if (!onlyUnset) return all;
+        return all.filter(
+            (w) => w.segment_start_ms == null || w.segment_end_ms == null
+        );
+    }, [words, onlyUnset]);
+
+    // Global keyboard shortcuts for the currently-focused (open) row.
+    // Space = click "Play full"; S = "Set start here"; E = "Set end here";
+    // Enter = "Save segment". We look up the buttons by data attribute
+    // inside the active row so we don't need to hoist the SegmentEditor
+    // internals into this page.
+    useEffect(() => {
+        if (!focusedRowId) return;
+
+        const pickBtn = (labels) => {
+            const rowEl = document.querySelector(
+                '[data-word-row-id="' + focusedRowId + '"]'
+            );
+            if (!rowEl) return null;
+            const btns = Array.from(rowEl.querySelectorAll("button"));
+            for (const b of btns) {
+                const txt = (b.textContent || "").trim().toLowerCase();
+                for (const l of labels) {
+                    if (txt.includes(l)) return b;
+                }
+            }
+            return null;
+        };
+
+        const handler = (e) => {
+            // Ignore keypresses happening inside form fields so typing
+            // "e" into a category input doesn't trigger "Set end here".
+            const tag = (e.target && e.target.tagName) || "";
+            if (
+                tag === "INPUT" ||
+                tag === "TEXTAREA" ||
+                tag === "SELECT" ||
+                e.target?.isContentEditable
+            ) {
+                return;
+            }
+
+            if (e.code === "Space") {
+                const b = pickBtn(["play full", "pause"]);
+                if (b) {
+                    e.preventDefault();
+                    b.click();
+                }
+            } else if (e.key === "s" || e.key === "S") {
+                const b = pickBtn(["set start"]);
+                if (b) {
+                    e.preventDefault();
+                    b.click();
+                }
+            } else if (e.key === "e" || e.key === "E") {
+                const b = pickBtn(["set end"]);
+                if (b) {
+                    e.preventDefault();
+                    b.click();
+                }
+            } else if (e.key === "Enter") {
+                const b = pickBtn(["save segment"]);
+                if (b) {
+                    e.preventDefault();
+                    b.click();
+                }
+            }
+        };
+
+        document.addEventListener("keydown", handler);
+        return () => document.removeEventListener("keydown", handler);
+    }, [focusedRowId]);
+
+    const unsetCount = (words?.data || []).filter(
+        (w) => w.segment_start_ms == null || w.segment_end_ms == null
+    ).length;
 
     return (
         <AdminLayout active="words">
@@ -261,7 +395,7 @@ function Words({ units, tracks, words, selected, search }) {
                             segment. No file downloads needed.
                         </p>
                     </div>
-                    <form onSubmit={onFilter} className="flex gap-2 flex-wrap">
+                    <form onSubmit={onFilter} className="flex gap-2 flex-wrap items-center">
                         <select
                             value={unit}
                             onChange={(e) => setUnit(e.target.value)}
@@ -283,12 +417,41 @@ function Words({ units, tracks, words, selected, search }) {
                         <button className="px-3 py-2 rounded-xl bg-[#7C3AED] text-white text-sm font-black">
                             Filter
                         </button>
+                        <label
+                            className={
+                                "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black cursor-pointer select-none " +
+                                (onlyUnset
+                                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                                    : "bg-white border-gray-200 text-gray-500")
+                            }
+                            title="Show only words whose segment start or end is not set yet"
+                        >
+                            <input
+                                type="checkbox"
+                                checked={onlyUnset}
+                                onChange={(e) => setOnlyUnset(e.target.checked)}
+                                className="w-3.5 h-3.5"
+                            />
+                            Only unset segments ({unsetCount})
+                        </label>
                     </form>
                 </header>
 
-                {words.data.map((w) => (
-                    <WordRow key={w.id} w={w} tracks={tracks} />
+                {visibleWords.map((w) => (
+                    <WordRow
+                        key={w.id}
+                        w={w}
+                        tracks={tracks}
+                        isFocused={focusedRowId === w.id}
+                        onFocusRow={setFocusedRowId}
+                    />
                 ))}
+
+                {visibleWords.length === 0 ? (
+                    <div className="p-6 text-center text-gray-400 font-bold text-sm bg-white rounded-xl border border-gray-100">
+                        No words match your filters.
+                    </div>
+                ) : null}
 
                 {words.links ? (
                     <div className="flex gap-2 mt-4 flex-wrap">

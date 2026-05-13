@@ -143,7 +143,7 @@ const QuizScreen = ({ quizData }) => {
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-4 lg:px-8">
                         {currentQ.options.map((opt) => {
                             const isWrong = wrongClicks.includes(opt.id);
                             const isCorrectSelected =
@@ -156,7 +156,7 @@ const QuizScreen = ({ quizData }) => {
                                         selectedCorrect !== null || isWrong
                                     }
                                     onClick={() => handleChoice(opt)}
-                                    className={`aspect-square sm:aspect-auto sm:h-64 p-6 bg-white/95 backdrop-blur-xl rounded-[2.5rem] border-4 transition-all duration-300 shadow-md flex items-center justify-center relative
+                                    className={`aspect-square lg:aspect-[4/3] p-6 bg-white/95 backdrop-blur-xl rounded-[2.5rem] border-4 transition-all duration-300 shadow-md flex items-center justify-center relative
                     ${
                         isCorrectSelected
                             ? "border-green-500 bg-green-50 scale-105 rotate-2 z-10 shadow-2xl"

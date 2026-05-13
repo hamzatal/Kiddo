@@ -141,6 +141,24 @@ class CurriculumSeeder extends Seeder
                     'audio_tracks' => ['PB5', 'AB5'],
                 ],
             ],
+            [
+                'num' => 3, 'title' => 'Circle the colour!', 'page' => 5, 'book_lesson' => 'Bonus 1',
+                'type' => 'draw-circle', 'audio' => 'PB5',
+                'conf' => [
+                    'mode' => 'draw-circle', 'category' => 'colour',
+                    'rounds' => 5, 'options_per_round' => 3,
+                    'prompt' => 'Circle the correct colour!',
+                ],
+            ],
+            [
+                'num' => 4, 'title' => 'Match the words', 'page' => 5, 'book_lesson' => 'Bonus 2',
+                'type' => 'match-connect', 'audio' => 'PB5',
+                'conf' => [
+                    'mode' => 'match-connect', 'category' => 'colour',
+                    'rounds' => 4, 'options_per_round' => 4,
+                    'prompt' => 'Match the word to the picture!',
+                ],
+            ],
         ]);
     }
 
