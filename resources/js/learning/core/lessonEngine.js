@@ -21,6 +21,9 @@ export const resolveMode = (lesson) => {
         "picture-dict",
         "draw-circle",
         "match-connect",
+        "memory-flip",
+        "bubble-pop",
+        "sequence-build",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -59,6 +62,9 @@ export const modeMeta = (mode) => {
         "picture-dict":  { label: "Trace",   icon: "✏️", color: "#14B8A6" },
         "draw-circle":   { label: "Circle",  icon: "⭕", color: "#EF4444" },
         "match-connect": { label: "Match",   icon: "🔗", color: "#0EA5E9" },
+        "memory-flip":   { label: "Memory",  icon: "🧠", color: "#A855F7" },
+        "bubble-pop":    { label: "Pop!",    icon: "🫧", color: "#06B6D4" },
+        "sequence-build":{ label: "Build",   icon: "🧩", color: "#F59E0B" },
     };
     return map[mode] || map["vocab-game"];
 };

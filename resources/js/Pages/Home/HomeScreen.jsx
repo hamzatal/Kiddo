@@ -561,27 +561,55 @@ const HomeScreen = ({ units }) => {
                                     <span className="text-yellow-400">⭐</span>
                                 </h2>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                                {displayLessons.map((l, index) => (
-                                    <div
-                                        key={index}
-                                        style={{
-                                            height: "clamp(150px, 20vw, 210px)",
-                                        }}
-                                    >
-                                        <LessonCard
-                                            {...l}
-                                            onClick={() =>
-                                                router.visit(
-                                                    user
-                                                        ? `/lesson/${l.id}`
-                                                        : "/login",
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                            {/* FIX 5 — when 3 units (the canonical U0-U2 path),
+                                center them in a max-w-3xl row; otherwise fall
+                                back to the responsive grid. */}
+                            {displayLessons.length <= 3 ? (
+                                <div className="flex justify-center flex-wrap gap-3 sm:gap-4 max-w-3xl mx-auto">
+                                    {displayLessons.map((l, index) => (
+                                        <div
+                                            key={index}
+                                            style={{
+                                                width: "clamp(150px, 28vw, 220px)",
+                                                height: "clamp(150px, 20vw, 220px)",
+                                            }}
+                                        >
+                                            <LessonCard
+                                                {...l}
+                                                onClick={() =>
+                                                    router.visit(
+                                                        user
+                                                            ? `/lesson/${l.id}`
+                                                            : "/login",
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-5">
+                                    {displayLessons.map((l, index) => (
+                                        <div
+                                            key={index}
+                                            style={{
+                                                height: "clamp(150px, 20vw, 210px)",
+                                            }}
+                                        >
+                                            <LessonCard
+                                                {...l}
+                                                onClick={() =>
+                                                    router.visit(
+                                                        user
+                                                            ? `/lesson/${l.id}`
+                                                            : "/login",
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </section>
 

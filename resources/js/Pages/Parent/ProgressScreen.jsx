@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import ParentAIInsight from "@/learning/components/ai/ParentAIInsight";
 
-const ProgressScreen = ({ user, stats, unitsList, achievements = [] }) => {
+const ProgressScreen = ({ user, stats, unitsList, achievements = [], weakWords = [] }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const unitColors = ["#7C3AED", "#16A34A", "#2563EB", "#DB2777", "#D97706"];
 
@@ -300,6 +300,47 @@ const ProgressScreen = ({ user, stats, unitsList, achievements = [] }) => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* FIX 8 — Words to practice panel.
+                                    Renders only when the backend has
+                                    aggregated at least one weak word. */}
+                                {weakWords && weakWords.length > 0 ? (
+                                    <div className="bg-white/95 backdrop-blur-md rounded-[2rem] p-6 sm:p-8 shadow-sm border border-gray-100">
+                                        <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
+                                            <h3 className="font-black text-lg text-[#1E293B]">
+                                                📝 Words to practice
+                                            </h3>
+                                            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
+                                                Top {weakWords.length} from this child's results
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 lg:gap-4">
+                                            {weakWords.map((w) => (
+                                                <div
+                                                    key={w.id}
+                                                    className="flex flex-col items-center gap-2 p-3 bg-rose-50/60 rounded-2xl border border-rose-100 hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
+                                                >
+                                                    {w.imagePath ? (
+                                                        <img
+                                                            src={w.imagePath}
+                                                            alt={w.word}
+                                                            className="max-h-20 lg:max-h-24 object-contain drop-shadow-sm"
+                                                            onError={(e) => (e.currentTarget.style.opacity = 0.3)}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-3xl text-gray-300">?</span>
+                                                    )}
+                                                    <span className="text-xs font-black uppercase text-[#1E293B]">
+                                                        {w.word}
+                                                    </span>
+                                                    <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                                                        wrong {w.wrongTimes} time{w.wrongTimes === 1 ? "" : "s"}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
 
                             {/* Right column: units */}

@@ -92,7 +92,7 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
             const firstTry = wrong.length === 0;
             const next = [
                 ...results,
-                { roundId: round.roundId, correct: firstTry, timeMs: 0 },
+                { roundId: round.roundId, wordId: round.wordId || null, correct: firstTry, timeMs: 0 },
             ];
             setResults(next);
             // Give the ring animation a moment to land before advancing

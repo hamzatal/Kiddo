@@ -37,6 +37,7 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
             seen.add(p.text);
             out.push({
                 id: `pair-${out.length}`,
+                wordId: r.wordId || null,
                 word: p.text,
                 imagePath: p.imagePath,
                 audioClip: p.audioClip,
@@ -114,7 +115,11 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 onComplete({
                     correct: attempts.filter((a) => a.correct).length,
                     total: pairs.length,
-                    rounds: attempts,
+                    rounds: attempts.map((a) => ({
+                        roundId: a.pairId,
+                        correct: a.correct,
+                        wordId: a.wordId || null,
+                    })),
                 });
             }, 650);
             return () => clearTimeout(t);
@@ -158,7 +163,11 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
             setMatched((prev) => [...prev, expectedPairId]);
             setAttempts((prev) => [
                 ...prev,
-                { pairId: expectedPairId, correct: true },
+                {
+                    pairId: expectedPairId,
+                    correct: true,
+                    wordId: pairs.find((p) => p.id === expectedPairId)?.wordId || null,
+                },
             ]);
             setSelectedLeft(null);
         } else {
@@ -167,7 +176,11 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
             setWrong({ leftId: selectedLeft, rightPairId: expectedPairId });
             setAttempts((prev) => [
                 ...prev,
-                { pairId: expectedPairId, correct: false },
+                {
+                    pairId: expectedPairId,
+                    correct: false,
+                    wordId: pairs.find((p) => p.id === expectedPairId)?.wordId || null,
+                },
             ]);
             setSelectedLeft(null);
         }

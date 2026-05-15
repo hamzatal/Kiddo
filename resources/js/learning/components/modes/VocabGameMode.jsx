@@ -44,6 +44,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
             const firstTry = wrong.length === 0;
             const next = [...results, {
                 roundId: round.roundId,
+                wordId: round.wordId || null,
                 correct: firstTry,
                 timeMs: 0,
             }];
