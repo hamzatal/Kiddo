@@ -348,7 +348,7 @@ const HomeScreen = ({ units }) => {
     const defaultLessons = [
         {
             id: 1,
-            number: "1",
+            number: "0",
             title: "Welcome / Hello",
             imagePath: "/assets/lessons/welcome/hello.png",
             colorKey: "purple",
@@ -356,15 +356,15 @@ const HomeScreen = ({ units }) => {
         },
         {
             id: 2,
-            number: "2",
+            number: "1",
             title: "Family and Friends",
             imagePath: "/assets/lessons/family/family_group.png",
             colorKey: "green",
-            isLocked: false,
+            isLocked: true,
         },
         {
             id: 3,
-            number: "3",
+            number: "2",
             title: "My School Bag",
             imagePath: "/assets/lessons/schoolbag/bag.png",
             colorKey: "blue",
@@ -561,55 +561,28 @@ const HomeScreen = ({ units }) => {
                                     <span className="text-yellow-400">⭐</span>
                                 </h2>
                             </div>
-                            {/* FIX 5 — when 3 units (the canonical U0-U2 path),
-                                center them in a max-w-3xl row; otherwise fall
-                                back to the responsive grid. */}
-                            {displayLessons.length <= 3 ? (
-                                <div className="flex justify-center flex-wrap gap-3 sm:gap-4 max-w-3xl mx-auto">
-                                    {displayLessons.map((l, index) => (
-                                        <div
-                                            key={index}
-                                            style={{
-                                                width: "clamp(150px, 28vw, 220px)",
-                                                height: "clamp(150px, 20vw, 220px)",
-                                            }}
-                                        >
-                                            <LessonCard
-                                                {...l}
-                                                onClick={() =>
-                                                    router.visit(
-                                                        user
-                                                            ? `/lesson/${l.id}`
-                                                            : "/login",
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-5">
-                                    {displayLessons.map((l, index) => (
-                                        <div
-                                            key={index}
-                                            style={{
-                                                height: "clamp(150px, 20vw, 210px)",
-                                            }}
-                                        >
-                                            <LessonCard
-                                                {...l}
-                                                onClick={() =>
-                                                    router.visit(
-                                                        user
-                                                            ? `/lesson/${l.id}`
-                                                            : "/login",
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 max-w-3xl mx-auto">
+                                {displayLessons.map((l, index) => (
+                                    <div
+                                        key={index}
+                                        className="w-[calc(50%-0.75rem)] sm:w-[200px]"
+                                        style={{
+                                            height: "clamp(150px, 20vw, 210px)",
+                                        }}
+                                    >
+                                        <LessonCard
+                                            {...l}
+                                            onClick={() =>
+                                                router.visit(
+                                                    user
+                                                        ? `/lesson/${l.id}`
+                                                        : "/login",
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </section>
 

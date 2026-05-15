@@ -39,15 +39,6 @@ const SegmentEditor = ({
     const [duration, setDuration] = useState(0);
     const [playing, setPlaying] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
-    const [error, setError] = useState(null);
-
-    // FIX 9.4 — some NCCD URLs return a 302 redirect that strips Range
-    // / CORS headers when the audio element opts into crossOrigin.
-    // We default to NOT requesting CORS (works with the redirect) and
-    // only re-attempt with crossOrigin on if the first play() succeeds.
-    // If the file *needs* the redirect, we fall back to the direct URL
-    // by re-creating the element without crossOrigin.
-    const [useCors, setUseCors] = useState(false);
 
     // keep state in sync if the parent switches to a different word
     useEffect(() => {
@@ -77,9 +68,8 @@ const SegmentEditor = ({
         setDuration(a.duration * 1000 || 0);
     };
 
-    const playFull = async () => {
+    const playFull = () => {
         setPreviewMode(false);
-        setError(null);
         const a = audioRef.current;
         if (!a) return;
         if (playing) {
@@ -87,53 +77,16 @@ const SegmentEditor = ({
             setPlaying(false);
             return;
         }
-        try {
-            // Some browsers stall before metadata if preload="metadata"
-            // — calling load() forces a fresh attempt for the new src.
-            if (a.readyState === 0) {
-                a.load();
-            }
-            await a.play();
-            setPlaying(true);
-        } catch (err) {
-            // FIX 9.4 — when crossOrigin breaks the 302 redirect chain,
-            // fall back to NO-CORS by toggling useCors off; the next
-            // render rebuilds the <audio> element which will pick up
-            // the audio without the CORS request.
-            console.warn("Audio play failed, retrying without CORS", err);
-            if (useCors) {
-                setUseCors(false);
-                setError("Retrying without CORS…");
-                setTimeout(() => {
-                    audioRef.current?.play().then(() => {
-                        setPlaying(true);
-                        setError(null);
-                    }).catch((e2) => {
-                        setError("Could not play this track. Try opening the URL in a new tab.");
-                    });
-                }, 80);
-            } else {
-                setError("Could not play this track. Try opening the URL in a new tab.");
-            }
-        }
+        a.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     };
 
-    const playSegment = async () => {
+    const playSegment = () => {
         if (start == null) return;
         const a = audioRef.current;
         if (!a) return;
-        try {
-            a.currentTime = start / 1000;
-        } catch (_) {
-            /* ignore — seeking before metadata is loaded throws on some browsers */
-        }
+        a.currentTime = start / 1000;
         setPreviewMode(true);
-        try {
-            await a.play();
-            setPlaying(true);
-        } catch (err) {
-            setError("Could not play this segment.");
-        }
+        a.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     };
 
     const stampStart = () => {
@@ -173,14 +126,17 @@ const SegmentEditor = ({
             <audio
                 ref={audioRef}
                 src={url}
-                preload="metadata"
+                preload="auto"
                 onTimeUpdate={onTimeUpdate}
                 onLoadedMetadata={onLoaded}
                 onEnded={() => {
                     setPlaying(false);
                     setPreviewMode(false);
                 }}
-                {...(useCors ? { crossOrigin: "anonymous" } : {})}
+                onError={(e) => {
+                    console.warn('Audio load error, trying direct URL');
+                }}
+                crossOrigin="anonymous"
             />
 
             {/* Timeline */}
@@ -307,11 +263,6 @@ const SegmentEditor = ({
                 {saved ? (
                     <span className="text-emerald-600 text-xs font-black">
                         ✓ Saved
-                    </span>
-                ) : null}
-                {error ? (
-                    <span className="text-rose-500 text-[10px] font-bold">
-                        {error}
                     </span>
                 ) : null}
                 <p className="text-[10px] text-gray-400 ml-auto">

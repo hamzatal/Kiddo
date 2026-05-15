@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
 
@@ -68,14 +68,42 @@ const UnitRow = ({ u }) => {
 
             <div className="col-span-8 md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase">
-                    Image path
+                    Image
                 </label>
-                <input
-                    value={row.image_path || ""}
-                    onChange={(e) => setRow({ ...row, image_path: e.target.value })}
-                    onBlur={save}
-                    className="w-full text-[11px] text-gray-500 font-mono bg-transparent border-b border-gray-100 focus:border-purple-300 outline-none py-1"
-                />
+                <div className="flex items-center gap-2 mt-1">
+                    {row.image_path && (
+                        <img
+                            src={"/" + String(row.image_path).replace(/^\//, "")}
+                            alt="unit"
+                            className="w-8 h-8 object-contain rounded"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                    )}
+                    <label className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors">
+                        Upload
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const formData = new FormData();
+                                formData.append('image', file);
+                                try {
+                                    const res = await axios.post(`/admin/units/${u.id}/image`, formData);
+                                    if (res.data?.ok) {
+                                        setRow({ ...row, image_path: res.data.image_path });
+                                        setSaved(true);
+                                        setTimeout(() => setSaved(false), 1200);
+                                    }
+                                } catch (err) {
+                                    setError('Upload failed');
+                                }
+                            }}
+                        />
+                    </label>
+                </div>
             </div>
 
             <div className="col-span-4 md:col-span-1">
@@ -104,143 +132,62 @@ const UnitRow = ({ u }) => {
 };
 
 const Units = ({ units }) => {
+    const [showCreate, setShowCreate] = useState(false);
+    const [newUnit, setNewUnit] = useState({ title: '', description: '', code: '', unit_number: '', color_key: 'purple' });
     const [creating, setCreating] = useState(false);
-    const [list, setList] = useState(units);
-    const [draft, setDraft] = useState({
-        title: "",
-        description: "",
-        color_key: "purple",
-        image_path: "",
-    });
-    const [busy, setBusy] = useState(false);
-    const [err, setErr] = useState(null);
-    const fileRef = useRef(null);
 
-    const upload = async (file) => {
-        if (!file) return null;
-        const fd = new FormData();
-        fd.append("image", file);
-        fd.append("folder", (draft.title || "misc").toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32));
-        const { data } = await axios.post("/admin/uploads", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-        });
-        return data.path;
-    };
-
-    const create = async () => {
-        if (!draft.title.trim()) {
-            setErr("Title is required");
-            return;
-        }
-        setBusy(true);
-        setErr(null);
+    const handleCreate = async () => {
+        if (!newUnit.title || !newUnit.code || !newUnit.unit_number) return;
+        setCreating(true);
         try {
-            let imagePath = draft.image_path;
-            if (fileRef.current?.files?.[0]) {
-                imagePath = await upload(fileRef.current.files[0]);
-            }
-            const { data } = await axios.post("/admin/units", {
-                ...draft,
-                image_path: imagePath || null,
+            const { data } = await axios.post('/admin/units', {
+                ...newUnit,
+                unit_number: Number(newUnit.unit_number),
             });
             if (data.ok) {
-                setList([...list, { ...data.unit, lessons_count: 0, real_count: 0 }]);
-                setCreating(false);
-                setDraft({ title: "", description: "", color_key: "purple", image_path: "" });
-                if (fileRef.current) fileRef.current.value = "";
+                window.location.reload();
             }
         } catch (e) {
-            setErr(e?.response?.data?.message || "Create failed");
+            alert(e?.response?.data?.message || 'Create failed');
         } finally {
-            setBusy(false);
+            setCreating(false);
         }
     };
 
     return (
         <AdminLayout active="units">
             <div className="max-w-6xl mx-auto">
-                <header className="mb-5 flex items-center justify-between gap-3 flex-wrap">
+                <header className="mb-5 flex items-start justify-between gap-3 flex-wrap">
                     <div>
-                        <h1 className="text-2xl font-black text-[#1E293B]">
-                            Units
-                        </h1>
+                        <h1 className="text-2xl font-black text-[#1E293B]">Units</h1>
                         <p className="text-gray-500 font-bold text-sm mt-1">
-                            Inline-editable. Changes save automatically when you
-                            leave a field.
+                            Inline-editable. Changes save automatically when you leave a field.
                         </p>
                     </div>
                     <button
-                        type="button"
-                        onClick={() => setCreating((v) => !v)}
-                        className="px-3 py-2 rounded-xl bg-emerald-500 text-white text-sm font-black"
+                        onClick={() => setShowCreate(!showCreate)}
+                        className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-sm shadow-sm hover:bg-emerald-600 transition-colors"
                     >
-                        {creating ? "Cancel" : "+ New unit"}
+                        + Add Unit
                     </button>
                 </header>
 
-                {creating ? (
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
-                        <h2 className="font-black text-sm mb-3 text-[#1E293B]">
-                            Create a new unit
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <label className="text-[10px] font-black uppercase text-gray-400">
-                                Title *
-                                <input
-                                    value={draft.title}
-                                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-sans normal-case text-[#1E293B]"
-                                />
-                            </label>
-                            <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
-                                Description
-                                <input
-                                    value={draft.description}
-                                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-sans normal-case text-[#1E293B]"
-                                />
-                            </label>
-                            <label className="text-[10px] font-black uppercase text-gray-400">
-                                Colour key
-                                <input
-                                    value={draft.color_key}
-                                    onChange={(e) => setDraft({ ...draft, color_key: e.target.value })}
-                                    placeholder="purple/green/blue/pink"
-                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-sans normal-case text-[#1E293B]"
-                                />
-                            </label>
-                            <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
-                                Cover image (upload)
-                                <input
-                                    ref={fileRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="w-full mt-1 text-xs"
-                                />
-                            </label>
-                        </div>
-                        {err ? (
-                            <p className="text-xs text-rose-500 font-bold mt-2">{err}</p>
-                        ) : null}
-                        <div className="flex gap-2 mt-4">
-                            <button
-                                onClick={create}
-                                disabled={busy}
-                                className="px-3 py-2 rounded-xl bg-[#7C3AED] text-white text-sm font-black disabled:opacity-50"
-                            >
-                                {busy ? "Saving…" : "Save unit"}
-                            </button>
-                            <button
-                                onClick={() => setCreating(false)}
-                                className="px-3 py-2 rounded-xl bg-gray-100 text-sm font-black"
-                            >
-                                Cancel
+                {showCreate && (
+                    <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4 mb-5">
+                        <h3 className="font-black text-sm text-emerald-700 mb-3">Create New Unit</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <input value={newUnit.title} onChange={(e) => setNewUnit({...newUnit, title: e.target.value})} placeholder="Title" className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                            <input value={newUnit.code} onChange={(e) => setNewUnit({...newUnit, code: e.target.value})} placeholder="Code (U3)" className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                            <input value={newUnit.unit_number} onChange={(e) => setNewUnit({...newUnit, unit_number: e.target.value})} placeholder="Number" type="number" className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                            <input value={newUnit.color_key} onChange={(e) => setNewUnit({...newUnit, color_key: e.target.value})} placeholder="Color" className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                            <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-black text-sm disabled:opacity-50">
+                                {creating ? 'Creating...' : 'Create'}
                             </button>
                         </div>
                     </div>
-                ) : null}
+                )}
 
-                {list.map((u) => (
+                {units.map((u) => (
                     <UnitRow key={u.id} u={u} />
                 ))}
             </div>

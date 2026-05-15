@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import ParentAIInsight from "@/learning/components/ai/ParentAIInsight";
 
-const ProgressScreen = ({ user, stats, unitsList, achievements = [], weakWords = [] }) => {
+const ProgressScreen = ({ user, stats, unitsList, achievements = [], errorAnalysis = [] }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const unitColors = ["#7C3AED", "#16A34A", "#2563EB", "#DB2777", "#D97706"];
 
@@ -301,46 +301,52 @@ const ProgressScreen = ({ user, stats, unitsList, achievements = [], weakWords =
                                     )}
                                 </div>
 
-                                {/* FIX 8 — Words to practice panel.
-                                    Renders only when the backend has
-                                    aggregated at least one weak word. */}
-                                {weakWords && weakWords.length > 0 ? (
-                                    <div className="bg-white/95 backdrop-blur-md rounded-[2rem] p-6 sm:p-8 shadow-sm border border-gray-100">
-                                        <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
-                                            <h3 className="font-black text-lg text-[#1E293B]">
-                                                📝 Words to practice
-                                            </h3>
-                                            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
-                                                Top {weakWords.length} from this child's results
-                                            </p>
-                                        </div>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 lg:gap-4">
-                                            {weakWords.map((w) => (
+                                {/* Error Analysis Section */}
+                                <div className="bg-white/95 backdrop-blur-md rounded-[2rem] p-6 sm:p-8 shadow-sm border border-gray-100">
+                                    <h3 className="font-black text-lg text-[#1E293B] mb-2">
+                                        🔍 Error Analysis
+                                    </h3>
+                                    <p className="text-xs text-gray-500 font-bold mb-5">
+                                        Words your child found difficult — practice these at home!
+                                    </p>
+                                    {errorAnalysis && errorAnalysis.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {errorAnalysis.map((err, i) => (
                                                 <div
-                                                    key={w.id}
-                                                    className="flex flex-col items-center gap-2 p-3 bg-rose-50/60 rounded-2xl border border-rose-100 hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all"
+                                                    key={`err-${i}`}
+                                                    className="flex items-center justify-between p-3 sm:p-4 bg-red-50 rounded-xl border border-red-100"
                                                 >
-                                                    {w.imagePath ? (
-                                                        <img
-                                                            src={w.imagePath}
-                                                            alt={w.word}
-                                                            className="max-h-20 lg:max-h-24 object-contain drop-shadow-sm"
-                                                            onError={(e) => (e.currentTarget.style.opacity = 0.3)}
-                                                        />
-                                                    ) : (
-                                                        <span className="text-3xl text-gray-300">?</span>
-                                                    )}
-                                                    <span className="text-xs font-black uppercase text-[#1E293B]">
-                                                        {w.word}
-                                                    </span>
-                                                    <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
-                                                        wrong {w.wrongTimes} time{w.wrongTimes === 1 ? "" : "s"}
-                                                    </span>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg font-black text-red-500 shadow-sm border border-red-100">
+                                                            {err.count}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-[#1E293B] text-sm uppercase">{err.word}</p>
+                                                            {err.wrongChoices && err.wrongChoices.length > 0 && (
+                                                                <p className="text-[10px] text-red-400 font-bold">
+                                                                    Confused with: {err.wrongChoices.slice(0, 3).join(', ')}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        {Array.from({ length: Math.min(err.count, 5) }).map((_, j) => (
+                                                            <span key={j} className="w-2 h-2 rounded-full bg-red-300" />
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    </div>
-                                ) : null}
+                                    ) : (
+                                        <div className="p-6 flex flex-col items-center gap-3 text-center bg-green-50 rounded-2xl border border-green-100">
+                                            <span className="text-3xl">🌟</span>
+                                            <p className="font-black text-green-700 text-sm">No errors yet!</p>
+                                            <p className="text-[11px] text-green-600 font-semibold">
+                                                Your child is doing great. Errors will appear here when they happen so you can help them practice.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Right column: units */}

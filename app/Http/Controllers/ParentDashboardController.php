@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\GameResult;
 use App\Models\Unit;
-use App\Models\Word;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -96,11 +95,39 @@ class ParentDashboardController extends Controller
             ];
         }
 
+        // Error analysis for parents - get wrong answers from game results
+        $recentErrors = GameResult::where('user_id', $user->id)
+            ->whereNotNull('meta')
+            ->where('wrong_count', '>', 0)
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get()
+            ->flatMap(function (GameResult $gr) {
+                $meta = $gr->meta ?? [];
+                $errors = $meta['errors'] ?? [];
+                return collect($errors)->map(fn ($e) => [
+                    'word' => $e['word'] ?? 'unknown',
+                    'wrongChoice' => $e['wrongChoice'] ?? '',
+                    'unit_id' => $gr->unit_id,
+                    'created_at' => $gr->created_at->toDateString(),
+                ]);
+            })
+            ->groupBy('word')
+            ->map(fn ($group) => [
+                'word' => $group->first()['word'],
+                'count' => $group->count(),
+                'wrongChoices' => $group->pluck('wrongChoice')->unique()->values()->all(),
+            ])
+            ->sortByDesc('count')
+            ->values()
+            ->take(10)
+            ->all();
+
         return Inertia::render('Parent/ProgressScreen', [
             'user'  => $user,
             'unitsList' => $units,
             'achievements' => $achievements,
-            'weakWords' => $this->buildWeakWords($user->id),
+            'errorAnalysis' => $recentErrors,
             'stats' => [
                 'completionPercentage' => $completion,
                 'latestLesson'         => optional(
@@ -108,54 +135,5 @@ class ParentDashboardController extends Controller
                 )['name'] ?? ($units->first()['name'] ?? 'Welcome / Hello'),
             ],
         ]);
-    }
-
-    /**
-     * FIX 8 — Aggregate the top-N words a child has gotten wrong most
-     * often across every recorded game result. We read `meta.word_errors`
-     * (an array of word_ids) so a single round failure is preserved
-     * even when the child eventually gets the word right on a later
-     * round (we still want to surface it to the parent).
-     */
-    private function buildWeakWords(int $userId, int $limit = 8): array
-    {
-        $rows = GameResult::where('user_id', $userId)
-            ->whereNotNull('meta')
-            ->get(['meta']);
-
-        $counts = [];
-        foreach ($rows as $row) {
-            $errors = $row->meta['word_errors'] ?? null;
-            if (! is_array($errors)) continue;
-            foreach ($errors as $wid) {
-                $wid = (int) $wid;
-                if ($wid <= 0) continue;
-                $counts[$wid] = ($counts[$wid] ?? 0) + 1;
-            }
-        }
-
-        if (empty($counts)) return [];
-
-        arsort($counts);
-        $topIds = array_slice(array_keys($counts), 0, $limit);
-
-        $words = Word::with('unit:id,title')
-            ->whereIn('id', $topIds)
-            ->get()
-            ->keyBy('id');
-
-        $out = [];
-        foreach ($topIds as $id) {
-            $w = $words->get($id);
-            if (! $w) continue;
-            $out[] = [
-                'id'        => $w->id,
-                'word'      => $w->word,
-                'imagePath' => $w->image_path ? '/' . ltrim($w->image_path, '/') : null,
-                'unitTitle' => $w->unit?->title,
-                'wrongTimes' => (int) $counts[$id],
-            ];
-        }
-        return $out;
     }
 }

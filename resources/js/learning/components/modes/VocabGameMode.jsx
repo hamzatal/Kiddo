@@ -73,7 +73,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     const label = promptText || lesson?.config?.prompt || "Find the correct picture!";
 
     return (
-        <div className="w-full max-w-5xl lg:max-w-6xl flex flex-col items-center gap-6 animate-fade-in-up">
+        <div className="w-full max-w-3xl flex flex-col items-center gap-3 sm:gap-5 animate-fade-in-up">
             <div className="flex items-center gap-3">
                 <RoundProgress total={rounds.length} current={idx} results={results} />
                 <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
@@ -81,15 +81,15 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 </span>
             </div>
 
-            <div className="bg-white/90 backdrop-blur-md px-6 sm:px-10 py-5 rounded-[2rem] shadow-md border border-white flex flex-col items-center gap-3 w-full max-w-2xl">
-                <p className="text-[11px] font-black text-purple-500 uppercase tracking-widest">
+            <div className="bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl shadow-sm border border-white/60 flex flex-col items-center gap-2 w-full max-w-md">
+                <p className="text-[10px] font-black text-purple-500 uppercase tracking-wider">
                     {label}
                 </p>
 
                 {style === "audio-to-image" ? (
                     <button
                         onClick={() => playAudio(prompt?.audioClip)}
-                        className="w-20 h-20 bg-[#10B981] rounded-full flex items-center justify-center text-white text-4xl shadow-[0_6px_0_#059669] hover:translate-y-[2px] active:translate-y-[6px] transition-all"
+                        className="w-14 h-14 sm:w-18 sm:h-18 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl shadow-lg hover:scale-110 active:scale-95 transition-transform"
                         aria-label="Play target audio"
                     >
                         🔊
@@ -99,14 +99,14 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                         <img
                             src={prompt.imagePath}
                             alt={prompt.text}
-                            className="w-32 h-32 object-contain drop-shadow-xl"
+                            className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
                         />
                     ) : (
-                        <span className="text-7xl">🔤</span>
+                        <span className="text-5xl">🔤</span>
                     )
                 ) : (
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-4xl sm:text-5xl font-black uppercase text-[#1E293B] tracking-tight">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <h2 className="text-2xl sm:text-4xl font-black uppercase text-gray-800 tracking-tight">
                             {prompt?.text}
                         </h2>
                         <AudioClipButton clip={prompt?.audioClip} size="md" />
@@ -114,14 +114,13 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 w-full max-w-3xl lg:max-w-5xl xl:max-w-6xl">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 w-full max-w-lg sm:max-w-2xl">
                 {(round.options || []).map((opt) => {
                     let state = "idle";
                     if (correctId === opt.id) state = "correct";
                     else if (wrong.includes(opt.id)) state = "wrong";
                     else if (correctId !== null) state = "disabled";
 
-                    // In image-to-word mode we show word labels instead of images.
                     const useText = style === "image-to-word";
 
                     return (

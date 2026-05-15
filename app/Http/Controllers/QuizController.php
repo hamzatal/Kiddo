@@ -125,6 +125,9 @@ class QuizController extends Controller
             'correctCount'  => 'required|integer|min:0',
             'wrongCount'    => 'nullable|integer|min:0',
             'total'         => 'nullable|integer|min:1',
+            'errors'        => 'nullable|array',
+            'errors.*.word' => 'nullable|string',
+            'errors.*.wrongChoice' => 'nullable|string',
         ]);
 
         $user    = $request->user();
@@ -136,6 +139,7 @@ class QuizController extends Controller
         $result = $this->progress->recordQuizResult($user, $unit, [
             'correct' => $correct,
             'total'   => $total,
+            'errors'  => $data['errors'] ?? [],
         ]);
 
         return redirect()->route('map')->with('quizResult', $result);

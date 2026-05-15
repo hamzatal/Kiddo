@@ -87,18 +87,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/words',    [AdminController::class, 'words'])->name('words');
 
         // JSON API (PATCH-style updates the React UI uses)
-        Route::patch('/units/{unit}',        [AdminController::class, 'updateUnit']);
         Route::post('/units',                [AdminController::class, 'createUnit']);
-        Route::delete('/units/{unit}',       [AdminController::class, 'deleteUnit']);
-        Route::patch('/lessons/{lesson}',    [AdminController::class, 'updateLesson']);
+        Route::patch('/units/{unit}',        [AdminController::class, 'updateUnit']);
+        Route::post('/units/{unit}/image',   [AdminController::class, 'uploadUnitImage']);
         Route::post('/lessons',              [AdminController::class, 'createLesson']);
-        Route::delete('/lessons/{lesson}',   [AdminController::class, 'deleteLesson']);
+        Route::patch('/lessons/{lesson}',    [AdminController::class, 'updateLesson']);
         Route::post('/tracks',               [AdminController::class, 'createTrack']);
         Route::patch('/tracks/{track}',      [AdminController::class, 'updateTrack']);
         Route::delete('/tracks/{track}',     [AdminController::class, 'deleteTrack']);
-        Route::patch('/words/{word}',        [AdminController::class, 'updateWord']);
         Route::post('/words',                [AdminController::class, 'createWord']);
-        Route::delete('/words/{word}',       [AdminController::class, 'deleteWord']);
-        Route::post('/uploads',              [AdminController::class, 'uploadImage'])->name('uploads');
+        Route::patch('/words/{word}',        [AdminController::class, 'updateWord']);
+        Route::post('/words/{word}/image',   [AdminController::class, 'uploadWordImage']);
     });
 });
