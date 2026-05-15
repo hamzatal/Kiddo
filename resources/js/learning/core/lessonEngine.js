@@ -24,6 +24,8 @@ export const resolveMode = (lesson) => {
         "memory-game",
         "listening-game",
         "drag-drop",
+        "picture-match",
+        "word-pic-connect",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -65,6 +67,8 @@ export const modeMeta = (mode) => {
         "memory-game":    { label: "Memory",  icon: "🧠", color: "#F59E0B" },
         "listening-game": { label: "Listen",  icon: "👂", color: "#06B6D4" },
         "drag-drop":      { label: "Sort",    icon: "🎯", color: "#8B5CF6" },
+        "picture-match":  { label: "Pairs",   icon: "🎴", color: "#EC4899" },
+        "word-pic-connect": { label: "Connect", icon: "🔗", color: "#06B6D4" },
     };
     return map[mode] || map["vocab-game"];
 };

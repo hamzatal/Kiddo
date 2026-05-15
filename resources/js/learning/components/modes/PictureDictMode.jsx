@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -46,18 +47,12 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
                                 : "border-white hover:border-teal-200 hover:-translate-y-0.5"
                         }`}
                     >
-                        {c.imagePath ? (
-                            <img
-                                src={c.imagePath}
-                                alt={c.word}
-                                className="w-24 h-24 object-contain drop-shadow-md"
-                                onError={(e) => (e.currentTarget.style.display = "none")}
-                            />
-                        ) : (
-                            <div className="w-24 h-24 flex items-center justify-center text-4xl text-gray-300">
-                                ?
-                            </div>
-                        )}
+                        <SmartImage
+                            src={c.imagePath}
+                            label={c.word}
+                            className="w-24 h-24"
+                            imgClassName="w-full h-full object-contain drop-shadow-md"
+                        />
                         <span className="font-black text-sm text-[#1E293B] uppercase tracking-wide">
                             {c.word}
                         </span>

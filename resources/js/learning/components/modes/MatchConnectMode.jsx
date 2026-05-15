@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 
 /**
@@ -338,18 +339,18 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                                 }`}
                             >
                                 {p.imagePath ? (
-                                    <img
+                                    <SmartImage
                                         src={p.imagePath}
-                                        alt={p.word}
-                                        className="max-w-full max-h-full object-contain drop-shadow-md"
-                                        onError={(e) => {
-                                            e.currentTarget.outerHTML = `<span class="text-2xl font-black uppercase text-gray-400">${p.word ?? "?"}</span>`;
-                                        }}
+                                        label={p.word}
+                                        className="w-full h-full"
+                                        imgClassName="max-w-full max-h-full object-contain drop-shadow-md"
                                     />
                                 ) : (
-                                    <span className="text-2xl font-black uppercase text-gray-400">
-                                        {p.word}
-                                    </span>
+                                    <SmartImage
+                                        src={null}
+                                        label={p.word}
+                                        className="w-full h-full"
+                                    />
                                 )}
                                 {isMatched && (
                                     <span className="absolute -top-2 -right-2 bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black border-4 border-white shadow-sm">

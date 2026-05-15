@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick, playBounce } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -126,9 +127,9 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
               className={`aspect-square p-3 sm:p-4 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1 ${style}`}
             >
               {opt.imagePath ? (
-                <img src={opt.imagePath} alt="" className="w-full h-[75%] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <SmartImage src={opt.imagePath} label={opt.word || ""} className="w-full h-[75%]" imgClassName="w-full h-full object-contain" />
               ) : (
-                <span className="text-3xl text-gray-300">🖼️</span>
+                <SmartImage src={null} label={opt.word || "?"} className="w-full h-[75%]" />
               )}
               {isCorrect && (
                 <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow animate-bounce">✓</div>

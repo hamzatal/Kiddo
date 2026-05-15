@@ -4,32 +4,35 @@ namespace App\Http\Controllers;
 
 use App\Models\AudioTrack;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Streams an NCCD audio track to the browser without forcing a local
- * download of all ~500MB of curriculum media. Two modes:
+ * Streams an NCCD audio track to the browser.
  *
- *   - If the track has a local_path (admin opted in to caching),
- *     we serve the file from disk with Range-request support so the
- *     browser can seek / skip freely.
- *   - Otherwise, we 302-redirect to the official qr.nccd.gov.jo URL.
- *     The browser then issues Range requests directly against NCCD
- *     (it supports them), so only the requested bytes are downloaded.
+ * IMPORTANT: We PROXY the audio (not redirect) to avoid CORS issues
+ * when the SegmentEditor tries to seek/preview audio. Browsers block
+ * cross-origin audio with crossOrigin="anonymous" unless the server
+ * sends Access-Control-Allow-Origin headers — which qr.nccd.gov.jo
+ * does not.
  *
- * The frontend uses the same URL plus optional `?s=1800&e=3600`
- * query params (milliseconds) to document which segment it wants;
- * the server doesn't actually slice the MP3 — that's handled in JS
- * by seeking and stopping on timeupdate. The query params stay in
- * the URL so they can also be read by other code or logged.
+ * Three modes:
+ *   1. local_path exists  -> serve file directly (fastest)
+ *   2. cached in storage  -> serve from cache
+ *   3. fallback           -> proxy stream from NCCD with CORS headers
+ *
+ * The proxy supports HTTP Range requests so the browser can seek
+ * and only download the bytes it actually plays.
  */
 class AudioStreamController extends Controller
 {
-    public function __invoke(Request $request, string $code): RedirectResponse|BinaryFileResponse
+    public function __invoke(Request $request, string $code)
     {
         $track = AudioTrack::where('code', $code)->firstOrFail();
 
+        // 1. Local file? Serve directly.
         if ($track->local_path) {
             $abs = public_path($track->local_path);
             if (is_file($abs)) {
@@ -37,12 +40,46 @@ class AudioStreamController extends Controller
                     'Content-Type'   => $track->format === 'mp4' ? 'video/mp4' : 'audio/mpeg',
                     'Accept-Ranges'  => 'bytes',
                     'Cache-Control'  => 'public, max-age=2592000',
+                    'Access-Control-Allow-Origin' => '*',
                 ]);
             }
         }
 
-        return redirect()->away($track->url, 302, [
-            'Cache-Control' => 'public, max-age=86400',
+        // 2. Check storage cache (storage/app/audio_cache/{code}.mp3)
+        $cachePath = storage_path('app/audio_cache/' . $code . '.' . $track->format);
+        if (is_file($cachePath)) {
+            return $this->serveLocalFile($cachePath, $track);
+        }
+
+        // 3. Try to download and cache, then serve
+        @mkdir(dirname($cachePath), 0775, true);
+        try {
+            $response = Http::timeout(30)
+                ->withOptions(['allow_redirects' => true])
+                ->get($track->url);
+
+            if ($response->successful()) {
+                file_put_contents($cachePath, $response->body());
+                return $this->serveLocalFile($cachePath, $track);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Audio proxy failed: ' . $e->getMessage());
+        }
+
+        // 4. Last resort: redirect (might fail with CORS but better than nothing)
+        return redirect()->away($track->url, 302);
+    }
+
+    private function serveLocalFile(string $abs, AudioTrack $track): BinaryFileResponse
+    {
+        return response()->file($abs, [
+            'Content-Type'   => $track->format === 'mp4' ? 'video/mp4' : 'audio/mpeg',
+            'Accept-Ranges'  => 'bytes',
+            'Cache-Control'  => 'public, max-age=2592000',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Range',
+            'Access-Control-Expose-Headers' => 'Content-Range, Content-Length, Accept-Ranges',
         ]);
     }
 }

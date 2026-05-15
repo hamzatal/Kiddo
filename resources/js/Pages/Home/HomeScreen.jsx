@@ -454,7 +454,7 @@ const HomeScreen = ({ units }) => {
                         />
 
                         <div className="relative z-10 flex-1 flex items-center pt-16">
-                            <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
+                            <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
                                 <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-6 lg:gap-8">
                                     <div className="w-full lg:w-[54%] flex flex-col items-center lg:items-start text-center lg:text-left">
                                         <h1
@@ -545,7 +545,7 @@ const HomeScreen = ({ units }) => {
 
                     {/* LESSONS */}
                     <section className="w-full bg-white py-10 sm:py-14">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="text-center mb-7 sm:mb-8">
                                 <p className="text-[11px] sm:text-xs font-black text-[#9333EA] uppercase tracking-[0.15em] mb-2">
                                     📚 Curriculum
@@ -561,13 +561,13 @@ const HomeScreen = ({ units }) => {
                                     <span className="text-yellow-400">⭐</span>
                                 </h2>
                             </div>
-                            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 max-w-3xl mx-auto">
+                            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 lg:gap-6 max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto">
                                 {displayLessons.map((l, index) => (
                                     <div
                                         key={index}
-                                        className="w-[calc(50%-0.75rem)] sm:w-[200px]"
+                                        className="w-[calc(50%-0.75rem)] sm:w-[200px] lg:w-[240px] xl:w-[260px]"
                                         style={{
-                                            height: "clamp(150px, 20vw, 210px)",
+                                            height: "clamp(150px, 18vw, 260px)",
                                         }}
                                     >
                                         <LessonCard
@@ -591,7 +591,7 @@ const HomeScreen = ({ units }) => {
 
                     {/* FEATURES */}
                     <section className="w-full py-10 sm:py-14 bg-gradient-to-b from-[#F8FAFF] to-[#F0F4FF]">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="text-center mb-7 sm:mb-8">
                                 <p className="text-[11px] sm:text-xs font-black text-[#16A34A] uppercase tracking-[0.15em] mb-2">
                                     ✨ Why Kiddo?
