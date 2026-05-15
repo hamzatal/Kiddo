@@ -292,6 +292,18 @@ function Words({ units, tracks, words, selected, search }) {
     const [q, setQ] = useState(search || "");
     const [onlyUnset, setOnlyUnset] = useState(false);
     const [focusedRowId, setFocusedRowId] = useState(null);
+    const [creating, setCreating] = useState(false);
+    const [draft, setDraft] = useState({
+        unit_id: selected || (units[0]?.id ?? ""),
+        word: "",
+        type: "vocab",
+        category: "",
+        audio_track_id: "",
+        image_path: "",
+    });
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState(null);
+    const fileRef = useRef(null);
 
     function onFilter(e) {
         e.preventDefault();
@@ -299,6 +311,43 @@ function Words({ units, tracks, words, selected, search }) {
         if (unit) params.set("unit", unit);
         if (q) params.set("q", q);
         router.visit("/admin/words?" + params.toString());
+    }
+
+    async function submitNew() {
+        if (!draft.unit_id || !draft.word.trim()) {
+            setErr("Unit + word are required");
+            return;
+        }
+        setBusy(true);
+        setErr(null);
+        try {
+            let imagePath = draft.image_path || null;
+            if (fileRef.current?.files?.[0]) {
+                const fd = new FormData();
+                fd.append("image", fileRef.current.files[0]);
+                fd.append("folder", (draft.category || draft.word).toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32));
+                const r = await axios.post("/admin/uploads", fd, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                });
+                imagePath = r.data.path;
+            }
+            const { data } = await axios.post("/admin/words", {
+                unit_id: Number(draft.unit_id),
+                word: draft.word.trim(),
+                type: draft.type || "vocab",
+                category: draft.category || null,
+                image_path: imagePath,
+                audio_track_id: draft.audio_track_id ? Number(draft.audio_track_id) : null,
+            });
+            if (data.ok) {
+                setCreating(false);
+                router.reload({ only: ["words"] });
+            }
+        } catch (e) {
+            setErr(e?.response?.data?.message || "Create failed");
+        } finally {
+            setBusy(false);
+        }
     }
 
     // Client-side filter for rows with at least one missing segment bound.
@@ -417,6 +466,13 @@ function Words({ units, tracks, words, selected, search }) {
                         <button className="px-3 py-2 rounded-xl bg-[#7C3AED] text-white text-sm font-black">
                             Filter
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setCreating((v) => !v)}
+                            className="px-3 py-2 rounded-xl bg-emerald-500 text-white text-sm font-black"
+                        >
+                            {creating ? "Cancel" : "+ New word"}
+                        </button>
                         <label
                             className={
                                 "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black cursor-pointer select-none " +
@@ -436,6 +492,87 @@ function Words({ units, tracks, words, selected, search }) {
                         </label>
                     </form>
                 </header>
+
+                {creating ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
+                        <h2 className="font-black text-sm mb-3 text-[#1E293B]">
+                            Create a new word
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Unit *
+                                <select
+                                    value={draft.unit_id}
+                                    onChange={(e) => setDraft({ ...draft, unit_id: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                >
+                                    {units.map((u) => (
+                                        <option key={u.id} value={u.id}>{u.code} · {u.title}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Word *
+                                <input
+                                    value={draft.word}
+                                    onChange={(e) => setDraft({ ...draft, word: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm normal-case text-[#1E293B]"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Type
+                                <input
+                                    value={draft.type}
+                                    onChange={(e) => setDraft({ ...draft, type: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Category
+                                <input
+                                    value={draft.category}
+                                    onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
+                                Audio track
+                                <select
+                                    value={draft.audio_track_id}
+                                    onChange={(e) => setDraft({ ...draft, audio_track_id: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                >
+                                    <option value="">-- none --</option>
+                                    {tracks.map((t) => (
+                                        <option key={t.id} value={t.id}>{t.code}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
+                                Image (upload)
+                                <input ref={fileRef} type="file" accept="image/*" className="w-full mt-1 text-xs" />
+                            </label>
+                        </div>
+                        {err ? (
+                            <p className="text-xs text-rose-500 font-bold mt-2">{err}</p>
+                        ) : null}
+                        <div className="flex gap-2 mt-3">
+                            <button
+                                onClick={submitNew}
+                                disabled={busy}
+                                className="px-3 py-2 rounded-xl bg-[#7C3AED] text-white text-sm font-black disabled:opacity-50"
+                            >
+                                {busy ? "Saving…" : "Save word"}
+                            </button>
+                            <button
+                                onClick={() => setCreating(false)}
+                                className="px-3 py-2 rounded-xl bg-gray-100 text-sm font-black"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
 
                 {visibleWords.map((w) => (
                     <WordRow

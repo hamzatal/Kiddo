@@ -13,6 +13,7 @@ class GameResult extends Model
         'user_id',
         'unit_id',
         'lesson_id',
+        'word_id',
         'type',
         'correct_count',
         'wrong_count',
@@ -37,5 +38,10 @@ class GameResult extends Model
     public function lesson()
     {
         return $this->belongsTo(Lesson::class);
+    }
+
+    public function word()
+    {
+        return $this->belongsTo(Word::class);
     }
 }

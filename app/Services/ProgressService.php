@@ -41,6 +41,24 @@ class ProgressService
         $stars = $this->starsForLesson($lesson->type, $percent);
         $xp    = $this->xpForLesson($lesson->type);
 
+        // FIX 8 — collect wrong wordIds from rounds so the parent
+        // dashboard / AI report can highlight specific weak words.
+        $wordErrors = [];
+        if (! empty($stats['rounds']) && is_array($stats['rounds'])) {
+            foreach ($stats['rounds'] as $r) {
+                if (! is_array($r)) continue;
+                if (! isset($r['correct']) || $r['correct']) continue;
+                $wid = $r['wordId'] ?? $r['word_id'] ?? null;
+                if ($wid !== null && $wid !== '') {
+                    $wordErrors[] = (int) $wid;
+                }
+            }
+        }
+        $meta = $stats;
+        if (! empty($wordErrors)) {
+            $meta['word_errors'] = array_values(array_unique($wordErrors));
+        }
+
         GameResult::create([
             'user_id'       => $user->id,
             'unit_id'       => $unit->id,
@@ -49,7 +67,7 @@ class ProgressService
             'correct_count' => $stats['correct'],
             'wrong_count'   => $stats['total'] - $stats['correct'],
             'score'         => $percent,
-            'meta'          => $stats,
+            'meta'          => $meta,
         ]);
 
         $progress = UserProgress::firstOrCreate(

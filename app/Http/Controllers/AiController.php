@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AiInteraction;
+use App\Models\GameResult;
 use App\Models\Unit;
 use App\Models\UserProgress;
 use App\Models\Word;
@@ -81,6 +82,7 @@ class AiController extends Controller
             'total_stars' => $user->total_stars ?? 0,
             'xp'          => $user->xp ?? 0,
             'units'       => $progresses,
+            'weakWords'   => $this->collectWeakWords($user->id),
         ];
 
         $report = $this->ai->parentInsight($stats);
@@ -115,5 +117,40 @@ class AiController extends Controller
         ]);
 
         return response()->json(['answer' => $answer]);
+    }
+
+    /**
+     * FIX 8 — Top weak words for the parent AI report.
+     * Reads `meta.word_errors` from GameResult rows.
+     */
+    private function collectWeakWords(int $userId, int $limit = 6): array
+    {
+        $rows = GameResult::where('user_id', $userId)
+            ->whereNotNull('meta')
+            ->get(['meta']);
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $errors = $row->meta['word_errors'] ?? null;
+            if (! is_array($errors)) continue;
+            foreach ($errors as $wid) {
+                $wid = (int) $wid;
+                if ($wid <= 0) continue;
+                $counts[$wid] = ($counts[$wid] ?? 0) + 1;
+            }
+        }
+        if (empty($counts)) return [];
+
+        arsort($counts);
+        $topIds = array_slice(array_keys($counts), 0, $limit);
+        $words = Word::whereIn('id', $topIds)->get()->keyBy('id');
+
+        $out = [];
+        foreach ($topIds as $id) {
+            $w = $words->get($id);
+            if (! $w) continue;
+            $out[] = ['word' => $w->word, 'wrong' => $counts[$id]];
+        }
+        return $out;
     }
 }

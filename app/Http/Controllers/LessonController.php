@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GameResult;
 use App\Models\Lesson;
 use App\Models\Unit;
 use App\Models\UserProgress;
 use App\Services\LessonDeckBuilder;
 use App\Services\ProgressService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class LessonController extends Controller
@@ -46,6 +48,25 @@ class LessonController extends Controller
                 'stars_earned'   => 0,
             ]
         );
+
+        // FIX 1 — never let a brand-new user land on lesson 2+ when no
+        // GameResult has been recorded for this unit yet. If somehow
+        // current_lesson is > 1 but the user has no game results in
+        // this unit, snap them back to lesson 1 and log it.
+        if ($progress->current_lesson > 1) {
+            $hasAnyResult = GameResult::where('user_id', $user->id)
+                ->where('unit_id', $unit->id)
+                ->exists();
+            if (! $hasAnyResult) {
+                Log::warning('Resetting progress to lesson 1 (no game results recorded yet).', [
+                    'user_id' => $user->id,
+                    'unit_id' => $unit->id,
+                    'was_at'  => $progress->current_lesson,
+                ]);
+                $progress->current_lesson = 1;
+                $progress->save();
+            }
+        }
 
         if ($progress->status === 'locked') {
             return redirect()->route('map');
@@ -133,6 +154,7 @@ class LessonController extends Controller
             'rounds.*.roundId'    => 'nullable|string',
             'rounds.*.correct'    => 'required|boolean',
             'rounds.*.timeMs'     => 'nullable|integer',
+            'rounds.*.wordId'     => 'nullable|integer',
             'durationMs'          => 'nullable|integer',
         ]);
 
