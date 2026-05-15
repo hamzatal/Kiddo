@@ -189,6 +189,7 @@ class LessonDeckBuilder
     {
         $options = $decoys->push($target)->map(fn (Word $w, int $i) => [
             'id'        => "o{$id}_{$i}",
+            'wordId'    => $w->id ?: null,
             'word'      => $w->word,
             'imagePath' => $this->assetUrl($w->image_path),
             'audioClip' => $w->audioClip(),
@@ -197,6 +198,7 @@ class LessonDeckBuilder
 
         return [
             'roundId' => $id,
+            'wordId'  => $target->id ?: null,
             'style'   => $style,
             'prompt'  => [
                 'kind'      => in_array($style, ['image-to-word', 'audio-to-image']) ? 'image' : 'word',

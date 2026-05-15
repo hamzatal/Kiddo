@@ -1,7 +1,204 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+
+const LESSON_TYPES = [
+    "intro", "vocab-game", "phonics-game", "review",
+    "story", "song", "project", "picture-dict", "quiz",
+    "draw-circle", "match-connect",
+    "memory-flip", "bubble-pop", "sequence-build",
+];
+
+/**
+ * FIX 9.5 — inline mini-form to attach a new word to a specific
+ * lesson without leaving the lessons admin page. Uploads an optional
+ * image, links an audio track + segment range, then POSTs to
+ * /admin/words. Collapsed by default to keep the row compact.
+ */
+const InlineWordAdd = ({ unitId, tracks }) => {
+    const [open, setOpen] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState(null);
+    const [ok, setOk] = useState(false);
+    const fileRef = useRef(null);
+    const [draft, setDraft] = useState({
+        word: "",
+        type: "vocab",
+        category: "",
+        image_path: "",
+        audio_track_id: "",
+        segment_start_ms: "",
+        segment_end_ms: "",
+    });
+
+    const submit = async () => {
+        if (!draft.word.trim()) {
+            setErr("Word is required");
+            return;
+        }
+        setBusy(true);
+        setErr(null);
+        setOk(false);
+        try {
+            let imagePath = draft.image_path || null;
+            if (fileRef.current?.files?.[0]) {
+                const fd = new FormData();
+                fd.append("image", fileRef.current.files[0]);
+                fd.append(
+                    "folder",
+                    (draft.category || draft.word).toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32)
+                );
+                const r = await axios.post("/admin/uploads", fd, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                });
+                imagePath = r.data.path;
+            }
+            const payload = {
+                unit_id: unitId,
+                word: draft.word.trim(),
+                type: draft.type || "vocab",
+                category: draft.category || null,
+                image_path: imagePath,
+                audio_track_id: draft.audio_track_id ? Number(draft.audio_track_id) : null,
+                segment_start_ms: draft.segment_start_ms === "" ? null : Number(draft.segment_start_ms),
+                segment_end_ms: draft.segment_end_ms === "" ? null : Number(draft.segment_end_ms),
+            };
+            const { data } = await axios.post("/admin/words", payload);
+            if (data.ok) {
+                setOk(true);
+                setDraft({
+                    word: "",
+                    type: "vocab",
+                    category: "",
+                    image_path: "",
+                    audio_track_id: draft.audio_track_id, // keep selection
+                    segment_start_ms: "",
+                    segment_end_ms: "",
+                });
+                if (fileRef.current) fileRef.current.value = "";
+                setTimeout(() => setOk(false), 1600);
+            }
+        } catch (e) {
+            setErr(e?.response?.data?.message || "Create failed");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    if (!open) {
+        return (
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="text-[11px] font-black text-purple-600 hover:text-purple-800 mt-2"
+            >
+                ＋ Add a word to this unit
+            </button>
+        );
+    }
+
+    return (
+        <div className="bg-purple-50/60 border border-purple-100 rounded-xl p-3 mt-3">
+            <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-black uppercase tracking-widest text-purple-700">
+                    New word for this unit
+                </p>
+                <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="text-xs text-gray-400 hover:text-gray-700"
+                >
+                    Hide
+                </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <label className="text-[10px] font-black uppercase text-gray-400">
+                    Word *
+                    <input
+                        value={draft.word}
+                        onChange={(e) => setDraft({ ...draft, word: e.target.value })}
+                        className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm normal-case text-[#1E293B]"
+                    />
+                </label>
+                <label className="text-[10px] font-black uppercase text-gray-400">
+                    Type
+                    <input
+                        value={draft.type}
+                        onChange={(e) => setDraft({ ...draft, type: e.target.value })}
+                        className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm normal-case text-[#1E293B]"
+                    />
+                </label>
+                <label className="text-[10px] font-black uppercase text-gray-400">
+                    Category
+                    <input
+                        value={draft.category}
+                        onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+                        className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm normal-case text-[#1E293B]"
+                    />
+                </label>
+                <label className="text-[10px] font-black uppercase text-gray-400">
+                    Audio track
+                    <select
+                        value={draft.audio_track_id}
+                        onChange={(e) => setDraft({ ...draft, audio_track_id: e.target.value })}
+                        className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-xs"
+                    >
+                        <option value="">-- none --</option>
+                        {tracks.map((t) => (
+                            <option key={t.id} value={t.id}>
+                                {t.code}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label className="text-[10px] font-black uppercase text-gray-400">
+                    Segment start (ms)
+                    <input
+                        type="number"
+                        value={draft.segment_start_ms}
+                        onChange={(e) => setDraft({ ...draft, segment_start_ms: e.target.value })}
+                        className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-mono"
+                    />
+                </label>
+                <label className="text-[10px] font-black uppercase text-gray-400">
+                    Segment end (ms)
+                    <input
+                        type="number"
+                        value={draft.segment_end_ms}
+                        onChange={(e) => setDraft({ ...draft, segment_end_ms: e.target.value })}
+                        className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-mono"
+                    />
+                </label>
+                <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
+                    Image (upload)
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        className="w-full mt-1 text-xs"
+                    />
+                </label>
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+                <button
+                    type="button"
+                    onClick={submit}
+                    disabled={busy}
+                    className="px-3 py-1.5 rounded-lg bg-[#7C3AED] text-white text-xs font-black disabled:opacity-50"
+                >
+                    {busy ? "Saving…" : "Add word"}
+                </button>
+                {ok ? (
+                    <span className="text-emerald-600 text-xs font-black">✓ Added</span>
+                ) : null}
+                {err ? (
+                    <span className="text-rose-500 text-[10px] font-bold">{err}</span>
+                ) : null}
+            </div>
+        </div>
+    );
+};
 
 const LessonRow = ({ l }) => {
     const [row, setRow] = useState(l);
@@ -46,7 +243,7 @@ const LessonRow = ({ l }) => {
                             onChange={(e) => save({ type: e.target.value })}
                             className="text-[11px] font-black px-2 py-0.5 rounded-full bg-gray-50 border border-gray-200 text-gray-700"
                         >
-                            {["intro", "vocab-game", "phonics-game", "review", "story", "song", "project", "picture-dict", "quiz"].map((t) => (
+                            {LESSON_TYPES.map((t) => (
                                 <option key={t} value={t}>{t}</option>
                             ))}
                         </select>
@@ -79,8 +276,18 @@ const LessonRow = ({ l }) => {
     );
 };
 
-const Lessons = ({ units, lessons, selected }) => {
+const Lessons = ({ units, lessons, selected, tracks = [] }) => {
     const [unit, setUnit] = useState(selected || "");
+    const [creating, setCreating] = useState(false);
+    const [draft, setDraft] = useState({
+        unit_id: selected || (units[0]?.id ?? ""),
+        title: "",
+        type: "vocab-game",
+        page_number: "",
+        audio_track_id: "",
+    });
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState(null);
 
     const grouped = useMemo(() => {
         const g = {};
@@ -96,6 +303,32 @@ const Lessons = ({ units, lessons, selected }) => {
         router.visit(id ? `/admin/lessons?unit=${id}` : "/admin/lessons");
     };
 
+    const submitNew = async () => {
+        if (!draft.unit_id || !draft.title.trim()) {
+            setErr("Unit + title are required");
+            return;
+        }
+        setBusy(true);
+        setErr(null);
+        try {
+            const { data } = await axios.post("/admin/lessons", {
+                unit_id: Number(draft.unit_id),
+                title: draft.title.trim(),
+                type: draft.type,
+                page_number: draft.page_number === "" ? null : Number(draft.page_number),
+                audio_track_id: draft.audio_track_id ? Number(draft.audio_track_id) : null,
+            });
+            if (data.ok) {
+                setCreating(false);
+                router.reload({ only: ["lessons"] });
+            }
+        } catch (e) {
+            setErr(e?.response?.data?.message || "Create failed");
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <AdminLayout active="lessons">
             <div className="max-w-6xl mx-auto">
@@ -105,22 +338,118 @@ const Lessons = ({ units, lessons, selected }) => {
                             Lessons
                         </h1>
                         <p className="text-gray-500 font-bold text-sm mt-1">
-                            Edit title, type, book page and audio track.
+                            Edit title, type, book page and audio track. Add new
+                            lessons or attach extra words to a unit inline.
                         </p>
                     </div>
-                    <select
-                        value={unit}
-                        onChange={(e) => onUnitChange(e.target.value)}
-                        className="px-3 py-2 rounded-xl border border-gray-200 font-black text-sm"
-                    >
-                        <option value="">All units</option>
-                        {units.map((u) => (
-                            <option key={u.id} value={u.id}>
-                                {u.code} · {u.title}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <select
+                            value={unit}
+                            onChange={(e) => onUnitChange(e.target.value)}
+                            className="px-3 py-2 rounded-xl border border-gray-200 font-black text-sm"
+                        >
+                            <option value="">All units</option>
+                            {units.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                    {u.code} · {u.title}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={() => setCreating((v) => !v)}
+                            className="px-3 py-2 rounded-xl bg-emerald-500 text-white text-sm font-black"
+                        >
+                            {creating ? "Cancel" : "+ New lesson"}
+                        </button>
+                    </div>
                 </header>
+
+                {creating ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
+                        <h2 className="font-black text-sm mb-3 text-[#1E293B]">
+                            Create a new lesson
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Unit *
+                                <select
+                                    value={draft.unit_id}
+                                    onChange={(e) => setDraft({ ...draft, unit_id: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                >
+                                    {units.map((u) => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.code} · {u.title}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
+                                Title *
+                                <input
+                                    value={draft.title}
+                                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm normal-case text-[#1E293B]"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Type
+                                <select
+                                    value={draft.type}
+                                    onChange={(e) => setDraft({ ...draft, type: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                >
+                                    {LESSON_TYPES.map((t) => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400">
+                                Page #
+                                <input
+                                    type="number"
+                                    value={draft.page_number}
+                                    onChange={(e) => setDraft({ ...draft, page_number: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-400 md:col-span-2">
+                                Audio track
+                                <select
+                                    value={draft.audio_track_id}
+                                    onChange={(e) => setDraft({ ...draft, audio_track_id: e.target.value })}
+                                    className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                >
+                                    <option value="">-- none --</option>
+                                    {tracks.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.code} · {t.label?.slice(0, 40) || ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        {err ? (
+                            <p className="text-xs text-rose-500 font-bold mt-2">{err}</p>
+                        ) : null}
+                        <div className="flex gap-2 mt-3">
+                            <button
+                                onClick={submitNew}
+                                disabled={busy}
+                                className="px-3 py-2 rounded-xl bg-[#7C3AED] text-white text-sm font-black disabled:opacity-50"
+                            >
+                                {busy ? "Saving…" : "Save lesson"}
+                            </button>
+                            <button
+                                onClick={() => setCreating(false)}
+                                className="px-3 py-2 rounded-xl bg-gray-100 text-sm font-black"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
 
                 {Object.entries(grouped).map(([uid, rows]) => {
                     const u = units.find((x) => x.id === Number(uid));
@@ -132,6 +461,8 @@ const Lessons = ({ units, lessons, selected }) => {
                             {rows.map((l) => (
                                 <LessonRow key={l.id} l={l} />
                             ))}
+                            {/* FIX 9.5 — inline word adder for this unit */}
+                            <InlineWordAdd unitId={Number(uid)} tracks={tracks} />
                         </section>
                     );
                 })}

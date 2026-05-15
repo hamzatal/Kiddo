@@ -40,9 +40,9 @@ class CurriculumSeeder extends Seeder
     public function run(): void
     {
         // Cleanup: ensure any previously-seeded units outside the canonical
-        // U0/U1/U2 set are removed so re-seeding leaves no orphans. Cascading
-        // deletes on lessons/words will handle child rows.
-        Unit::whereNotIn('code', ['U0', 'U1', 'U2'])->delete();
+        // U0/U1/U2/U3/U4/U5 set are removed so re-seeding leaves no orphans.
+        // Cascading deletes on lessons/words will handle child rows.
+        Unit::whereNotIn('code', ['U0', 'U1', 'U2', 'U3', 'U4', 'U5'])->delete();
 
         $u0 = $this->upsertUnit([
             'code' => 'U0', 'unit_number' => 0,
@@ -70,6 +70,37 @@ class CurriculumSeeder extends Seeder
             'color_key' => 'blue',
         ]);
         $this->seedSchoolBag($u2->id);
+
+        // The next three units are defined but were not previously called.
+        // Wiring them up now so the full Team Together 1A book is seeded
+        // and the new game modes (memory-flip / bubble-pop / sequence-build)
+        // have a home in U2/U3/U4 — see seedSchoolBag/seedClassroom/seedToy.
+        $u3 = $this->upsertUnit([
+            'code' => 'U3', 'unit_number' => 3,
+            'title' => 'Our classroom',
+            'description' => 'Classroom items, phonics Tt Mm Ww Ii.',
+            'image_path' => 'assets/lessons/classroom/desk.png',
+            'color_key' => 'pink',
+        ]);
+        $this->seedClassroom($u3->id);
+
+        $u4 = $this->upsertUnit([
+            'code' => 'U4', 'unit_number' => 4,
+            'title' => 'My favourite toy',
+            'description' => 'Toys, feelings, CVC blending.',
+            'image_path' => 'assets/lessons/toy/teddy.png',
+            'color_key' => 'amber',
+        ]);
+        $this->seedToy($u4->id);
+
+        $u5 = $this->upsertUnit([
+            'code' => 'U5', 'unit_number' => 5,
+            'title' => 'Learning Club: Days of the week',
+            'description' => 'Sunday → Saturday, Listen and trace.',
+            'image_path' => 'assets/lessons/lc/days.png',
+            'color_key' => 'purple',
+        ]);
+        $this->seedLearningClub($u5->id);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -157,6 +188,15 @@ class CurriculumSeeder extends Seeder
                     'mode' => 'match-connect', 'category' => 'colour',
                     'rounds' => 4, 'options_per_round' => 4,
                     'prompt' => 'Match the word to the picture!',
+                ],
+            ],
+            [
+                'num' => 5, 'title' => 'Memory flip — colours', 'page' => 5, 'book_lesson' => 'Bonus 3',
+                'type' => 'memory-flip', 'audio' => 'PB5',
+                'conf' => [
+                    'mode' => 'memory-flip', 'category' => 'colour',
+                    'rounds' => 4,
+                    'prompt' => 'Find the matching pairs!',
                 ],
             ],
         ]);
@@ -302,6 +342,15 @@ class CurriculumSeeder extends Seeder
                     'audio_tracks' => ['PB13', 'PB13_2', 'AB13'],
                 ],
             ],
+            [
+                'num' => 9, 'title' => 'Bubble pop — family', 'page' => 13, 'book_lesson' => 'Bonus',
+                'type' => 'bubble-pop', 'audio' => 'PB6',
+                'conf' => [
+                    'mode' => 'bubble-pop', 'category' => 'family',
+                    'rounds' => 5, 'options_per_round' => 5,
+                    'prompt' => 'Listen and pop the right word!',
+                ],
+            ],
         ]);
     }
 
@@ -439,6 +488,20 @@ class CurriculumSeeder extends Seeder
                     'word_filter' => ['Bag', 'Book', 'Crayon', 'Eraser', 'Pen', 'Pencil', 'Pencil case', 'Ruler'],
                     'prompt' => 'Listen and trace.',
                     'audio_tracks' => ['PB21', 'PB21_2', 'AB21'],
+                ],
+            ],
+            [
+                'num' => 9, 'title' => 'Build the sentence', 'page' => 21, 'book_lesson' => 'Bonus',
+                'type' => 'sequence-build', 'audio' => 'PB14',
+                'conf' => [
+                    'mode' => 'sequence-build',
+                    'rounds' => 3,
+                    'prompt' => 'Drag the words in order: I have a ___.',
+                    'sentences' => [
+                        ['I', 'have', 'a', 'pen'],
+                        ['I', 'have', 'a', 'book'],
+                        ['I', 'have', 'a', 'bag'],
+                    ],
                 ],
             ],
         ]);
