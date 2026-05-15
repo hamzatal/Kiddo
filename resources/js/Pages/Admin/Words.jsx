@@ -35,7 +35,10 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
         },
         [row.audio_track_id, tracks, row.audio_track]
     );
-    const trackUrl = track ? track.url : null;
+    // Use the proxy URL for playback to avoid CORS issues with NCCD
+    const trackUrl = track ? `/api/audio/${track.code}` : null;
+    // Keep raw URL as fallback
+    const trackRawUrl = track ? track.url : null;
 
     async function save(extra) {
         setSaving(true);
@@ -115,7 +118,7 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
             } p-4 mb-3`}
         >
             <div className="flex items-start gap-4 flex-wrap">
-                <div className="shrink-0 w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
+                <div className="shrink-0 w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden relative group cursor-pointer">
                     {row.image_path ? (
                         <img
                             src={"/" + String(row.image_path).replace(/^\//, "")}
@@ -128,6 +131,29 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                     ) : (
                         <span className="text-2xl text-gray-300">?</span>
                     )}
+                    {/* Image upload overlay */}
+                    <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-xl">
+                        <span className="text-white text-xs font-black">📷</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const formData = new FormData();
+                                formData.append('image', file);
+                                try {
+                                    const res = await axios.post(`/admin/words/${w.id}/image`, formData);
+                                    if (res.data?.ok) {
+                                        setRow({ ...row, image_path: res.data.image_path });
+                                    }
+                                } catch (err) {
+                                    setError('Image upload failed');
+                                }
+                            }}
+                        />
+                    </label>
                 </div>
 
                 <div className="flex-1 min-w-[260px]">

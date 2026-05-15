@@ -21,6 +21,9 @@ export const resolveMode = (lesson) => {
         "picture-dict",
         "draw-circle",
         "match-connect",
+        "memory-game",
+        "listening-game",
+        "drag-drop",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -49,16 +52,19 @@ export const computeRoundStars = (results, lessonType = "vocab-game") => {
  */
 export const modeMeta = (mode) => {
     const map = {
-        "intro":         { label: "Learn",   icon: "📖", color: "#7C3AED" },
-        "vocab-game":    { label: "Play",    icon: "🎮", color: "#10B981" },
-        "phonics-game":  { label: "Phonics", icon: "🔤", color: "#F59E0B" },
-        "review":        { label: "Review",  icon: "🔁", color: "#0EA5E9" },
-        "story":         { label: "Story",   icon: "📚", color: "#EC4899" },
-        "song":          { label: "Sing",    icon: "🎵", color: "#8B5CF6" },
-        "project":       { label: "Project", icon: "✂️", color: "#F97316" },
-        "picture-dict":  { label: "Trace",   icon: "✏️", color: "#14B8A6" },
-        "draw-circle":   { label: "Circle",  icon: "⭕", color: "#EF4444" },
-        "match-connect": { label: "Match",   icon: "🔗", color: "#0EA5E9" },
+        "intro":          { label: "Learn",   icon: "📖", color: "#7C3AED" },
+        "vocab-game":     { label: "Play",    icon: "🎮", color: "#10B981" },
+        "phonics-game":   { label: "Phonics", icon: "🔤", color: "#F59E0B" },
+        "review":         { label: "Review",  icon: "🔁", color: "#0EA5E9" },
+        "story":          { label: "Story",   icon: "📚", color: "#EC4899" },
+        "song":           { label: "Sing",    icon: "🎵", color: "#8B5CF6" },
+        "project":        { label: "Project", icon: "✂️", color: "#F97316" },
+        "picture-dict":   { label: "Trace",   icon: "✏️", color: "#14B8A6" },
+        "draw-circle":    { label: "Circle",  icon: "⭕", color: "#EF4444" },
+        "match-connect":  { label: "Match",   icon: "🔗", color: "#0EA5E9" },
+        "memory-game":    { label: "Memory",  icon: "🧠", color: "#F59E0B" },
+        "listening-game": { label: "Listen",  icon: "👂", color: "#06B6D4" },
+        "drag-drop":      { label: "Sort",    icon: "🎯", color: "#8B5CF6" },
     };
     return map[mode] || map["vocab-game"];
 };

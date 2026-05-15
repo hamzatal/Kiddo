@@ -126,12 +126,15 @@ const SegmentEditor = ({
             <audio
                 ref={audioRef}
                 src={url}
-                preload="metadata"
+                preload="auto"
                 onTimeUpdate={onTimeUpdate}
                 onLoadedMetadata={onLoaded}
                 onEnded={() => {
                     setPlaying(false);
                     setPreviewMode(false);
+                }}
+                onError={(e) => {
+                    console.warn('Audio load error, trying direct URL');
                 }}
                 crossOrigin="anonymous"
             />

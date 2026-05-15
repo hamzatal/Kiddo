@@ -41,7 +41,7 @@ class LessonController extends Controller
         $progress = UserProgress::firstOrCreate(
             ['user_id' => $user->id, 'unit_id' => $unit->id],
             [
-                'status'         => $unit->unit_number <= 1 ? 'active' : 'locked',
+                'status'         => (int) $unit->unit_number === 0 ? 'active' : 'locked',
                 'current_lesson' => 1,
                 'stars_earned'   => 0,
             ]

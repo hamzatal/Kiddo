@@ -13,35 +13,47 @@ class HomeController extends Controller
         $user = $request->user();
 
         // جلب الوحدات لإظهارها في HomeScreen (Our Learning Units)
-        $units = Unit::orderBy('unit_number')
-            ->get()
-            ->map(function (Unit $unit) use ($user) {
-                // حالة الوحدة بالنسبة للطالب
-                $status = 'locked';
-                if ($user) {
-                    $progress = $user->progresses()
-                        ->where('unit_id', $unit->id)
-                        ->first();
+        $unitsRaw = Unit::orderBy('unit_number')->get();
 
-                    if ($progress) {
-                        $status = $progress->status;
-                    } elseif ($unit->unit_number === 1) {
+        // Strict sequential unlocking: only the first unit (unit_number=0)
+        // is open by default. Each subsequent unit requires the previous to be 'done'.
+        $prevStatus = 'done'; // so unit_number=0 always unlocks
+        $units = $unitsRaw->map(function (Unit $unit) use ($user, &$prevStatus) {
+            $status = 'locked';
+
+            if ($user) {
+                $progress = $user->progresses()
+                    ->where('unit_id', $unit->id)
+                    ->first();
+
+                $storedStatus = $progress->status ?? null;
+
+                if ((int) $unit->unit_number === 0) {
+                    $status = $storedStatus === 'done' ? 'done' : 'active';
+                } else {
+                    if ($storedStatus === 'done') {
+                        $status = 'done';
+                    } elseif ($prevStatus === 'done') {
                         $status = 'active';
+                    } else {
+                        $status = 'locked';
                     }
-                } elseif ($unit->unit_number === 1) {
-                    // لو غير مسجل، أول وحدة مفتوحة كمثال
-                    $status = 'active';
                 }
+            } elseif ((int) $unit->unit_number === 0) {
+                $status = 'active';
+            }
 
-                return [
-                    'id'          => $unit->id,
-                    'unitNumber'  => $unit->unit_number,
-                    'title'       => $unit->title,
-                    'imagePath'   => $unit->image_path,
-                    'colorKey'    => $unit->color_key,
-                    'status'      => $status,
-                ];
-            });
+            $prevStatus = $status;
+
+            return [
+                'id'          => $unit->id,
+                'unitNumber'  => $unit->unit_number,
+                'title'       => $unit->title,
+                'imagePath'   => $unit->image_path,
+                'colorKey'    => $unit->color_key,
+                'status'      => $status,
+            ];
+        });
 
         return Inertia::render('Home/HomeScreen', [
             'units'    => $units,

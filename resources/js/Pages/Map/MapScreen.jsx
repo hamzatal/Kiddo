@@ -148,10 +148,24 @@ const UnitNode = ({ unit, onClick }) => {
 const MapScreen = ({ user, units: propUnits }) => {
     const [soundOn, setSoundOn] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [showQuizResult, setShowQuizResult] = useState(false);
+
+    const { flash } = usePage().props;
+    const quizResult = flash?.quizResult;
 
     const units = propUnits || [];
     const completedCount = units.filter((u) => u.status === "done").length;
     const activeUnit = units.find((u) => u.status === "active");
+
+    // Show quiz completion celebration
+    useEffect(() => {
+        if (quizResult?.passed) {
+            setShowQuizResult(true);
+            // Import dynamically to avoid issues
+            import("@/learning/utils/confetti").then(({ launchConfetti }) => launchConfetti(4000));
+            import("@/learning/utils/soundEffects").then(({ playCheer }) => playCheer());
+        }
+    }, [quizResult]);
 
     // FIX 11: compute total stars either from the backend (user.total_stars)
     // or by summing per-unit earned stars on the frontend as a fallback.
@@ -474,6 +488,35 @@ const MapScreen = ({ user, units: propUnits }) => {
                 @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
             `}</style>
+
+            {/* Quiz completion celebration overlay */}
+            {showQuizResult && quizResult && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setShowQuizResult(false)}>
+                    <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-5xl block mb-3">{quizResult.passed ? '🎉' : '💪'}</span>
+                        <h2 className="text-2xl font-black text-gray-800 mb-2">
+                            {quizResult.passed ? 'Unit Complete!' : 'Almost There!'}
+                        </h2>
+                        <p className="text-sm text-gray-500 mb-4">
+                            {quizResult.passed 
+                              ? `You scored ${quizResult.percent}% and earned ${quizResult.stars} stars!`
+                              : `You scored ${quizResult.percent}%. Need 70% to pass. Try again!`
+                            }
+                        </p>
+                        <div className="flex items-center justify-center gap-2 mb-6">
+                            {[1, 2, 3].map((s) => (
+                                <span key={s} className={`text-3xl ${s <= (quizResult.stars || 0) ? '' : 'opacity-20 grayscale'}`}>⭐</span>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setShowQuizResult(false)}
+                            className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-3 rounded-2xl font-black shadow-lg"
+                        >
+                            {quizResult.passed ? 'Continue Adventure! →' : 'Try Again →'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

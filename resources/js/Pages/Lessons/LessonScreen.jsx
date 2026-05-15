@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 
 import { resolveMode, modeMeta, LESSON_STAGES } from "@/learning/core/lessonEngine";
-import { playReward, playClick } from "@/learning/utils/soundEffects";
+import { playReward, playClick, playCheer, playStarCollect, playMagic, playBounce } from "@/learning/utils/soundEffects";
+import { launchConfetti, launchStars } from "@/learning/utils/confetti";
 
 import IntroMode from "@/learning/components/modes/IntroMode";
 import VocabGameMode from "@/learning/components/modes/VocabGameMode";
@@ -11,253 +12,249 @@ import ProjectMode from "@/learning/components/modes/ProjectMode";
 import PictureDictMode from "@/learning/components/modes/PictureDictMode";
 import DrawCircleMode from "@/learning/components/modes/DrawCircleMode";
 import MatchConnectMode from "@/learning/components/modes/MatchConnectMode";
+import MemoryGameMode from "@/learning/components/modes/MemoryGameMode";
+import ListeningGameMode from "@/learning/components/modes/ListeningGameMode";
+import DragDropMode from "@/learning/components/modes/DragDropMode";
 
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 import NavAIBadge from "@/learning/components/ai/NavAIBadge";
 
 /**
- * LessonScreen v2 — generic engine that renders the right mode for a
- * given lesson.type. Props come from LessonController@show:
- *
- *   unit       - { id, number, code, title, colorKey }
- *   lesson     - { id, number, pageNumber, title, type, config }
- *   mode       - string
- *   intro      - used by intro / picture-dict
- *   deck       - used by vocab-game / phonics-game / review / song
- *   audioTrack - primary NCCD track for the lesson (streamed, not downloaded)
- *   progress   - { current, total, starsInUnit }
+ * LessonScreen - Complete redesign with:
+ * - Fresh modern UI that's totally different from the old design
+ * - Fully responsive (mobile-first)
+ * - Multiple game modes including new ones
+ * - Proper celebration with confetti
+ * - Better sounds throughout
  */
 const LessonScreen = (props) => {
-    const { unit, lesson, mode, intro, deck, audioTrack, progress } = props;
-    const { ai } = usePage().props;
+  const { unit, lesson, mode, intro, deck, audioTrack, progress } = props;
+  const { ai } = usePage().props;
 
-    const resolvedMode = useMemo(() => mode || resolveMode(lesson), [mode, lesson]);
-    const meta = modeMeta(resolvedMode);
+  const resolvedMode = useMemo(() => mode || resolveMode(lesson), [mode, lesson]);
+  const meta = modeMeta(resolvedMode);
 
-    const [stage, setStage] = useState(LESSON_STAGES.PLAY); // most modes jump straight in
-    const [result, setResult] = useState(null);
+  const [stage, setStage] = useState(LESSON_STAGES.PLAY);
+  const [result, setResult] = useState(null);
 
-    const safeUnit = unit || { id: 1, title: "Lesson" };
+  const safeUnit = unit || { id: 1, title: "Lesson" };
 
-    // Per-mode primary word for AI helper context
-    const firstWord = useMemo(() => {
-        if (intro?.cards?.length) return intro.cards[0];
-        if (deck?.length) {
-            const o = deck[0]?.options?.find((x) => x.isCorrect) || deck[0]?.options?.[0];
-            return o ? { id: o.id, word: o.word } : null;
-        }
-        return null;
-    }, [intro, deck]);
+  const firstWord = useMemo(() => {
+    if (intro?.cards?.length) return intro.cards[0];
+    if (deck?.length) {
+      const o = deck[0]?.options?.find((x) => x.isCorrect) || deck[0]?.options?.[0];
+      return o ? { id: o.id, word: o.word } : null;
+    }
+    return null;
+  }, [intro, deck]);
 
-    const goToMap = () => {
-        playClick();
-        router.visit("/map");
-    };
+  const goToMap = () => {
+    playClick();
+    router.visit("/map");
+  };
 
-    const onModeComplete = (summary) => {
-        // summary: { correct, total, rounds }
-        setResult(summary);
-        setStage(LESSON_STAGES.REWARD);
-        playReward();
+  const onModeComplete = (summary) => {
+    setResult(summary);
+    setStage(LESSON_STAGES.REWARD);
+    
+    // Play celebration sounds
+    playCheer();
+    launchConfetti(3500);
+    setTimeout(() => playStarCollect(), 600);
+    setTimeout(() => playStarCollect(), 1000);
 
-        // Persist to backend and let it decide next step.
-        router.post(
-            `/lesson/${safeUnit.id}/${lesson.id}/result`,
-            {
-                rounds: summary.rounds || [],
-                durationMs: 0,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ["flash"],
-            }
-        );
-    };
-
-    const continueAfterReward = () => {
-        // The POST above already stored progress server-side; just visit
-        // the lesson route which will render the next lesson or the quiz.
-        router.visit(`/lesson/${safeUnit.id}`);
-    };
-
-    const renderMode = () => {
-        const common = { lesson, audioTrack, onComplete: onModeComplete };
-        switch (resolvedMode) {
-            case "intro":         return <IntroMode       {...common} intro={intro} />;
-            case "picture-dict":  return <PictureDictMode {...common} intro={intro} />;
-            case "story":         return <StoryMode       {...common} />;
-            case "project":       return <ProjectMode     {...common} deck={deck} />;
-            case "song":          return <VocabGameMode   {...common} deck={deck} promptText="Listen, match and sing!" />;
-            case "review":        return <VocabGameMode   {...common} deck={deck} promptText="Review time — find the word!" />;
-            case "phonics-game":  return <VocabGameMode   {...common} deck={deck} promptText="Listen to the sound and choose!" />;
-            case "draw-circle":   return <DrawCircleMode  {...common} deck={deck} />;
-            case "match-connect": return <MatchConnectMode {...common} deck={deck} />;
-            case "vocab-game":
-            default:              return <VocabGameMode   {...common} deck={deck} />;
-        }
-    };
-
-    const starsEarned = useMemo(() => {
-        if (!result) return 1;
-        const pct = (result.correct / Math.max(1, result.total)) * 100;
-        if (["intro", "picture-dict", "project", "story"].includes(resolvedMode)) return 1;
-        if (pct >= 90) return 3;
-        if (pct >= 70) return 2;
-        return 1;
-    }, [result, resolvedMode]);
-
-    const currentLesson = progress?.current || 1;
-    const totalLessons = progress?.total || 1;
-    const progressPct = totalLessons > 0 ? ((currentLesson - 1) / totalLessons) * 100 : 0;
-
-    return (
-        <div className="min-h-[100dvh] w-full bg-gradient-to-br from-[#F4F8FB] via-white to-[#FDF4FF] font-sans flex flex-col relative overflow-hidden">
-            {/* Blurry background shapes */}
-            <div aria-hidden="true" className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                <div className="absolute top-[-10%] left-[-10%] w-[28rem] h-[28rem] bg-purple-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob" />
-                <div className="absolute top-[-10%] right-[-10%] w-[28rem] h-[28rem] bg-yellow-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-2000" />
-                <div className="absolute bottom-[-20%] left-[20%] w-[28rem] h-[28rem] bg-pink-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-4000" />
-            </div>
-
-            {/* Header */}
-            <header className="relative z-20 flex flex-col gap-3 p-4 sm:p-6">
-                <div className="flex justify-between items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/90 border border-white shadow-sm text-purple-600">
-                            {safeUnit.title}
-                        </span>
-                        {lesson?.title ? (
-                            <span className="hidden sm:inline-flex text-[10px] sm:text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/60 border border-white text-gray-500">
-                                {lesson.title}
-                            </span>
-                        ) : null}
-                        <NavAIBadge enabled={ai?.enabled} />
-                    </div>
-                    <button
-                        onClick={goToMap}
-                        className="w-10 h-10 bg-white rounded-full flex items-center justify-center font-black text-gray-400 hover:text-rose-500 shadow-md transition-colors"
-                        aria-label="Back to map"
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                {/* Progress bar + mode pill */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/60 backdrop-blur-sm px-3 py-2 rounded-2xl border border-white shadow-sm">
-                    <div className="flex-1 flex items-center gap-2">
-                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                            Progress
-                        </span>
-                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-purple-400 to-[#7C3AED] rounded-full transition-all duration-700"
-                                style={{ width: `${progressPct}%` }}
-                            />
-                        </div>
-                        <span className="text-[11px] font-black text-[#7C3AED]">
-                            {currentLesson} / {totalLessons}
-                        </span>
-                    </div>
-                    <div
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wide shadow-inner"
-                        style={{ backgroundColor: `${meta.color}1A`, color: meta.color }}
-                    >
-                        <span className="text-base">{meta.icon}</span>
-                        <span>{meta.label}</span>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main */}
-            <main className="flex-1 relative z-10 w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto flex justify-center items-start px-4 lg:px-8 py-4 sm:py-6 pb-28">
-                {stage === LESSON_STAGES.PLAY && renderMode()}
-
-                {stage === LESSON_STAGES.REWARD && (
-                    <RewardStage
-                        stars={starsEarned}
-                        accuracy={result ? Math.round((result.correct / Math.max(1, result.total)) * 100) : 100}
-                        onContinue={continueAfterReward}
-                    />
-                )}
-            </main>
-
-            {/* Footer */}
-            <footer className="fixed bottom-0 left-0 right-0 z-20 p-4 sm:p-6 flex justify-between items-center pointer-events-none">
-                <button
-                    onClick={goToMap}
-                    className="pointer-events-auto text-gray-500 font-black hover:text-[#7C3AED] transition-colors text-xs sm:text-sm flex items-center gap-2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full border border-white shadow-sm"
-                >
-                    🗺️ <span className="hidden sm:inline">Back to map</span>
-                </button>
-                <div className="pointer-events-auto text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    {lesson?.pageNumber ? `Book page ${lesson.pageNumber}` : null}
-                </div>
-            </footer>
-
-            {/* AI Fox helper — hidden on reward */}
-            {ai?.enabled !== undefined && stage === LESSON_STAGES.PLAY && firstWord?.id ? (
-                <FoxHelper
-                    unitId={safeUnit.id}
-                    wordId={firstWord.id}
-                    aiEnabled={ai.enabled}
-                />
-            ) : null}
-
-            <style>{`
-                @keyframes blob {
-                    0% { transform: translate(0px, 0px) scale(1); }
-                    33% { transform: translate(30px, -50px) scale(1.1); }
-                    66% { transform: translate(-20px, 20px) scale(0.9); }
-                    100% { transform: translate(0px, 0px) scale(1); }
-                }
-                .animate-blob { animation: blob 14s infinite ease-in-out; }
-                .animation-delay-2000 { animation-delay: 2s; }
-                .animation-delay-4000 { animation-delay: 4s; }
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to   { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
-            `}</style>
-        </div>
+    // Persist to backend
+    router.post(
+      `/lesson/${safeUnit.id}/${lesson.id}/result`,
+      { rounds: summary.rounds || [], durationMs: 0 },
+      { preserveScroll: true, preserveState: true, only: ["flash"] }
     );
+  };
+
+  const continueAfterReward = () => {
+    playClick();
+    playMagic();
+    router.visit(`/lesson/${safeUnit.id}`);
+  };
+
+  // Assign game modes - add variety by using lesson number to pick different game types
+  const renderMode = () => {
+    const common = { lesson, audioTrack, onComplete: onModeComplete };
+    
+    // For vocab-game type, rotate between different game modes based on lesson number
+    if (resolvedMode === 'vocab-game' || resolvedMode === 'review') {
+      const lessonNum = lesson?.number || 1;
+      const gameVariant = lessonNum % 4;
+      
+      switch (gameVariant) {
+        case 0: return <VocabGameMode {...common} deck={deck} />;
+        case 1: return <MemoryGameMode {...common} deck={deck} />;
+        case 2: return <ListeningGameMode {...common} deck={deck} />;
+        case 3: return <DragDropMode {...common} deck={deck} />;
+      }
+    }
+
+    switch (resolvedMode) {
+      case "intro":         return <IntroMode {...common} intro={intro} />;
+      case "picture-dict":  return <PictureDictMode {...common} intro={intro} />;
+      case "story":         return <StoryMode {...common} />;
+      case "project":       return <ProjectMode {...common} deck={deck} />;
+      case "song":          return <ListeningGameMode {...common} deck={deck} />;
+      case "phonics-game":  return <DragDropMode {...common} deck={deck} />;
+      case "draw-circle":   return <DrawCircleMode {...common} deck={deck} />;
+      case "match-connect": return <MatchConnectMode {...common} deck={deck} />;
+      default:              return <VocabGameMode {...common} deck={deck} />;
+    }
+  };
+
+  const starsEarned = useMemo(() => {
+    if (!result) return 1;
+    const pct = (result.correct / Math.max(1, result.total)) * 100;
+    if (["intro", "picture-dict", "project", "story"].includes(resolvedMode)) return 1;
+    if (pct >= 90) return 3;
+    if (pct >= 70) return 2;
+    return 1;
+  }, [result, resolvedMode]);
+
+  const currentLesson = progress?.current || 1;
+  const totalLessons = progress?.total || 1;
+  const progressPct = totalLessons > 0 ? ((currentLesson - 1) / totalLessons) * 100 : 0;
+
+  return (
+    <div className="min-h-[100dvh] h-[100dvh] w-screen font-sans flex flex-col relative overflow-hidden bg-[#FAFBFF]">
+      {/* Background - subtle, modern gradient */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-indigo-50/80 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-amber-50/50 to-transparent" />
+        <div className="absolute top-[20%] right-[-5%] w-[15rem] sm:w-[20rem] h-[15rem] sm:h-[20rem] bg-purple-100/30 rounded-full blur-[80px]" />
+        <div className="absolute bottom-[10%] left-[-5%] w-[12rem] sm:w-[16rem] h-[12rem] sm:h-[16rem] bg-blue-100/30 rounded-full blur-[60px]" />
+      </div>
+
+      {/* Compact Header */}
+      <header className="relative z-20 shrink-0 px-3 sm:px-4 pt-3 pb-2">
+        <div className="max-w-4xl mx-auto flex items-center gap-2 sm:gap-3">
+          {/* Back button */}
+          <button
+            onClick={goToMap}
+            className="w-8 h-8 sm:w-9 sm:h-9 bg-white/80 backdrop-blur rounded-lg sm:rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm border border-gray-100 transition-colors shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+
+          {/* Progress area */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-wider truncate">{safeUnit.title}</span>
+              <span className="text-[9px] font-bold text-gray-300 hidden sm:inline">•</span>
+              <span className="text-[9px] font-bold text-gray-400 hidden sm:inline truncate">{lesson?.title}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${progressPct}%`, background: `linear-gradient(90deg, ${meta.color}, ${meta.color}CC)` }}
+                />
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-black shrink-0" style={{ color: meta.color }}>
+                {currentLesson}/{totalLessons}
+              </span>
+            </div>
+          </div>
+
+          {/* Mode badge */}
+          <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-[9px] sm:text-[10px] font-black" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>
+            <span>{meta.icon}</span>
+            <span className="hidden sm:inline">{meta.label}</span>
+          </div>
+
+          {ai?.enabled !== undefined && <NavAIBadge enabled={ai.enabled} />}
+        </div>
+      </header>
+
+      {/* Main content area */}
+      <main className="flex-1 relative z-10 flex flex-col items-center justify-center px-3 sm:px-4 py-3 overflow-y-auto">
+        {stage === LESSON_STAGES.PLAY && renderMode()}
+
+        {stage === LESSON_STAGES.REWARD && (
+          <CelebrationStage
+            stars={starsEarned}
+            accuracy={result ? Math.round((result.correct / Math.max(1, result.total)) * 100) : 100}
+            onContinue={continueAfterReward}
+          />
+        )}
+      </main>
+
+      {/* AI Fox helper */}
+      {ai?.enabled !== undefined && stage === LESSON_STAGES.PLAY && firstWord?.id ? (
+        <FoxHelper unitId={safeUnit.id} wordId={firstWord.id} aiEnabled={ai.enabled} />
+      ) : null}
+
+      <style>{`
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+      `}</style>
+    </div>
+  );
 };
 
-const RewardStage = ({ stars = 1, accuracy = 100, onContinue }) => {
-    return (
-        <div className="w-full max-w-xl bg-white/95 backdrop-blur-xl rounded-[2rem] p-8 sm:p-12 flex flex-col items-center text-center shadow-[0_20px_60px_rgba(0,0,0,0.1)] relative animate-fade-in-up border border-white my-6">
-            <div className="w-32 h-32 bg-gradient-to-br from-yellow-100 to-amber-200 rounded-full flex items-center justify-center shadow-inner border-8 border-white mb-4 relative z-10 -mt-24">
-                <span className="text-6xl drop-shadow">🏆</span>
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-black text-[#1E293B] tracking-tight mb-2">
-                {stars === 3 ? "Superstar!" : stars === 2 ? "Great job!" : "Nice try!"}
-            </h1>
-            <p className="text-sm sm:text-base text-gray-500 font-bold mb-6">
-                You scored {accuracy}% on this lesson.
-            </p>
+/**
+ * CelebrationStage - Shown after completing a lesson.
+ * Includes confetti-like animations and star rewards.
+ */
+const CelebrationStage = ({ stars = 1, accuracy = 100, onContinue }) => {
+  const getMessage = () => {
+    if (stars === 3) return { title: "Superstar!", emoji: "🌟", subtitle: "Perfect score!" };
+    if (stars === 2) return { title: "Great Job!", emoji: "🎉", subtitle: "Almost perfect!" };
+    return { title: "Well Done!", emoji: "👏", subtitle: "Keep practicing!" };
+  };
+  const msg = getMessage();
 
-            <div className="flex items-center gap-2 mb-8">
-                {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                        key={i}
-                        className={`text-4xl transition-all ${
-                            i < stars ? "opacity-100 scale-110 drop-shadow" : "opacity-30 grayscale"
-                        }`}
-                    >
-                        ⭐
-                    </span>
-                ))}
-            </div>
+  return (
+    <div className="w-full max-w-sm animate-celebPop">
+      <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-8 flex flex-col items-center text-center shadow-xl border border-white/60 relative overflow-hidden">
+        {/* Decorative circles */}
+        <div className="absolute top-0 right-0 w-20 h-20 bg-amber-100/50 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-16 h-16 bg-purple-100/50 rounded-full translate-y-1/2 -translate-x-1/2" />
 
-            <button
-                onClick={onContinue}
-                className="w-full sm:w-auto bg-[#10B981] text-white px-12 py-4 rounded-[2rem] font-black text-lg shadow-[0_8px_0_#059669] hover:translate-y-[2px] transition-all"
-            >
-                Continue →
-            </button>
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Big emoji */}
+          <span className="text-5xl sm:text-6xl mb-3 animate-bounceIn">{msg.emoji}</span>
+
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">{msg.title}</h1>
+          <p className="text-sm text-gray-500 font-bold mb-4">{msg.subtitle}</p>
+
+          {/* Stars */}
+          <div className="flex items-center gap-2 mb-4">
+            {[1, 2, 3].map((s) => (
+              <span
+                key={s}
+                className={`text-3xl sm:text-4xl transition-all duration-500 ${
+                  s <= stars ? 'opacity-100 scale-110' : 'opacity-20 grayscale scale-75'
+                }`}
+                style={{ animationDelay: `${s * 0.15}s` }}
+              >
+                ⭐
+              </span>
+            ))}
+          </div>
+
+          {/* Score */}
+          <div className="bg-gray-50 rounded-2xl px-5 py-3 mb-5 border border-gray-100">
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Accuracy</p>
+            <p className="text-2xl font-black text-gray-800">{accuracy}%</p>
+          </div>
+
+          {/* Continue button */}
+          <button
+            onClick={onContinue}
+            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-8 py-3.5 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
+          >
+            Next Lesson →
+          </button>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default LessonScreen;

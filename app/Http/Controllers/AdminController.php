@@ -75,6 +75,31 @@ class AdminController extends Controller
         return response()->json(['ok' => true, 'unit' => $unit->fresh()]);
     }
 
+    public function createUnit(Request $request)
+    {
+        $data = $request->validate([
+            'title'        => 'required|string|max:255',
+            'description'  => 'nullable|string|max:1000',
+            'color_key'    => 'nullable|string|max:32',
+            'unit_number'  => 'required|integer|min:0|unique:units,unit_number',
+            'code'         => 'required|string|max:16|unique:units,code',
+        ]);
+        $data['lessons_count'] = 0;
+        $unit = Unit::create($data);
+        return response()->json(['ok' => true, 'unit' => $unit]);
+    }
+
+    public function uploadUnitImage(Request $request, Unit $unit)
+    {
+        $request->validate(['image' => 'required|image|max:4096']);
+        $file = $request->file('image');
+        $filename = 'unit_' . $unit->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->move(public_path('assets/uploads/units'), $filename);
+        $relativePath = 'assets/uploads/units/' . $filename;
+        $unit->update(['image_path' => $relativePath]);
+        return response()->json(['ok' => true, 'image_path' => $relativePath]);
+    }
+
     // ═══════════════════════════════════════════════════════════
     // Lessons
     // ═══════════════════════════════════════════════════════════
@@ -126,6 +151,28 @@ class AdminController extends Controller
         $lesson->update($data);
         $lesson->load('audioTrack');
         return response()->json(['ok' => true, 'lesson' => $lesson]);
+    }
+
+    public function createLesson(Request $request)
+    {
+        $data = $request->validate([
+            'unit_id'        => 'required|integer|exists:units,id',
+            'lesson_number'  => 'required|integer|min:1',
+            'title'          => 'required|string|max:255',
+            'type'           => 'required|string|max:32',
+            'page_number'    => 'nullable|integer|min:0',
+            'audio_track_id' => 'nullable|integer|exists:audio_tracks,id',
+            'config'         => 'nullable|array',
+        ]);
+        $lesson = Lesson::create($data);
+        
+        // Update unit lessons_count
+        $unit = Unit::find($data['unit_id']);
+        if ($unit) {
+            $unit->update(['lessons_count' => $unit->lessons()->count()]);
+        }
+        
+        return response()->json(['ok' => true, 'lesson' => $lesson->load('audioTrack')]);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -300,5 +347,31 @@ class AdminController extends Controller
         $word->update($data);
         $word->load('audioTrack');
         return response()->json(['ok' => true, 'word' => $word]);
+    }
+
+    public function createWord(Request $request)
+    {
+        $data = $request->validate([
+            'unit_id'          => 'required|integer|exists:units,id',
+            'word'             => 'required|string|max:100',
+            'type'             => 'required|string|max:32',
+            'category'         => 'nullable|string|max:32',
+            'audio_track_id'   => 'nullable|integer|exists:audio_tracks,id',
+            'segment_start_ms' => 'nullable|integer|min:0',
+            'segment_end_ms'   => 'nullable|integer|min:0',
+        ]);
+        $word = Word::create($data);
+        return response()->json(['ok' => true, 'word' => $word->load('audioTrack')]);
+    }
+
+    public function uploadWordImage(Request $request, Word $word)
+    {
+        $request->validate(['image' => 'required|image|max:4096']);
+        $file = $request->file('image');
+        $filename = 'word_' . $word->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $file->move(public_path('assets/uploads/words'), $filename);
+        $relativePath = 'assets/uploads/words/' . $filename;
+        $word->update(['image_path' => $relativePath]);
+        return response()->json(['ok' => true, 'image_path' => $relativePath]);
     }
 }

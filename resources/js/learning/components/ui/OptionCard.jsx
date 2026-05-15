@@ -18,7 +18,7 @@ const OptionCard = ({
     className = "",
 }) => {
     const base =
-        "group relative p-5 sm:p-6 bg-white/95 backdrop-blur-xl rounded-[2rem] border-4 transition-all duration-300 shadow-md flex flex-col items-center justify-center select-none";
+        "group relative p-3 sm:p-5 bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl border-3 sm:border-4 transition-all duration-300 shadow-sm flex flex-col items-center justify-center select-none";
 
     const stateClass = {
         idle:     "border-white hover:border-purple-300 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0",
@@ -32,7 +32,7 @@ const OptionCard = ({
             type="button"
             disabled={state === "wrong" || state === "disabled" || state === "correct"}
             onClick={onClick}
-            className={`${base} ${stateClass} aspect-square sm:aspect-auto sm:h-56 lg:h-64 ${className}`}
+            className={`${base} ${stateClass} aspect-square sm:aspect-auto sm:h-40 lg:h-48 ${className}`}
         >
             <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
                 {imagePath ? (

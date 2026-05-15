@@ -87,11 +87,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/words',    [AdminController::class, 'words'])->name('words');
 
         // JSON API (PATCH-style updates the React UI uses)
+        Route::post('/units',                [AdminController::class, 'createUnit']);
         Route::patch('/units/{unit}',        [AdminController::class, 'updateUnit']);
+        Route::post('/units/{unit}/image',   [AdminController::class, 'uploadUnitImage']);
+        Route::post('/lessons',              [AdminController::class, 'createLesson']);
         Route::patch('/lessons/{lesson}',    [AdminController::class, 'updateLesson']);
         Route::post('/tracks',               [AdminController::class, 'createTrack']);
         Route::patch('/tracks/{track}',      [AdminController::class, 'updateTrack']);
         Route::delete('/tracks/{track}',     [AdminController::class, 'deleteTrack']);
+        Route::post('/words',                [AdminController::class, 'createWord']);
         Route::patch('/words/{word}',        [AdminController::class, 'updateWord']);
+        Route::post('/words/{word}/image',   [AdminController::class, 'uploadWordImage']);
     });
 });

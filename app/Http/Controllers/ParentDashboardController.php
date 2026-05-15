@@ -95,10 +95,39 @@ class ParentDashboardController extends Controller
             ];
         }
 
+        // Error analysis for parents - get wrong answers from game results
+        $recentErrors = GameResult::where('user_id', $user->id)
+            ->whereNotNull('meta')
+            ->where('wrong_count', '>', 0)
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get()
+            ->flatMap(function (GameResult $gr) {
+                $meta = $gr->meta ?? [];
+                $errors = $meta['errors'] ?? [];
+                return collect($errors)->map(fn ($e) => [
+                    'word' => $e['word'] ?? 'unknown',
+                    'wrongChoice' => $e['wrongChoice'] ?? '',
+                    'unit_id' => $gr->unit_id,
+                    'created_at' => $gr->created_at->toDateString(),
+                ]);
+            })
+            ->groupBy('word')
+            ->map(fn ($group) => [
+                'word' => $group->first()['word'],
+                'count' => $group->count(),
+                'wrongChoices' => $group->pluck('wrongChoice')->unique()->values()->all(),
+            ])
+            ->sortByDesc('count')
+            ->values()
+            ->take(10)
+            ->all();
+
         return Inertia::render('Parent/ProgressScreen', [
             'user'  => $user,
             'unitsList' => $units,
             'achievements' => $achievements,
+            'errorAnalysis' => $recentErrors,
             'stats' => [
                 'completionPercentage' => $completion,
                 'latestLesson'         => optional(
