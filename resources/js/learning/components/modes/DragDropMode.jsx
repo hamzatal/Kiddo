@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick, playPop, playBounce } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -117,9 +118,9 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
               }`}
             >
               {item.imagePath ? (
-                <img src={item.imagePath} alt="" className="w-full h-[80%] object-contain" onError={(e) => { e.currentTarget.outerHTML = `<span class="text-2xl">🖼️</span>`; }} />
+                <SmartImage src={item.imagePath} label={item.word || ""} className="w-full h-[80%]" imgClassName="w-full h-full object-contain" />
               ) : (
-                <span className="text-2xl text-gray-300">🖼️</span>
+                <SmartImage src={null} label={item.word || "?"} className="w-full h-[80%]" />
               )}
               {isMatched && <span className="absolute text-lg">✅</span>}
             </button>

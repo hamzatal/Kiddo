@@ -91,10 +91,18 @@ class AdminController extends Controller
 
     public function uploadUnitImage(Request $request, Unit $unit)
     {
-        $request->validate(['image' => 'required|image|max:4096']);
+        // Accept any image type and large sizes (up to 20MB)
+        $request->validate([
+            'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
+        ]);
         $file = $request->file('image');
-        $filename = 'unit_' . $unit->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $path = $file->move(public_path('assets/uploads/units'), $filename);
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $filename = 'unit_' . $unit->id . '_' . time() . '.' . $ext;
+        $dir = public_path('assets/uploads/units');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $file->move($dir, $filename);
         $relativePath = 'assets/uploads/units/' . $filename;
         $unit->update(['image_path' => $relativePath]);
         return response()->json(['ok' => true, 'image_path' => $relativePath]);
@@ -366,10 +374,18 @@ class AdminController extends Controller
 
     public function uploadWordImage(Request $request, Word $word)
     {
-        $request->validate(['image' => 'required|image|max:4096']);
+        // Accept any image type and large sizes (up to 20MB)
+        $request->validate([
+            'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
+        ]);
         $file = $request->file('image');
-        $filename = 'word_' . $word->id . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $file->move(public_path('assets/uploads/words'), $filename);
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $filename = 'word_' . $word->id . '_' . time() . '.' . $ext;
+        $dir = public_path('assets/uploads/words');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $file->move($dir, $filename);
         $relativePath = 'assets/uploads/words/' . $filename;
         $word->update(['image_path' => $relativePath]);
         return response()->json(['ok' => true, 'image_path' => $relativePath]);

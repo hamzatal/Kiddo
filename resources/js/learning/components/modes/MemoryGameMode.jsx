@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick, playPop, playBounce } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -119,8 +120,8 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
             >
               {isFlipped ? (
                 <div className="flex flex-col items-center justify-center gap-1 w-full h-full">
-                  {card.type === 'image' && card.imagePath ? (
-                    <img src={card.imagePath} alt={card.word} className="w-full h-[70%] object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  {card.type === 'image' ? (
+                    <SmartImage src={card.imagePath} label={card.word} className="w-full h-[70%]" imgClassName="w-full h-full object-contain" />
                   ) : null}
                   <span className={`font-black uppercase text-center leading-tight ${card.type === 'image' ? 'text-[10px] sm:text-xs text-gray-600' : 'text-sm sm:text-lg text-purple-700'}`}>
                     {card.word}

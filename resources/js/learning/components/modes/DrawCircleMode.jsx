@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import RoundProgress from "@/learning/components/ui/RoundProgress";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
@@ -166,20 +167,12 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
                             <span aria-hidden="true" className={ringClass} />
 
                             <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden">
-                                {opt.imagePath ? (
-                                    <img
-                                        src={opt.imagePath}
-                                        alt={opt.word}
-                                        className="max-w-full max-h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
-                                        onError={(e) => {
-                                            e.currentTarget.outerHTML = `<span class="text-3xl sm:text-5xl font-black uppercase text-gray-400">${opt.word ?? "?"}</span>`;
-                                        }}
-                                    />
-                                ) : (
-                                    <span className="text-3xl sm:text-5xl font-black uppercase text-gray-400">
-                                        {opt.word ?? "?"}
-                                    </span>
-                                )}
+                                <SmartImage
+                                    src={opt.imagePath}
+                                    label={opt.word}
+                                    className="w-full h-full"
+                                    imgClassName="max-w-full max-h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+                                />
                             </div>
 
                             <span className="mt-2 text-xs sm:text-sm font-black uppercase tracking-wide text-[#1E293B]">

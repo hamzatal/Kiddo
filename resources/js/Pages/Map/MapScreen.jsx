@@ -274,7 +274,7 @@ const MapScreen = ({ user, units: propUnits }) => {
             <div className="flex-1 flex min-h-0 relative">
                 {/* ── MAP AREA ── */}
                 <main className="flex-1 relative overflow-auto hide-scrollbar bg-[#90D4F5] flex items-center justify-center">
-                    <div className="relative w-full h-full min-w-[1200px] min-h-[700px] lg:min-w-0 lg:min-h-[600px] xl:min-h-[720px] lg:aspect-[16/9] lg:h-auto max-w-[1800px] mx-auto">
+                    <div className="relative w-full h-full min-w-[1200px] min-h-[700px] lg:min-w-0 lg:min-h-[600px] xl:min-h-[720px] 2xl:min-h-[820px] lg:aspect-[16/9] lg:h-auto max-w-[1800px] 2xl:max-w-[2200px] mx-auto">
                         <img
                             src="/assets/ui/map/map-bg.png"
                             alt="Map Environment"
@@ -322,7 +322,7 @@ const MapScreen = ({ user, units: propUnits }) => {
                 {/* ── SIDEBAR (إصلاح جذري لهيكلية السايد بار) ── */}
                 {/* تم التأكد من إعطائه h-full و overflow-y-auto ليعمل بشكل مستقل وبدون أي قص للبيانات */}
                 <aside
-                    className={`${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"} absolute lg:static right-0 top-0 h-full w-[300px] shrink-0 bg-[#F8FAFC] lg:bg-white border-l border-gray-200 z-40 shadow-2xl lg:shadow-[-10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto custom-scrollbar flex flex-col gap-4 p-5 transition-transform duration-300 lg:transition-none`}
+                    className={`${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"} absolute lg:static right-0 top-0 h-full w-[300px] xl:w-[340px] 2xl:w-[380px] shrink-0 bg-[#F8FAFC] lg:bg-white border-l border-gray-200 z-40 shadow-2xl lg:shadow-[-10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto custom-scrollbar flex flex-col gap-4 p-5 transition-transform duration-300 lg:transition-none`}
                 >
                     {/* زر إغلاق للموبايل */}
                     <div className="lg:hidden flex justify-end shrink-0">

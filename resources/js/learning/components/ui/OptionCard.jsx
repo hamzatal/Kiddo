@@ -1,13 +1,11 @@
 import React from "react";
+import SmartImage from "@/learning/components/ui/SmartImage";
 
 /**
- * Reusable clickable card used by every game mode. Shows an image
- * (with a safe text fallback), optional label, and feedback states
- * for correct / wrong / disabled.
+ * OptionCard - Reusable clickable card for game modes.
+ * Shows an image (with elegant fallback when missing) + optional label.
  *
- * The Tailwind classes are tuned for both phone and laptop — the card
- * scales with its container via aspect-square on narrow viewports and
- * a fixed height on sm+.
+ * Fully responsive: square on mobile, fixed height on tablet+.
  */
 const OptionCard = ({
     imagePath,
@@ -18,7 +16,7 @@ const OptionCard = ({
     className = "",
 }) => {
     const base =
-        "group relative p-3 sm:p-5 bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl border-3 sm:border-4 transition-all duration-300 shadow-sm flex flex-col items-center justify-center select-none";
+        "group relative p-3 sm:p-4 lg:p-5 bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl border-2 sm:border-3 transition-all duration-300 shadow-sm flex flex-col items-center justify-center select-none";
 
     const stateClass = {
         idle:     "border-white hover:border-purple-300 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0",
@@ -32,27 +30,19 @@ const OptionCard = ({
             type="button"
             disabled={state === "wrong" || state === "disabled" || state === "correct"}
             onClick={onClick}
-            className={`${base} ${stateClass} aspect-square sm:aspect-auto sm:h-40 lg:h-48 ${className}`}
+            className={`${base} ${stateClass} aspect-square sm:aspect-auto sm:h-40 lg:h-44 xl:h-52 ${className}`}
         >
             <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
-                {imagePath ? (
-                    <img
-                        src={imagePath}
-                        alt={label || ""}
-                        className="max-w-full max-h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
-                        onError={(e) => {
-                            e.currentTarget.outerHTML = `<span class="text-3xl sm:text-5xl font-black uppercase text-gray-400">${label ?? "?"}</span>`;
-                        }}
-                    />
-                ) : (
-                    <span className="text-3xl sm:text-5xl font-black uppercase text-gray-400">
-                        {label ?? "?"}
-                    </span>
-                )}
+                <SmartImage
+                    src={imagePath}
+                    label={label}
+                    className="w-full h-full"
+                    imgClassName="max-w-full max-h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+                />
             </div>
 
             {showLabel && label ? (
-                <span className="mt-2 text-xs sm:text-sm font-black uppercase tracking-wide text-[#1E293B]">
+                <span className="mt-2 text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-gray-800 truncate max-w-full">
                     {label}
                 </span>
             ) : null}

@@ -31,7 +31,7 @@ const ProgressScreen = ({ user, stats, unitsList, achievements = [], errorAnalys
                     sidebarOpen
                         ? "translate-x-0"
                         : "-translate-x-full lg:translate-x-0"
-                } fixed lg:static left-0 top-0 h-full w-[280px] bg-white/95 backdrop-blur-2xl border-r border-gray-100 z-50 shadow-2xl lg:shadow-[10px_0_30px_rgba(0,0,0,0.02)] flex flex-col transition-transform duration-300`}
+                } fixed lg:static left-0 top-0 h-full w-[280px] xl:w-[320px] 2xl:w-[360px] bg-white/95 backdrop-blur-2xl border-r border-gray-100 z-50 shadow-2xl lg:shadow-[10px_0_30px_rgba(0,0,0,0.02)] flex flex-col transition-transform duration-300`}
             >
                 {/* Logo & Close */}
                 <div className="h-[72px] px-6 flex items-center justify-between border-b border-gray-50 shrink-0">
@@ -138,7 +138,7 @@ const ProgressScreen = ({ user, stats, unitsList, achievements = [], errorAnalys
                 </header>
 
                 <main className="flex-1 overflow-auto custom-scrollbar p-5 sm:p-8 lg:p-10">
-                    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-fade-in-up">
+                    <div className="max-w-6xl xl:max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-6 sm:space-y-8 animate-fade-in-up">
                         {/* Desktop header */}
                         <div className="hidden lg:flex justify-between items-end mb-4">
                             <div>

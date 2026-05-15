@@ -1,25 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
-import { playSuccess, playFail, playClick, playCheer, playStarCollect, playBounce } from "@/learning/utils/soundEffects";
+import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
+import SmartImage from "@/learning/components/ui/SmartImage";
+import AppHeader from "@/learning/components/ui/AppHeader";
+import FoxHelper from "@/learning/components/ai/FoxHelper";
 
 /**
- * QuizScreen - Complete redesign with:
- * - Sound effects for correct/wrong answers
- * - Celebration animations on completion
- * - Fully responsive layout
- * - Kid-friendly modern design
- * - Error tracking
+ * QuizScreen - Unit quiz with full features:
+ *  - Sound effects (success/fail/celebration)
+ *  - Confetti animations
+ *  - Fully responsive (phone to 24-inch)
+ *  - AI Fox helper available
+ *  - Error tracking sent to parent dashboard
+ *  - Beautiful celebration on completion
  */
 const QuizScreen = ({ quizData }) => {
+  const { auth, ai } = usePage().props;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedCorrect, setSelectedCorrect] = useState(null);
   const [wrongClicks, setWrongClicks] = useState([]);
   const [isFinished, setIsFinished] = useState(false);
   const [questionStats, setQuestionStats] = useState([]);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [errors, setErrors] = useState([]); // Track errors for parent dashboard
+  const [errors, setErrors] = useState([]);
   const containerRef = useRef(null);
 
   const unitId = quizData?.unitId || 1;
@@ -27,17 +32,16 @@ const QuizScreen = ({ quizData }) => {
   const questions = quizData?.questions || [];
 
   const currentQ = questions[currentIndex];
-  const progressPercentage = questions.length > 0 ? ((currentIndex) / questions.length) * 100 : 0;
 
   useEffect(() => {
     stopAllAudio();
     return () => stopAllAudio();
   }, [currentIndex]);
 
-  // Auto-play target word on new question
   useEffect(() => {
     if (currentQ?.audioClip) {
-      setTimeout(() => playAudio(currentQ.audioClip), 300);
+      const t = setTimeout(() => playAudio(currentQ.audioClip), 300);
+      return () => clearTimeout(t);
     }
   }, [currentIndex]);
 
@@ -56,13 +60,12 @@ const QuizScreen = ({ quizData }) => {
     if (opt.isCorrect) {
       setSelectedCorrect(opt.id);
       playSuccess();
-      
-      // Star burst animation at click position
+
       setTimeout(() => {
         const el = containerRef.current;
         if (el) {
           const rect = el.getBoundingClientRect();
-          launchStars(rect.width / 2, rect.height / 2, 8);
+          launchStars(rect.left + rect.width / 2, rect.top + rect.height / 2, 8);
         }
       }, 100);
 
@@ -76,14 +79,12 @@ const QuizScreen = ({ quizData }) => {
           setSelectedCorrect(null);
           setWrongClicks([]);
         } else {
-          triggerCelebration(nextStats);
+          triggerCelebration();
         }
       }, 1200);
     } else {
       playFail();
       setWrongClicks([...wrongClicks, opt.id]);
-      
-      // Track error for parent dashboard
       setErrors(prev => [...prev, {
         word: currentQ.targetWord,
         wrongChoice: opt.word,
@@ -92,13 +93,10 @@ const QuizScreen = ({ quizData }) => {
     }
   };
 
-  const triggerCelebration = (finalStats) => {
+  const triggerCelebration = () => {
     setIsFinished(true);
-    setShowCelebration(true);
     playCheer();
     launchConfetti(5000);
-    
-    // Play star collect sounds with delay
     setTimeout(() => playStarCollect(), 800);
     setTimeout(() => playStarCollect(), 1200);
     setTimeout(() => playStarCollect(), 1600);
@@ -116,7 +114,7 @@ const QuizScreen = ({ quizData }) => {
       correctCount,
       wrongCount,
       total: questions.length,
-      errors: errors, // Send errors for tracking
+      errors: errors,
     });
   };
 
@@ -137,73 +135,48 @@ const QuizScreen = ({ quizData }) => {
 
   return (
     <div ref={containerRef} className="h-[100dvh] w-screen font-sans flex flex-col overflow-hidden relative bg-gradient-to-br from-indigo-50 via-white to-amber-50">
-      {/* Animated background shapes */}
+      {/* Background blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-5%] left-[-5%] w-[20rem] h-[20rem] sm:w-[28rem] sm:h-[28rem] bg-blue-200/40 rounded-full blur-[60px] animate-float1" />
         <div className="absolute bottom-[-5%] right-[-5%] w-[18rem] h-[18rem] sm:w-[24rem] sm:h-[24rem] bg-purple-200/40 rounded-full blur-[60px] animate-float2" />
         <div className="absolute top-[40%] left-[60%] w-[14rem] h-[14rem] bg-amber-200/30 rounded-full blur-[50px] animate-float3" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-20 shrink-0 p-3 sm:p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-2 sm:mb-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { playClick(); router.visit("/map"); }}
-                className="w-9 h-9 sm:w-10 sm:h-10 bg-white/80 backdrop-blur rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 shadow-sm border border-white/50 transition-colors"
-              >
-                ✕
-              </button>
-              <div className="hidden sm:block">
-                <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider">Quiz Time</p>
-                <p className="text-xs font-black text-gray-700">{unitTitle}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm font-black text-gray-600 bg-white/80 px-3 py-1.5 rounded-full border border-white/50">
-                {currentIndex + 1} / {questions.length}
-              </span>
-            </div>
-          </div>
+      {/* Unified Header */}
+      <AppHeader
+        unitTitle={unitTitle}
+        lessonTitle="Quiz Time!"
+        modeLabel="Quiz"
+        modeIcon="🏆"
+        modeColor="#F59E0B"
+        current={currentIndex + 1}
+        total={questions.length}
+        totalStars={auth?.user?.total_stars}
+        xp={auth?.user?.xp}
+      />
 
-          {!isFinished && (
-            <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm p-2 rounded-full border border-white/50 shadow-sm">
-              <span className="text-sm sm:text-lg shrink-0">🌟</span>
-              <div className="flex-1 h-2.5 sm:h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full transition-all duration-700 ease-out"
-                  style={{ width: `${progressPercentage}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Quiz Content */}
       {!isFinished ? (
-        <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-4 relative z-10 overflow-y-auto">
+        <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 relative z-10 overflow-y-auto">
           <div key={currentIndex} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-4 sm:gap-6 animate-slideIn">
             {/* Question prompt */}
             <div className="bg-white/90 backdrop-blur px-5 sm:px-8 py-4 sm:py-5 rounded-2xl sm:rounded-3xl shadow-lg border border-white/60 flex items-center gap-3 sm:gap-4 w-full max-w-lg">
               <button
                 type="button"
                 onClick={playTarget}
-                className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-xl sm:text-2xl shadow-lg hover:scale-110 active:scale-95 transition-transform flex items-center justify-center shrink-0"
+                className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-xl sm:text-2xl shadow-lg hover:scale-110 active:scale-95 transition-transform flex items-center justify-center shrink-0"
               >
                 🔊
               </button>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] sm:text-xs font-bold text-purple-400 uppercase tracking-wider mb-0.5">Find this word:</p>
-                <h2 className="text-xl sm:text-3xl font-black text-gray-800 truncate">
+                <h2 className="text-xl sm:text-3xl lg:text-4xl font-black text-gray-800 truncate">
                   {currentQ.targetWord}
                 </h2>
               </div>
             </div>
 
-            {/* Options grid - responsive */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 w-full max-w-2xl px-1">
+            {/* Options grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl px-1">
               {currentQ.options.map((opt) => {
                 const isWrong = wrongClicks.includes(opt.id);
                 const isCorrectPick = selectedCorrect === opt.id;
@@ -217,31 +190,23 @@ const QuizScreen = ({ quizData }) => {
                     key={opt.id}
                     disabled={selectedCorrect !== null || isWrong}
                     onClick={() => handleChoice(opt)}
-                    className={`relative aspect-square sm:aspect-[4/3] p-3 sm:p-4 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1.5 ${cardStyle}`}
+                    className={`relative aspect-square sm:aspect-[4/3] p-3 sm:p-4 lg:p-5 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1.5 ${cardStyle}`}
                   >
-                    {opt.imagePath ? (
-                      <img
-                        src={opt.imagePath}
-                        alt={opt.word}
-                        className="w-full h-[60%] object-contain"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                    ) : (
-                      <span className="text-2xl sm:text-4xl font-black text-gray-300 uppercase">{opt.word}</span>
-                    )}
-                    <span className="text-[10px] sm:text-xs font-black uppercase text-gray-600 tracking-wide truncate w-full text-center">
+                    <SmartImage
+                      src={opt.imagePath}
+                      label={opt.word}
+                      className="w-full h-[60%]"
+                      imgClassName="w-full h-full object-contain"
+                    />
+                    <span className="text-[10px] sm:text-xs lg:text-sm font-black uppercase text-gray-600 tracking-wide truncate w-full text-center">
                       {opt.word}
                     </span>
 
                     {isCorrectPick && (
-                      <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg font-black border-2 border-white shadow-lg animate-bounce">
-                        ✓
-                      </div>
+                      <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg font-black border-2 border-white shadow-lg animate-bounce">✓</div>
                     )}
                     {isWrong && (
-                      <div className="absolute -top-2 -right-2 bg-red-400 text-white w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg font-black border-2 border-white shadow">
-                        ✕
-                      </div>
+                      <div className="absolute -top-2 -right-2 bg-red-400 text-white w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg font-black border-2 border-white shadow">✕</div>
                     )}
                   </button>
                 );
@@ -250,37 +215,32 @@ const QuizScreen = ({ quizData }) => {
           </div>
         </main>
       ) : (
-        /* Celebration / Results Screen */
+        /* Celebration Screen */
         <main className="flex-1 flex items-center justify-center p-4 sm:p-6 relative z-10 overflow-y-auto">
-          <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-celebrationPop">
-            {/* Trophy */}
-            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-amber-100 to-yellow-200 rounded-full flex items-center justify-center shadow-inner border-4 border-white -mt-16 sm:-mt-20 mb-4">
-              <span className="text-4xl sm:text-6xl">🏆</span>
+          <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-celebrationPop">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-36 lg:h-36 bg-gradient-to-br from-amber-100 to-yellow-200 rounded-full flex items-center justify-center shadow-inner border-4 border-white -mt-16 sm:-mt-20 mb-4">
+              <span className="text-4xl sm:text-6xl lg:text-7xl">🏆</span>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl font-black text-gray-800 mb-2">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-gray-800 mb-2">
               {scorePercent >= 90 ? "Amazing!" : scorePercent >= 70 ? "Great Job!" : "Good Try!"}
             </h1>
-            <p className="text-sm sm:text-base text-gray-500 font-bold mb-6">
-              You scored <span className="text-emerald-500 font-black">{correctCount}</span> out of <span className="font-black">{questions.length}</span> on first try!
+            <p className="text-sm sm:text-base lg:text-lg text-gray-500 font-bold mb-6">
+              You scored <span className="text-emerald-500 font-black">{correctCount}</span> out of <span className="font-black">{questions.length}</span>!
             </p>
 
-            {/* Stars */}
             <div className="flex items-center gap-2 sm:gap-3 mb-6">
               {[1, 2, 3].map((s) => (
                 <span
                   key={s}
-                  className={`text-3xl sm:text-5xl transition-all duration-500 ${
+                  className={`text-3xl sm:text-5xl lg:text-6xl transition-all duration-500 ${
                     s <= starsEarned ? 'opacity-100 scale-110 animate-starPop' : 'opacity-20 grayscale scale-75'
                   }`}
                   style={{ animationDelay: `${s * 0.2}s` }}
-                >
-                  ⭐
-                </span>
+                >⭐</span>
               ))}
             </div>
 
-            {/* Stats row */}
             <div className="grid grid-cols-2 gap-3 w-full mb-6">
               <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-center">
                 <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider mb-1">Correct</p>
@@ -294,12 +254,21 @@ const QuizScreen = ({ quizData }) => {
 
             <button
               onClick={handleFinish}
-              className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-8 py-4 rounded-2xl font-black text-base sm:text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
+              className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-8 py-3.5 sm:py-4 rounded-2xl font-black text-base sm:text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
             >
               {scorePercent >= 70 ? "Continue Adventure! →" : "Try Again →"}
             </button>
           </div>
         </main>
+      )}
+
+      {/* AI Fox helper during quiz */}
+      {!isFinished && ai?.enabled !== undefined && currentQ && (
+        <FoxHelper
+          unitId={unitId}
+          wordId={currentQ.options.find(o => o.isCorrect)?.id || null}
+          aiEnabled={ai.enabled}
+        />
       )}
 
       <style>{`
@@ -308,21 +277,18 @@ const QuizScreen = ({ quizData }) => {
           to { opacity: 1; transform: translateX(0); }
         }
         .animate-slideIn { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-
         @keyframes celebrationPop {
           0% { opacity: 0; transform: scale(0.8) translateY(20px); }
           60% { transform: scale(1.03) translateY(-5px); }
           100% { opacity: 1; transform: scale(1) translateY(0); }
         }
         .animate-celebrationPop { animation: celebrationPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-
         @keyframes starPop {
           0% { transform: scale(0); }
           60% { transform: scale(1.3); }
           100% { transform: scale(1.1); }
         }
         .animate-starPop { animation: starPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-
         @keyframes float1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, -30px); } }
         @keyframes float2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-20px, 20px); } }
         @keyframes float3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(10px, -15px); } }

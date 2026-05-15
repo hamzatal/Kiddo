@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import TrackPlayer from "@/learning/components/ui/TrackPlayer";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playAudio } from "@/learning/utils/playAudio";
 import { playClick } from "@/learning/utils/soundEffects";
 
 /**
- * Intro / Listen-point-say mode.
- * Big image grid; tapping a card plays the word's segment from the
- * shared NCCD track. A banner at the top streams the full book audio
- * (Listen & follow).
+ * IntroMode - Listen, point and say.
+ * Tap each card to hear the word; once all are tapped, Continue unlocks.
+ * Fully responsive grid that adjusts from phone to desktop.
  */
 const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
     const cards = intro?.cards || [];
@@ -25,15 +25,17 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
     const allTapped = cards.length > 0 && tapped.size >= cards.length;
 
     return (
-        <div className="w-full max-w-5xl flex flex-col gap-6 animate-fade-in-up">
+        <div className="w-full max-w-5xl xl:max-w-6xl flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
             <header className="text-center">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-purple-500 mb-1">
-                    Book page {lesson?.pageNumber}
-                </p>
-                <h1 className="text-3xl sm:text-5xl font-black text-[#1E293B] mb-2">
+                {lesson?.pageNumber && (
+                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-purple-500 mb-1">
+                        Book page {lesson.pageNumber}
+                    </p>
+                )}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-gray-800 mb-2">
                     {intro?.headline}
                 </h1>
-                <p className="text-sm sm:text-base text-gray-500 font-semibold">
+                <p className="text-xs sm:text-sm lg:text-base text-gray-500 font-semibold">
                     {lesson?.config?.prompt || "Listen, point and say."}
                 </p>
             </header>
@@ -44,27 +46,27 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                 </div>
             ) : null}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {cards.map((card, idx) => (
                     <button
                         key={card.id}
                         onClick={() => handleCardTap(card, idx)}
-                        className={`relative aspect-square rounded-[1.5rem] border-4 transition-all shadow-md overflow-hidden group ${
+                        className={`relative aspect-square rounded-2xl border-2 sm:border-4 transition-all shadow-sm overflow-hidden group ${
                             tapped.has(idx)
                                 ? "border-emerald-300 bg-emerald-50"
                                 : "border-white bg-white/95 hover:border-purple-300 hover:-translate-y-1"
                         }`}
                     >
-                        {card.imagePath ? (
-                            <img
+                        <div className="absolute inset-3 sm:inset-4">
+                            <SmartImage
                                 src={card.imagePath}
-                                alt={card.word}
-                                className="absolute inset-4 object-contain drop-shadow-md group-hover:scale-105 transition-transform"
-                                onError={(e) => (e.currentTarget.style.display = "none")}
+                                label={card.word}
+                                className="w-full h-full"
+                                imgClassName="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
                             />
-                        ) : null}
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/40 to-transparent p-2">
-                            <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white drop-shadow">
+                        </div>
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                            <span className="text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-white drop-shadow">
                                 {card.word}
                             </span>
                         </div>
@@ -76,7 +78,7 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
             </div>
 
             <div className="flex flex-col items-center gap-2 pt-2">
-                <p className="text-xs font-bold text-gray-500">
+                <p className="text-xs sm:text-sm font-bold text-gray-500">
                     {allTapped
                         ? "Nice work! Tap Continue."
                         : `Tap each card to hear it (${tapped.size}/${cards.length})`}
@@ -84,9 +86,9 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                 <button
                     onClick={() => onComplete({ correct: cards.length, total: Math.max(1, cards.length), rounds: [] })}
                     disabled={!allTapped}
-                    className={`px-10 py-4 rounded-[2rem] font-black text-lg shadow-lg transition-all ${
+                    className={`px-8 sm:px-10 py-3 sm:py-4 rounded-2xl font-black text-base sm:text-lg shadow-lg transition-all ${
                         allTapped
-                            ? "bg-[#10B981] text-white shadow-[0_8px_0_#059669] hover:translate-y-[2px]"
+                            ? "bg-emerald-500 text-white shadow-[0_6px_0_#059669] hover:translate-y-[2px]"
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                     }`}
                 >
