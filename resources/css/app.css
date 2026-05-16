@@ -1,11 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+/* Nunito font - use local if available, otherwise fallback to system sans-serif */
+/* To use Nunito offline: download from https://fonts.google.com/specimen/Nunito
+   and place woff2 files in public/fonts/nunito/ then uncomment the @font-face below */
+/*
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 400 900;
+    font-display: swap;
+    src: url('/fonts/nunito/Nunito-VariableFont.woff2') format('woff2');
+}
+*/
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 * {
-    font-family: 'Nunito', sans-serif !important;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
 }
 
 body {

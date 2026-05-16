@@ -26,12 +26,32 @@ class AiController extends Controller
     {
         $data = $request->validate([
             'unitId' => 'required|integer|exists:units,id',
-            'wordId' => 'required|integer|exists:words,id',
+            'wordId' => 'required|string|max:50',
             'prompt' => 'required|string|max:200',
         ]);
 
         $unit = Unit::findOrFail($data['unitId']);
-        $word = Word::where('unit_id', $unit->id)->findOrFail($data['wordId']);
+
+        // wordId may come as "correct_5" from QuizScreen or as plain int from LessonScreen
+        $rawWordId = $data['wordId'];
+        $numericId = null;
+        if (is_numeric($rawWordId)) {
+            $numericId = (int) $rawWordId;
+        } elseif (preg_match('/(\d+)/', $rawWordId, $m)) {
+            $numericId = (int) $m[1];
+        }
+
+        // Try to find the word; if not found, pick the first word in the unit
+        $word = null;
+        if ($numericId) {
+            $word = Word::where('unit_id', $unit->id)->where('id', $numericId)->first();
+        }
+        if (!$word) {
+            $word = Word::where('unit_id', $unit->id)->first();
+        }
+        if (!$word) {
+            return response()->json(['answer' => "You're doing great! Keep going."]);
+        }
 
         $allowed = Word::where('unit_id', $unit->id)
             ->orderBy('word')

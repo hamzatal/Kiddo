@@ -374,12 +374,15 @@ class AdminController extends Controller
 
     public function uploadWordImage(Request $request, Word $word)
     {
-        // Accept any image type and large sizes (up to 20MB)
+        // Accept virtually any file as image (max 20MB)
         $request->validate([
-            'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
+            'image' => 'required|file|max:20480'
         ]);
         $file = $request->file('image');
         $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
+        // Normalize common extensions
+        if (in_array($ext, ['heic', 'heif'])) $ext = 'jpg';
+        if (empty($ext)) $ext = 'png';
         $filename = 'word_' . $word->id . '_' . time() . '.' . $ext;
         $dir = public_path('assets/uploads/words');
         if (! is_dir($dir)) {

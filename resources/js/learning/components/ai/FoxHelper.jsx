@@ -21,14 +21,14 @@ const FoxHelper = ({ unitId, wordId, aiEnabled = true }) => {
     const [error, setError] = useState(null);
 
     const ask = async (prompt) => {
-        if (!unitId || !wordId) return;
+        if (!unitId) return;
         setLoading(true);
         setError(null);
         setAnswer(null);
         try {
             const res = await axios.post("/ai/lesson-helper", {
                 unitId,
-                wordId,
+                wordId: String(wordId || "1"),
                 prompt,
             });
             setAnswer(res.data?.answer || "You're doing great!");
