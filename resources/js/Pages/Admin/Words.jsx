@@ -358,7 +358,52 @@ function Words({ units, tracks, words, selected, search }) {
     });
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState(null);
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const [bulkMsg, setBulkMsg] = useState(null);
     const fileRef = useRef(null);
+
+    // Run Whisper across every visible word that still has a missing
+    // start or end. We fire requests one track at a time (the service
+    // updates every word linked to that track in a single Whisper call,
+    // so we de-dup by track id to avoid burning credit). When done we
+    // reload the `words` Inertia prop to show the new bounds.
+    async function autoFindAllUnset() {
+        const targets = (words?.data || []).filter(
+            (w) => w.audio_track_id && (w.segment_start_ms == null || w.segment_end_ms == null)
+        );
+        if (targets.length === 0) {
+            setBulkMsg("Nothing to do — every word already has a segment.");
+            setTimeout(() => setBulkMsg(null), 3000);
+            return;
+        }
+        setBulkBusy(true);
+        setBulkMsg(`Running Whisper on ${targets.length} words...`);
+        // De-dup so we only call once per unique track id. Each call
+        // populates every word linked to that track in one shot.
+        const seenTracks = new Set();
+        const wordsToCall = [];
+        for (const w of targets) {
+            if (!seenTracks.has(w.audio_track_id)) {
+                seenTracks.add(w.audio_track_id);
+                wordsToCall.push(w);
+            }
+        }
+        let matched = 0;
+        let failed = 0;
+        for (const w of wordsToCall) {
+            try {
+                const { data } = await axios.post(`/admin/words/${w.id}/auto-segment`);
+                if (data?.ok) matched++;
+                else failed++;
+            } catch (_) {
+                failed++;
+            }
+            setBulkMsg(`Done ${matched + failed}/${wordsToCall.length} tracks · ${matched} matched`);
+        }
+        setBulkBusy(false);
+        setBulkMsg(`Finished: ${matched} tracks succeeded, ${failed} failed. Refreshing...`);
+        router.reload({ only: ["words"], onSuccess: () => setTimeout(() => setBulkMsg(null), 4000) });
+    }
 
     function onFilter(e) {
         e.preventDefault();
@@ -528,6 +573,15 @@ function Words({ units, tracks, words, selected, search }) {
                         >
                             {creating ? "Cancel" : "+ New word"}
                         </button>
+                        <button
+                            type="button"
+                            onClick={autoFindAllUnset}
+                            disabled={bulkBusy}
+                            className="px-3 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white text-sm font-black disabled:opacity-50"
+                            title="Run Whisper on every visible word that still has a missing start/end"
+                        >
+                            {bulkBusy ? "Whispering..." : "✨ Auto-find all unset"}
+                        </button>
                         <label
                             className={
                                 "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black cursor-pointer select-none " +
@@ -547,6 +601,12 @@ function Words({ units, tracks, words, selected, search }) {
                         </label>
                     </form>
                 </header>
+
+                {bulkMsg ? (
+                    <div className="mb-4 px-4 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold">
+                        {bulkMsg}
+                    </div>
+                ) : null}
 
                 {creating ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
