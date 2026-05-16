@@ -91,6 +91,14 @@ class AdminController extends Controller
 
     public function uploadUnitImage(Request $request, Unit $unit)
     {
+        // Detect the silent "PHP truncated the upload before we even saw it"
+        // case. When `post_max_size` is exceeded, $_POST/$_FILES are empty
+        // and Laravel's validator just complains about the missing field
+        // — that's the source of the confusing 422 the user reported.
+        if ($truncated = $this->detectUploadTruncation($request)) {
+            return response()->json($truncated, 413);
+        }
+
         // Accept any image type and large sizes (up to 20MB)
         $request->validate([
             'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
@@ -374,6 +382,10 @@ class AdminController extends Controller
 
     public function uploadWordImage(Request $request, Word $word)
     {
+        if ($truncated = $this->detectUploadTruncation($request)) {
+            return response()->json($truncated, 413);
+        }
+
         // Accept any image type and large sizes (up to 20MB)
         $request->validate([
             'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
@@ -390,4 +402,53 @@ class AdminController extends Controller
         $word->update(['image_path' => $relativePath]);
         return response()->json(['ok' => true, 'image_path' => $relativePath]);
     }
+
+    /**
+     * Detect uploads that were silently truncated by PHP's
+     * post_max_size / upload_max_filesize. Returns a structured error
+     * payload (or null when the request is healthy).
+     *
+     * Symptom: Content-Length on the request is non-zero but
+     *   $_POST and $_FILES are both empty — PHP discarded the body.
+     */
+    private function detectUploadTruncation(Request $request): ?array
+    {
+        $contentLen = (int) $request->header('Content-Length', 0);
+        if ($contentLen <= 0) {
+            return null;
+        }
+
+        $hasPost = ! empty($_POST);
+        $hasFiles = ! empty($_FILES);
+
+        if (! $hasPost && ! $hasFiles) {
+            $maxPost   = ini_get('post_max_size') ?: 'unknown';
+            $maxUpload = ini_get('upload_max_filesize') ?: 'unknown';
+            return [
+                'ok'      => false,
+                'error'   => "The image is too large for the server to accept (post_max_size={$maxPost}, upload_max_filesize={$maxUpload}). Try a file under 20 MB.",
+                'errors'  => ['image' => ['File too large for current PHP limits.']],
+                'limits'  => [
+                    'post_max_size'        => $maxPost,
+                    'upload_max_filesize'  => $maxUpload,
+                ],
+            ];
+        }
+
+        // Per-file PHP error code (UPLOAD_ERR_INI_SIZE / FORM_SIZE)
+        $file = $request->file('image');
+        if ($file && ! $file->isValid()) {
+            $code = $file->getError();
+            if (in_array($code, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                return [
+                    'ok'    => false,
+                    'error' => 'The image exceeds the upload size limit. Pick a file under 20 MB.',
+                    'errors'=> ['image' => ['File too large.']],
+                ];
+            }
+        }
+
+        return null;
+    }
+
 }

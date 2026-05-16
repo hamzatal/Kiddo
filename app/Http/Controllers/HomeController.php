@@ -49,7 +49,7 @@ class HomeController extends Controller
                 'id'          => $unit->id,
                 'unitNumber'  => $unit->unit_number,
                 'title'       => $unit->title,
-                'imagePath'   => $unit->image_path,
+                'imagePath'   => $this->asset($unit->image_path),
                 'colorKey'    => $unit->color_key,
                 'status'      => $status,
             ];
@@ -59,5 +59,25 @@ class HomeController extends Controller
             'units'    => $units,
             'propUser' => $user,
         ]);
+    }
+
+    /**
+     * Convert a stored image path into a browser URL, or null when the
+     * file is missing on disk so SmartImage shows its colored-letter
+     * fallback without firing a 404.
+     */
+    private function asset(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+        if (preg_match('~^https?://~i', $path)) {
+            return $path;
+        }
+        $rel = ltrim($path, '/');
+        if (! is_file(public_path($rel))) {
+            return null;
+        }
+        return '/' . $rel;
     }
 }

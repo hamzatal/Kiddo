@@ -98,6 +98,7 @@ class QuizController extends Controller
 
             return [
                 'targetWord' => $word->word,
+                'targetWordId' => $word->id,
                 'audioPath'  => $this->asset($word->audio_path),
                 'audioClip'  => $word->audioClip(),
                 'options'    => $options->shuffle()->values()->all(),
@@ -145,6 +146,12 @@ class QuizController extends Controller
         return redirect()->route('map')->with('quizResult', $result);
     }
 
+    /**
+     * Convert a stored image path into a browser URL, returning null
+     * when the file is missing on disk so the React SmartImage shows
+     * its coloured-letter fallback instead of letting the browser fire
+     * a 404 request.
+     */
     private function asset(?string $path): ?string
     {
         if (! $path) {
@@ -153,6 +160,10 @@ class QuizController extends Controller
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-        return '/' . ltrim($path, '/');
+        $rel = ltrim($path, '/');
+        if (! is_file(public_path($rel))) {
+            return null;
+        }
+        return '/' . $rel;
     }
 }

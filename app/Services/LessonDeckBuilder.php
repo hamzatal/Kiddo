@@ -272,6 +272,13 @@ class LessonDeckBuilder
     /**
      * Normalize a stored path to a root-relative URL the browser can load.
      * Accepts: "assets/lessons/welcome/hello.png", "/assets/...", full http URL.
+     *
+     * If the path points at a local public/ asset that does NOT exist on
+     * disk, we return null so the SmartImage fallback (coloured letter
+     * tile) renders immediately — no 404 in DevTools, no flash of broken
+     * image. Remote URLs are passed through as-is; the browser will
+     * handle them and SmartImage's onError handler will swap in the
+     * fallback if they fail.
      */
     private function assetUrl(?string $path): ?string
     {
@@ -281,6 +288,14 @@ class LessonDeckBuilder
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-        return '/' . ltrim($path, '/');
+
+        $rel = ltrim($path, '/');
+        // Cheap existence check: we only ship a few real images (uploads
+        // by the admin), so most rows are misses. file_exists is fast
+        // and Laravel already fingerprints public/ for serve speed.
+        if (! is_file(public_path($rel))) {
+            return null;
+        }
+        return '/' . $rel;
     }
 }

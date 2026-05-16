@@ -21,14 +21,24 @@ const FoxHelper = ({ unitId, wordId, aiEnabled = true }) => {
     const [error, setError] = useState(null);
 
     const ask = async (prompt) => {
-        if (!unitId || !wordId) return;
+        // Defensive: only post when both ids are real positive integers.
+        // QuizScreen used to forward the synthetic option id (e.g.
+        // "correct_42") which made Laravel respond 422 for every
+        // request. Now the parent always passes the DB word id, but
+        // we still guard here so older callers don't crash.
+        const validUnit = Number.isFinite(Number(unitId)) && Number(unitId) > 0;
+        const validWord = Number.isFinite(Number(wordId)) && Number(wordId) > 0;
+        if (!validUnit || !validWord) {
+            setError("Helper is not available for this card yet.");
+            return;
+        }
         setLoading(true);
         setError(null);
         setAnswer(null);
         try {
             const res = await axios.post("/ai/lesson-helper", {
-                unitId,
-                wordId,
+                unitId: Number(unitId),
+                wordId: Number(wordId),
                 prompt,
             });
             setAnswer(res.data?.answer || "You're doing great!");

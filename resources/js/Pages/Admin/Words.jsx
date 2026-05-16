@@ -141,15 +141,36 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                             onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
+                                // Pre-flight: catch oversize files before
+                                // they hit the network. Server cap is 20MB.
+                                const MAX_BYTES = 20 * 1024 * 1024;
+                                if (file.size > MAX_BYTES) {
+                                    setError(`Image is too large (${(file.size/1024/1024).toFixed(1)}MB). Max 20 MB.`);
+                                    e.target.value = "";
+                                    return;
+                                }
+                                if (!file.type.startsWith("image/")) {
+                                    setError("Please pick an image file (JPG, PNG, GIF, WebP, SVG).");
+                                    e.target.value = "";
+                                    return;
+                                }
                                 const formData = new FormData();
                                 formData.append('image', file);
                                 try {
                                     const res = await axios.post(`/admin/words/${w.id}/image`, formData);
                                     if (res.data?.ok) {
                                         setRow({ ...row, image_path: res.data.image_path });
+                                        setError(null);
                                     }
                                 } catch (err) {
-                                    setError('Image upload failed');
+                                    const status = err?.response?.status;
+                                    const msg =
+                                        err?.response?.data?.error ||
+                                        err?.response?.data?.message ||
+                                        (status === 413
+                                            ? "Image too large for the server (raise post_max_size / upload_max_filesize)."
+                                            : "Image upload failed");
+                                    setError(msg);
                                 }
                             }}
                         />
