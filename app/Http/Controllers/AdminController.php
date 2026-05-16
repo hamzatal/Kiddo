@@ -380,6 +380,59 @@ class AdminController extends Controller
         return response()->json(['ok' => true, 'word' => $word->load('audioTrack')]);
     }
 
+    /**
+     * POST /admin/words/{word}/auto-segment
+     * Run Whisper on this word's linked audio track and write the
+     * matching start/end timestamps into the row. Lets the admin
+     * skip the manual stamp step on a per-word basis from the UI.
+     */
+    public function autoSegmentWord(Word $word)
+    {
+        $word->loadMissing('audioTrack');
+        if (! $word->audioTrack) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'This word has no audio track linked yet.',
+            ], 422);
+        }
+
+        $service = \App\Services\AudioSegmentationService::make();
+        if (! $service->isConfigured()) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'OPENAI_API_KEY is not configured. Add it to .env to enable auto-segment.',
+            ], 503);
+        }
+
+        // Force overwrite for this single row so the admin always gets
+        // the latest Whisper result (the bulk command is conservative
+        // and skips already-segmented words by default).
+        $result = $service->segmentTrack($word->audioTrack, true);
+
+        if (isset($result['error']) && empty($result['matched'])) {
+            return response()->json([
+                'ok'    => false,
+                'error' => $result['error'],
+            ], 422);
+        }
+
+        $word->refresh();
+
+        if ($word->segment_start_ms === null || $word->segment_end_ms === null) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'Whisper transcribed the track but could not match this word ("' . $word->word . '"). Set the segment manually.',
+            ], 200);
+        }
+
+        return response()->json([
+            'ok'               => true,
+            'segment_start_ms' => $word->segment_start_ms,
+            'segment_end_ms'   => $word->segment_end_ms,
+            'word'             => $word,
+        ]);
+    }
+
     public function uploadWordImage(Request $request, Word $word)
     {
         if ($truncated = $this->detectUploadTruncation($request)) {
