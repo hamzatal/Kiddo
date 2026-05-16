@@ -6,6 +6,10 @@ use App\Models\AudioTrack;
 use App\Models\Lesson;
 use App\Models\Unit;
 use App\Models\Word;
+use App\Services\AudioSegmentationService;
+use App\Services\CurriculumIngestService;
+use App\Services\NccdAudioDiscoveryService;
+use App\Services\TtsAudioService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -789,7 +793,7 @@ class AdminController extends Controller
             if (in_array($code, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
                 return [
                     'ok'    => false,
-                    'error' => 'The image exceeds the upload size limit. Pick a file under 20 MB.',
+                    'error' => 'The image exceeds the upload size limit. Pick a file under 64 MB.',
                     'errors'=> ['image' => ['File too large.']],
                 ];
             }
@@ -798,4 +802,238 @@ class AdminController extends Controller
         return null;
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // merge #15 — Generic uploads, deletes, NCCD discovery, TTS,
+    //              AI curriculum ingest, bulk word delete.
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * POST /admin/uploads/image
+     * Generic image uploader used by "create-word" and "create-lesson"
+     * forms before a Word/Unit row exists yet. Always accepts JSON
+     * base64 (which the React resizer produces) — this is the path
+     * that fixes the "POST data is too large" error during creation.
+     */
+    public function uploadGenericImage(Request $request)
+    {
+        $payload = $request->validate([
+            'image_base64' => 'required|string',
+            'folder'       => 'nullable|string|max:64',
+        ]);
+        $folder = preg_replace('/[^a-z0-9_-]/i', '-', (string) ($payload['folder'] ?? 'misc'));
+        $folder = $folder === '' ? 'misc' : substr($folder, 0, 32);
+
+        try {
+            $rel = $this->saveBase64Image(
+                $payload['image_base64'],
+                'img_' . time() . '_' . substr(md5(uniqid('', true)), 0, 6),
+                public_path('assets/uploads/' . $folder)
+            );
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false, 'error' => 'Image save failed: ' . $e->getMessage(),
+            ], 500);
+        }
+        return response()->json(['ok' => true, 'path' => $rel, 'image_path' => $rel]);
+    }
+
+    /**
+     * DELETE /admin/units/{unit}
+     * Removes a unit, its lessons, words and any uploaded files.
+     * Cascades come from FK definitions, but we still wipe uploaded
+     * cover images here so the public/ folder stays clean.
+     */
+    public function deleteUnit(Unit $unit)
+    {
+        if (
+            $unit->image_path &&
+            str_starts_with(ltrim($unit->image_path, '/'), 'assets/uploads/units/')
+        ) {
+            $abs = public_path(ltrim($unit->image_path, '/'));
+            if (is_file($abs)) @unlink($abs);
+        }
+        // Wipe per-word uploads under uploads/words for words in this unit.
+        Word::where('unit_id', $unit->id)
+            ->whereNotNull('image_path')
+            ->get(['id', 'image_path'])
+            ->each(function ($w) {
+                if (str_starts_with(ltrim($w->image_path, '/'), 'assets/uploads/words/')) {
+                    $abs = public_path(ltrim($w->image_path, '/'));
+                    if (is_file($abs)) @unlink($abs);
+                }
+            });
+        $unit->delete();
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * DELETE /admin/lessons/{lesson}
+     * Remove a single lesson. The unit's lessons_count counter is
+     * recomputed so the dashboard stays accurate.
+     */
+    public function deleteLesson(Lesson $lesson)
+    {
+        $unitId = $lesson->unit_id;
+        $lesson->delete();
+        $unit = Unit::find($unitId);
+        if ($unit) {
+            $unit->update(['lessons_count' => $unit->lessons()->count()]);
+        }
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * POST /admin/words/bulk-delete
+     * Delete many words at once — typically used by the duplicates
+     * panel ("Keep the first, drop the rest"). Files in
+     * public/assets/uploads/words/ are removed alongside.
+     */
+    public function bulkDeleteWords(Request $request)
+    {
+        $data = $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'integer|exists:words,id',
+        ]);
+
+        $words = Word::whereIn('id', $data['ids'])->get();
+        $deleted = 0;
+        foreach ($words as $w) {
+            if (
+                $w->image_path &&
+                str_starts_with(ltrim($w->image_path, '/'), 'assets/uploads/words/')
+            ) {
+                $abs = public_path(ltrim($w->image_path, '/'));
+                if (is_file($abs)) @unlink($abs);
+            }
+            // Remove generated TTS too if any.
+            if (
+                $w->audio_path &&
+                str_starts_with(ltrim($w->audio_path, '/'), 'assets/audio/tts/')
+            ) {
+                $abs = public_path(ltrim($w->audio_path, '/'));
+                if (is_file($abs)) @unlink($abs);
+            }
+            $w->delete();
+            $deleted++;
+        }
+        return response()->json(['ok' => true, 'deleted' => $deleted]);
+    }
+
+    /**
+     * POST /admin/audio/discover
+     * Crawls https://qr.nccd.gov.jo/QR/Eng/{grade}/{book}/p{page}.mp3
+     * across the typical Team Together 1A page range and persists
+     * every working URL into audio_tracks. Idempotent.
+     *
+     * Body (all optional):
+     *   grade      - default 1
+     *   page_from  - default 4
+     *   page_to    - default 43
+     *   book       - "ab" | "pb" | "both"  (default "both")
+     */
+    public function discoverNccdAudio(Request $request)
+    {
+        $data = $request->validate([
+            'grade'     => 'nullable|integer|min:1|max:6',
+            'page_from' => 'nullable|integer|min:1|max:200',
+            'page_to'   => 'nullable|integer|min:1|max:200',
+            'book'      => 'nullable|string|in:ab,pb,both',
+        ]);
+        $grade = (int) ($data['grade'] ?? 1);
+        $from  = (int) ($data['page_from'] ?? 4);
+        $to    = (int) ($data['page_to']   ?? 43);
+        if ($to < $from) [$from, $to] = [$to, $from];
+        $pages = range($from, $to);
+        $book  = $data['book'] ?? 'both';
+
+        $service = NccdAudioDiscoveryService::make();
+        if ($book === 'both') {
+            $report = $service->discoverGrade($grade, $pages);
+        } else {
+            $report = ['totals' => ['tried' => 0, 'found' => 0, 'created' => 0, 'updated' => 0],
+                       'books'  => [$book => $service->discoverBook($book, $grade, $pages)]];
+            $report['totals'] = $report['books'][$book];
+        }
+        return response()->json(['ok' => true] + $report);
+    }
+
+    /**
+     * POST /admin/units/{unit}/tts-fallback
+     * Generates a child-friendly TTS clip for every word in this
+     * unit (or only for words that don't have a clip yet). Used
+     * primarily for U0 Welcome (numbers, colours, characters) —
+     * NCCD audio doesn't include per-word recordings for those.
+     */
+    public function generateTtsForUnit(Request $request, Unit $unit)
+    {
+        $overwrite = (bool) $request->input('overwrite', false);
+        $tts = TtsAudioService::make();
+
+        if (! $tts->isConfigured()) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'OPENAI_API_KEY is not configured. Add it to .env to enable TTS.',
+            ], 503);
+        }
+
+        $report = $tts->synthesizeUnit($unit, $overwrite);
+        return response()->json([
+            'ok'        => true,
+            'unit'      => ['id' => $unit->id, 'title' => $unit->title],
+            'generated' => $report['generated'],
+            'skipped'   => $report['skipped'],
+            'errors'    => $report['errors'],
+        ]);
+    }
+
+    /**
+     * POST /admin/words/{word}/tts
+     * Force-generate a TTS clip for a single word — useful when the
+     * NCCD recording doesn't actually pronounce the target word
+     * cleanly (e.g. "Sister" said inside a sentence) and the admin
+     * wants a clean isolated pronunciation instead.
+     */
+    public function generateTtsForWord(Request $request, Word $word)
+    {
+        $tts = TtsAudioService::make();
+        if (! $tts->isConfigured()) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'OPENAI_API_KEY is not configured.',
+            ], 503);
+        }
+        $rel = $tts->synthesizeWord($word, true);
+        if (! $rel) {
+            return response()->json(['ok' => false, 'error' => 'TTS generation failed.'], 500);
+        }
+        return response()->json(['ok' => true, 'audio_path' => $rel, 'word' => $word->fresh()]);
+    }
+
+    /**
+     * POST /admin/units/{unit}/ai-ingest
+     * Whisper-transcribe every PB audio in the unit's page range,
+     * extract vocabulary + summary + objectives via GPT, then upsert
+     * Word rows (with timestamps) and annotate the matching Lesson's
+     * `config.ai_summary` / `ai_objectives` / `ai_sentences`.
+     */
+    public function ingestUnitFromAudio(Request $request, Unit $unit)
+    {
+        $overwrite = (bool) $request->input('overwrite', false);
+        $service = CurriculumIngestService::make();
+
+        if (! $service->isConfigured()) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'OPENAI_API_KEY is not configured. Add it to .env to enable AI ingest.',
+            ], 503);
+        }
+
+        @set_time_limit(0);
+        $report = $service->ingestUnit($unit, $overwrite);
+
+        return response()->json([
+            'ok'     => empty($report['errors']) || ($report['transcribed'] ?? 0) > 0,
+            'report' => $report,
+        ]);
+    }
 }

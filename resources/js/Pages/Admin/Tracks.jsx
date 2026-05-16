@@ -93,6 +93,11 @@ const Tracks = ({ tracks, search }) => {
         code: "", source: "ab", book_type: "ab", page: 1, track_no: 1,
         label: "", kind: "other", url: "", format: "mp3",
     });
+    const [discovering, setDiscovering] = useState(false);
+    const [discoverReport, setDiscoverReport] = useState(null);
+    const [checking, setChecking] = useState(false);
+    const [healthReport, setHealthReport] = useState(null);
+    const [discoverOpts, setDiscoverOpts] = useState({ grade: 1, page_from: 4, page_to: 43, book: "both" });
 
     const submitSearch = (e) => {
         e.preventDefault();
@@ -112,6 +117,36 @@ const Tracks = ({ tracks, search }) => {
         }
     };
 
+    const runDiscover = async () => {
+        const sure = window.confirm(
+            `Probe NCCD audio for grade ${discoverOpts.grade}, pages ${discoverOpts.page_from}-${discoverOpts.page_to} (${discoverOpts.book.toUpperCase()})?\n\nThis sends ~${(discoverOpts.page_to - discoverOpts.page_from + 1) * 7 * (discoverOpts.book === 'both' ? 2 : 1)} HEAD requests to qr.nccd.gov.jo and upserts every working URL into audio_tracks. Safe to re-run.`
+        );
+        if (!sure) return;
+        setDiscovering(true); setDiscoverReport(null);
+        try {
+            const { data } = await axios.post("/admin/audio/discover", discoverOpts);
+            setDiscoverReport(data);
+            // Reload to pick up newly created tracks.
+            setTimeout(() => router.reload({ only: ["tracks"] }), 500);
+        } catch (e) {
+            alert(e?.response?.data?.error || "Discovery failed");
+        } finally {
+            setDiscovering(false);
+        }
+    };
+
+    const runHealthCheck = async () => {
+        setChecking(true); setHealthReport(null);
+        try {
+            const { data } = await axios.get("/admin/audio/check");
+            setHealthReport(data);
+        } catch (e) {
+            alert(e?.response?.data?.error || "Health check failed");
+        } finally {
+            setChecking(false);
+        }
+    };
+
     return (
         <AdminLayout active="tracks">
             <div className="max-w-7xl mx-auto">
@@ -123,9 +158,11 @@ const Tracks = ({ tracks, search }) => {
                         <p className="text-gray-500 font-bold text-sm mt-1">
                             Every NCCD track known to Kiddo. Click to edit the
                             URL, label, kind; listen inline; delete orphans.
+                            Or click <b>Discover</b> to auto-import every
+                            working mp3 from qr.nccd.gov.jo.
                         </p>
                     </div>
-                    <form onSubmit={submitSearch} className="flex gap-2">
+                    <form onSubmit={submitSearch} className="flex gap-2 flex-wrap">
                         <input
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
@@ -142,8 +179,110 @@ const Tracks = ({ tracks, search }) => {
                         >
                             + New
                         </button>
+                        <button
+                            type="button"
+                            onClick={runHealthCheck}
+                            disabled={checking}
+                            className="px-3 py-2 rounded-xl bg-amber-500 text-white text-sm font-black disabled:opacity-50"
+                            title="HEAD-probe every URL and report broken ones"
+                        >
+                            {checking ? '…' : '🔎 Check URLs'}
+                        </button>
                     </form>
                 </header>
+
+                {/* Auto-discover panel */}
+                <div className="bg-violet-50/60 border border-violet-100 rounded-2xl p-4 mb-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div>
+                            <h2 className="font-black text-sm text-violet-700">
+                                🤖 Auto-discover NCCD audio
+                            </h2>
+                            <p className="text-[11px] text-gray-600 font-semibold mt-1 max-w-prose">
+                                Crawls every <code>p&lt;page&gt;.mp3</code> /
+                                <code> p&lt;page&gt;.&lt;n&gt;.mp3</code> /
+                                <code> p&lt;page&gt;.mp4</code> on
+                                <code> qr.nccd.gov.jo</code> within the chosen
+                                page range and upserts every URL that returns a
+                                valid audio payload. Idempotent — safe to re-run.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-end gap-2">
+                            <label className="text-[10px] font-black uppercase text-gray-500">
+                                Grade
+                                <input
+                                    type="number" min={1} max={6}
+                                    value={discoverOpts.grade}
+                                    onChange={(e) => setDiscoverOpts({ ...discoverOpts, grade: Number(e.target.value) || 1 })}
+                                    className="block w-16 mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-mono"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-500">
+                                From
+                                <input
+                                    type="number" min={1} max={200}
+                                    value={discoverOpts.page_from}
+                                    onChange={(e) => setDiscoverOpts({ ...discoverOpts, page_from: Number(e.target.value) || 1 })}
+                                    className="block w-16 mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-mono"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-500">
+                                To
+                                <input
+                                    type="number" min={1} max={200}
+                                    value={discoverOpts.page_to}
+                                    onChange={(e) => setDiscoverOpts({ ...discoverOpts, page_to: Number(e.target.value) || 1 })}
+                                    className="block w-16 mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm font-mono"
+                                />
+                            </label>
+                            <label className="text-[10px] font-black uppercase text-gray-500">
+                                Book
+                                <select
+                                    value={discoverOpts.book}
+                                    onChange={(e) => setDiscoverOpts({ ...discoverOpts, book: e.target.value })}
+                                    className="block mt-1 px-2 py-1 rounded-lg border border-gray-200 text-sm"
+                                >
+                                    <option value="both">both</option>
+                                    <option value="pb">PB only</option>
+                                    <option value="ab">AB only</option>
+                                </select>
+                            </label>
+                            <button
+                                onClick={runDiscover}
+                                disabled={discovering}
+                                className="px-3 py-2 rounded-xl bg-violet-600 text-white text-sm font-black disabled:opacity-50"
+                            >
+                                {discovering ? 'Probing…' : 'Discover'}
+                            </button>
+                        </div>
+                    </div>
+                    {discoverReport ? (
+                        <div className="mt-3 p-3 rounded-xl bg-white border border-violet-100">
+                            <p className="text-[11px] font-black text-violet-700">
+                                Tried {discoverReport.totals?.tried ?? '?'} URLs ·
+                                Found {discoverReport.totals?.found ?? '?'} valid ·
+                                +{discoverReport.totals?.created ?? 0} new ·
+                                ↻{discoverReport.totals?.updated ?? 0} updated
+                            </p>
+                        </div>
+                    ) : null}
+
+                    {healthReport ? (
+                        <div className="mt-3 p-3 rounded-xl bg-white border border-amber-100">
+                            <p className="text-[11px] font-black text-amber-700">
+                                URL health: {healthReport.healthy ?? 0}/{healthReport.total ?? 0} working ·
+                                {(healthReport.broken?.length ?? 0)} broken
+                            </p>
+                            {healthReport.broken?.length ? (
+                                <ul className="mt-2 max-h-40 overflow-y-auto text-[10px] font-mono text-rose-700 space-y-0.5">
+                                    {healthReport.broken.slice(0, 30).map((b) => (
+                                        <li key={b.id}>{b.code} — {b.error}</li>
+                                    ))}
+                                </ul>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
 
                 {creating ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">

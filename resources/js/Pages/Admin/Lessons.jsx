@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
 
 const LESSON_TYPES = [
     "intro", "vocab-game", "phonics-game", "review",
@@ -43,16 +44,23 @@ const InlineWordAdd = ({ unitId, tracks }) => {
         try {
             let imagePath = draft.image_path || null;
             if (fileRef.current?.files?.[0]) {
-                const fd = new FormData();
-                fd.append("image", fileRef.current.files[0]);
-                fd.append(
-                    "folder",
-                    (draft.category || draft.word).toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32)
+                const file = fileRef.current.files[0];
+                if (file.size > MAX_INPUT_BYTES) {
+                    throw new Error(`Image is too large (${(file.size/1024/1024).toFixed(1)} MB). Max 20 MB.`);
+                }
+                if (!isSupportedImage(file)) {
+                    throw new Error("Pick a JPG, PNG, GIF, WebP, SVG or BMP image.");
+                }
+                const dataUrl = await shrinkForAdminUpload(file);
+                const r = await axios.post(
+                    "/admin/uploads/image",
+                    {
+                        image_base64: dataUrl,
+                        folder: (draft.category || draft.word).toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32),
+                    },
+                    { headers: { "Content-Type": "application/json" } }
                 );
-                const r = await axios.post("/admin/uploads", fd, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                });
-                imagePath = r.data.path;
+                imagePath = r.data?.path || r.data?.image_path;
             }
             const payload = {
                 unit_id: unitId,
@@ -80,7 +88,7 @@ const InlineWordAdd = ({ unitId, tracks }) => {
                 setTimeout(() => setOk(false), 1600);
             }
         } catch (e) {
-            setErr(e?.response?.data?.message || "Create failed");
+            setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || "Create failed");
         } finally {
             setBusy(false);
         }
@@ -200,10 +208,11 @@ const InlineWordAdd = ({ unitId, tracks }) => {
     );
 };
 
-const LessonRow = ({ l }) => {
+const LessonRow = ({ l, onRemoved }) => {
     const [row, setRow] = useState(l);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const save = async (patch) => {
         setSaving(true);
@@ -216,6 +225,22 @@ const LessonRow = ({ l }) => {
             }
         } finally {
             setSaving(false);
+        }
+    };
+
+    const onDelete = async () => {
+        const sure = window.confirm(
+            `Delete lesson "${row.title}" (L${row.lesson_number})? This cannot be undone.`
+        );
+        if (!sure) return;
+        setDeleting(true);
+        try {
+            const { data } = await axios.delete(`/admin/lessons/${l.id}`);
+            if (data.ok) onRemoved?.(l.id);
+        } catch (e) {
+            alert(e?.response?.data?.error || 'Delete failed');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -270,6 +295,15 @@ const LessonRow = ({ l }) => {
                     )}
                     {saving && <span className="text-gray-400">saving…</span>}
                     {saved && <span className="text-emerald-500">✓</span>}
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        disabled={deleting}
+                        className="px-2 py-1 rounded-lg text-[10px] font-black text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50"
+                        title="Delete this lesson"
+                    >
+                        {deleting ? '…' : '🗑'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -278,6 +312,7 @@ const LessonRow = ({ l }) => {
 
 const Lessons = ({ units, lessons, selected, tracks = [] }) => {
     const [unit, setUnit] = useState(selected || "");
+    const [list, setList] = useState(lessons);
     const [creating, setCreating] = useState(false);
     const [draft, setDraft] = useState({
         unit_id: selected || (units[0]?.id ?? ""),
@@ -291,12 +326,12 @@ const Lessons = ({ units, lessons, selected, tracks = [] }) => {
 
     const grouped = useMemo(() => {
         const g = {};
-        lessons.forEach((l) => {
+        list.forEach((l) => {
             g[l.unit_id] = g[l.unit_id] || [];
             g[l.unit_id].push(l);
         });
         return g;
-    }, [lessons]);
+    }, [list]);
 
     const onUnitChange = (id) => {
         setUnit(id);
@@ -459,7 +494,11 @@ const Lessons = ({ units, lessons, selected, tracks = [] }) => {
                                 {u?.code} — {u?.title}
                             </h2>
                             {rows.map((l) => (
-                                <LessonRow key={l.id} l={l} />
+                                <LessonRow
+                                    key={l.id}
+                                    l={l}
+                                    onRemoved={(id) => setList(list.filter((x) => x.id !== id))}
+                                />
                             ))}
                             {/* FIX 9.5 — inline word adder for this unit */}
                             <InlineWordAdd unitId={Number(uid)} tracks={tracks} />
