@@ -50,14 +50,21 @@ class Word extends Model
      * Words & Segments editor. The proxy URL is still exposed under
      * `proxySrc` for callers that prefer it.
      *
+     * Always exposes `tts` so the browser can fall back to its built-in
+     * speech synthesizer (free, no network) when:
+     *   • there is no audio track at all (e.g. Welcome unit U0 — no
+     *     usable NCCD audio for the colours/numbers/characters), or
+     *   • the linked track plays but the word has no segment yet.
+     *
      * Shape:
      *   [
-     *     'src'        => 'https://qr.nccd.gov.jo/.../p6.mp3'
-     *     'proxySrc'   => '/api/audio/PB6'
-     *     'startMs'    => 0,                        // null = play from start
-     *     'endMs'      => 1800,                     // null = play to end
-     *     'trackCode'  => 'PB6',
-     *     'label'      => 'Boy'
+     *     'src'        => 'https://qr.nccd.gov.jo/.../p6.mp3' | null
+     *     'proxySrc'   => '/api/audio/PB6'                    | null
+     *     'startMs'    => 0,                                  // null = play from start
+     *     'endMs'      => 1800,                               // null = play to end
+     *     'trackCode'  => 'PB6',                              | null
+     *     'label'      => 'Boy',
+     *     'tts'        => 'Boy',                              // text for speechSynthesis fallback
      *   ]
      */
     public function audioClip(): ?array
@@ -72,6 +79,7 @@ class Word extends Model
                 'trackCode' => $code,
                 'label'     => $this->word,
                 'remoteUrl' => $this->audioTrack->url,
+                'tts'       => $this->word,
             ];
         }
 
@@ -82,9 +90,21 @@ class Word extends Model
                 'endMs'     => null,
                 'trackCode' => null,
                 'label'     => $this->word,
+                'tts'       => $this->word,
             ];
         }
 
-        return null;
+        // Last-resort fallback: no track and no per-word file. Still
+        // hand the frontend a TTS hint so the child hears the word
+        // pronounced via the browser's built-in speech synthesizer.
+        return [
+            'src'       => null,
+            'proxySrc'  => null,
+            'startMs'   => null,
+            'endMs'     => null,
+            'trackCode' => null,
+            'label'     => $this->word,
+            'tts'       => $this->word,
+        ];
     }
 }

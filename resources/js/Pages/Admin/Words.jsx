@@ -3,6 +3,7 @@ import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
 import SegmentEditor from "@/learning/components/admin/SegmentEditor";
+import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
 
 const TYPE_BADGE_CLS =
     "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full";
@@ -17,13 +18,39 @@ function formatSegmentLength(startMs, endMs) {
     return diff.toFixed(2) + "s";
 }
 
-function WordRow({ w, tracks, onFocusRow, isFocused }) {
+function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved }) {
     const [row, setRow] = useState(w);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState(null);
     const rowRef = useRef(null);
+
+    async function onDelete() {
+        const sure = window.confirm(
+            `Delete the word "${row.word}" permanently? This cannot be undone.`
+        );
+        if (!sure) return;
+        setDeleting(true);
+        setError(null);
+        try {
+            const res = await axios.delete("/admin/words/" + w.id);
+            if (res.data && res.data.ok) {
+                onRemoved?.(w.id);
+            } else {
+                setError(res.data?.error || "Delete failed");
+                setDeleting(false);
+            }
+        } catch (e) {
+            const msg =
+                e?.response?.data?.error ||
+                e?.response?.data?.message ||
+                "Delete failed";
+            setError(msg);
+            setDeleting(false);
+        }
+    }
 
     const track = useMemo(
         function () {
@@ -147,36 +174,39 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                             onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
-                                // Pre-flight: catch oversize files before
-                                // they hit the network. Server cap is 20MB.
-                                const MAX_BYTES = 20 * 1024 * 1024;
-                                if (file.size > MAX_BYTES) {
-                                    setError(`Image is too large (${(file.size/1024/1024).toFixed(1)}MB). Max 20 MB.`);
+                                if (file.size > MAX_INPUT_BYTES) {
+                                    setError(`File is too large (${(file.size/1024/1024).toFixed(1)} MB). Max 20 MB.`);
                                     e.target.value = "";
                                     return;
                                 }
-                                if (!file.type.startsWith("image/")) {
-                                    setError("Please pick an image file (JPG, PNG, GIF, WebP, SVG).");
+                                if (!isSupportedImage(file)) {
+                                    setError("Please pick an image file (JPG, PNG, GIF, WebP, SVG, BMP).");
                                     e.target.value = "";
                                     return;
                                 }
-                                const formData = new FormData();
-                                formData.append('image', file);
                                 try {
-                                    const res = await axios.post(`/admin/words/${w.id}/image`, formData);
+                                    setError(null);
+                                    // Resize in the browser BEFORE uploading
+                                    // to avoid PHP/nginx POST size limits.
+                                    const dataUrl = await shrinkForAdminUpload(file);
+                                    const res = await axios.post(
+                                        `/admin/words/${w.id}/image`,
+                                        { image_base64: dataUrl },
+                                        { headers: { "Content-Type": "application/json" } }
+                                    );
                                     if (res.data?.ok) {
                                         setRow({ ...row, image_path: res.data.image_path });
-                                        setError(null);
+                                    } else {
+                                        setError(res.data?.error || "Image upload failed");
                                     }
                                 } catch (err) {
-                                    const status = err?.response?.status;
-                                    const msg =
+                                    setError(
                                         err?.response?.data?.error ||
-                                        err?.response?.data?.message ||
-                                        (status === 413
-                                            ? "Image too large for the server (raise post_max_size / upload_max_filesize)."
-                                            : "Image upload failed");
-                                    setError(msg);
+                                        err?.message ||
+                                        "Image upload failed"
+                                    );
+                                } finally {
+                                    e.target.value = "";
                                 }
                             }}
                         />
@@ -284,7 +314,7 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                     </div>
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 text-right flex flex-col items-end gap-1">
                     <button
                         type="button"
                         onClick={toggleOpen}
@@ -292,6 +322,15 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                         className={segBtnCls}
                     >
                         {segBtnLabel}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        disabled={deleting}
+                        className="px-3 py-1 rounded-lg text-[11px] font-black text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50"
+                        title="Permanently delete this word"
+                    >
+                        {deleting ? "Deleting…" : "🗑 Delete word"}
                     </button>
                     <div className="text-[10px] mt-1">
                         {saving ? (
@@ -636,6 +675,7 @@ function Words({ units, tracks, words, selected, search }) {
                         tracks={tracks}
                         isFocused={focusedRowId === w.id}
                         onFocusRow={setFocusedRowId}
+                        onRemoved={() => router.reload({ only: ["words"] })}
                     />
                 ))}
 
