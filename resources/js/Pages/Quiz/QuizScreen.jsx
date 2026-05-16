@@ -263,10 +263,10 @@ const QuizScreen = ({ quizData }) => {
       )}
 
       {/* AI Fox helper during quiz */}
-      {!isFinished && ai?.enabled !== undefined && currentQ && (
+      {!isFinished && ai?.enabled !== undefined && currentQ && currentQ.targetWordId ? (
         <FoxHelper
           unitId={unitId}
-          wordId={currentQ.options.find(o => o.isCorrect)?.id || null}
+          wordId={currentQ.targetWordId}
           aiEnabled={ai.enabled}
         />
       )}

@@ -136,8 +136,16 @@ const SegmentEditor = ({
                 onError={(e) => {
                     console.warn('Audio load error, trying direct URL');
                 }}
-                crossOrigin="anonymous"
             />
+            {/*
+              NOTE: no `crossOrigin` attribute on purpose. The Admin →
+              Audio Tracks page works perfectly because it points
+              <audio> directly at the remote URL with no CORS flag —
+              the browser allows playback + seeking + timeupdate as
+              long as you don't ask for raw sample access. Adding
+              crossOrigin="anonymous" forces a CORS preflight that
+              qr.nccd.gov.jo rejects.
+            */}
 
             {/* Timeline */}
             <div className="relative h-6 bg-white rounded-full border border-gray-200 overflow-hidden mb-2">

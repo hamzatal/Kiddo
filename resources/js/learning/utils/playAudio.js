@@ -37,8 +37,14 @@ export const playAudioClip = (src, { startMs = null, endMs = null } = {}) => {
 
     const audio = new Audio(src);
     audio.preload = "auto";
-    // Small hint: many browsers honour this for cross-origin files
-    audio.crossOrigin = "anonymous";
+    // NOTE: We deliberately do NOT set `audio.crossOrigin = "anonymous"`.
+    // The browser only enforces CORS on cross-origin audio when that flag
+    // is set; without it, plain playback + seeking + timeupdate all work
+    // even when the redirect target (qr.nccd.gov.jo) returns no CORS
+    // headers. This is the same trick the Admin → Audio Tracks page uses
+    // — it points <audio> straight at the NCCD URL with no flag and the
+    // clip plays fine. If you ever need WebAudio/Canvas access to raw
+    // samples, switch to the cached proxy and re-enable crossOrigin.
     currentAudio = audio;
 
     return new Promise((resolve) => {
