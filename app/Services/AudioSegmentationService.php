@@ -6,7 +6,6 @@ use App\Models\AudioTrack;
 use App\Models\Word;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * AI-powered audio segmentation service.
@@ -15,13 +14,18 @@ use Illuminate\Support\Facades\Storage;
  * timestamps, then matches transcribed words to the words in our DB
  * and automatically populates segment_start_ms / segment_end_ms.
  *
- * This eliminates the need for the admin to manually listen to each
- * track and stamp start/end times.
+ * Matching strategy (in order of preference):
+ *   1. Exact case-insensitive match.
+ *   2. Prefix match (handles "boy" vs "boys", "cat" vs "catch").
+ *   3. Levenshtein distance ≤ 2 for words ≥ 4 chars (catches typos
+ *      and small Whisper transcription errors).
  *
- * Usage from artisan command:
- *   php artisan kiddo:auto-segment --track=PB6
- *   php artisan kiddo:auto-segment --unit=2
- *   php artisan kiddo:auto-segment --all
+ * Indices already claimed by an earlier (longer) DB word are skipped
+ * so the same spoken token isn't reused.
+ *
+ * Also exposes URL probing so the admin can see which AudioTrack
+ * URLs return a valid mp3/mp4 (HEAD 200 with audio/* content type)
+ * vs which ones are 404 / wrong type before spending Whisper credit.
  */
 class AudioSegmentationService
 {
@@ -57,13 +61,11 @@ class AudioSegmentationService
             return ['error' => 'OPENAI_API_KEY not configured', 'matched' => 0, 'total' => 0];
         }
 
-        // Get list of words linked to this track
         $words = Word::where('audio_track_id', $track->id)->get();
         if ($words->isEmpty()) {
             return ['error' => 'No words linked to this track', 'matched' => 0, 'total' => 0];
         }
 
-        // Skip already-segmented words unless overwriting
         if (! $overwrite) {
             $words = $words->filter(fn ($w) => $w->segment_start_ms === null || $w->segment_end_ms === null);
             if ($words->isEmpty()) {
@@ -71,28 +73,32 @@ class AudioSegmentationService
             }
         }
 
-        // Get audio file path
         $audioPath = $this->getAudioFile($track);
         if (! $audioPath) {
-            return ['error' => 'Could not retrieve audio file', 'matched' => 0, 'total' => $words->count()];
+            return ['error' => 'Could not retrieve audio file (URL may be broken)', 'matched' => 0, 'total' => $words->count()];
         }
 
-        // Transcribe with Whisper
         $transcription = $this->transcribeAudio($audioPath);
         if (! $transcription || empty($transcription['words'])) {
-            return ['error' => 'Whisper transcription failed', 'matched' => 0, 'total' => $words->count()];
+            return ['error' => 'Whisper transcription failed or empty', 'matched' => 0, 'total' => $words->count()];
         }
 
-        // Match each DB word to transcribed word(s)
         $matched = 0;
         $details = [];
-        foreach ($words as $word) {
-            $match = $this->findBestMatch($word->word, $transcription['words']);
+        $usedIndices = [];
+
+        // Sort DB words by length descending so longer words pick first
+        // ("brother" before "ro", "elephant" before "ant").
+        $orderedWords = $words->sortByDesc(fn (Word $w) => strlen($w->word))->values();
+
+        foreach ($orderedWords as $word) {
+            $match = $this->findBestMatch($word->word, $transcription['words'], $usedIndices);
             if ($match) {
+                $usedIndices[$match['_index']] = true;
                 $startMs = (int) round($match['start'] * 1000);
                 $endMs = (int) round($match['end'] * 1000);
 
-                // Add small padding (50ms) for natural playback
+                // Add small padding for natural playback
                 $startMs = max(0, $startMs - 50);
                 $endMs = $endMs + 100;
 
@@ -107,6 +113,7 @@ class AudioSegmentationService
                     'start_ms' => $startMs,
                     'end_ms'   => $endMs,
                     'duration' => round(($endMs - $startMs) / 1000, 2) . 's',
+                    'reason'   => $match['_reason'],
                 ];
             } else {
                 $details[] = [
@@ -125,32 +132,93 @@ class AudioSegmentationService
     }
 
     /**
+     * Quick HEAD request to check whether the upstream URL really is a
+     * playable audio file. Used by the "Check all audio URLs" admin
+     * tool so we can flag broken links before children hit them.
+     *
+     * Returns one of:
+     *   ['ok' => true,  'status' => 200, 'content_type' => 'audio/mpeg', 'size' => 1234]
+     *   ['ok' => false, 'status' => 404, 'error' => 'HTTP 404']
+     *   ['ok' => false, 'error' => 'Network failure: ...']
+     */
+    public function probeUrl(string $url): array
+    {
+        try {
+            $resp = Http::timeout(15)
+                ->withHeaders(['User-Agent' => 'Kiddo/audio-probe'])
+                ->head($url);
+
+            $status = $resp->status();
+            $ct = $resp->header('Content-Type') ?: '';
+            $len = (int) ($resp->header('Content-Length') ?: 0);
+
+            // Some servers refuse HEAD; retry with a tiny ranged GET
+            if ($status === 405 || $status === 501) {
+                $resp = Http::timeout(15)
+                    ->withHeaders([
+                        'User-Agent' => 'Kiddo/audio-probe',
+                        'Range'      => 'bytes=0-0',
+                    ])
+                    ->get($url);
+                $status = $resp->status();
+                $ct = $resp->header('Content-Type') ?: '';
+                if ($range = $resp->header('Content-Range')) {
+                    $len = (int) preg_replace('~^bytes \d+-\d+/~', '', $range);
+                } else {
+                    $len = (int) ($resp->header('Content-Length') ?: 0);
+                }
+            }
+
+            $isAudio = $status >= 200 && $status < 400 &&
+                (str_contains($ct, 'audio') || str_contains($ct, 'video') ||
+                 str_contains($ct, 'octet-stream') || str_contains($ct, 'mpeg'));
+
+            return [
+                'ok'           => $isAudio,
+                'status'       => $status,
+                'content_type' => $ct ?: null,
+                'size'         => $len ?: null,
+                'error'        => $isAudio ? null : "HTTP {$status} · " . ($ct ?: 'unknown type'),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok'    => false,
+                'error' => 'Network failure: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Get the audio file as a local file path. Downloads if needed.
      */
     private function getAudioFile(AudioTrack $track): ?string
     {
-        // Check local_path first
         if ($track->local_path) {
             $abs = public_path($track->local_path);
-            if (is_file($abs)) {
+            if (is_file($abs) && filesize($abs) > 0) {
                 return $abs;
             }
         }
 
-        // Check storage cache
         $cachePath = storage_path('app/audio_cache/' . $track->code . '.' . ($track->format ?: 'mp3'));
-        if (is_file($cachePath)) {
+        if (is_file($cachePath) && filesize($cachePath) > 0) {
             return $cachePath;
         }
 
-        // Download
         @mkdir(dirname($cachePath), 0775, true);
         try {
-            $response = Http::timeout(60)->get($track->url);
-            if ($response->successful()) {
+            $response = Http::timeout(60)
+                ->withHeaders(['User-Agent' => 'Kiddo/audio-fetch'])
+                ->get($track->url);
+            if ($response->successful() && strlen($response->body()) > 0) {
                 file_put_contents($cachePath, $response->body());
                 return $cachePath;
             }
+            Log::warning('Audio download not OK', [
+                'track'  => $track->code,
+                'status' => $response->status(),
+                'size'   => strlen($response->body()),
+            ]);
         } catch (\Throwable $e) {
             Log::warning('Audio download failed: ' . $e->getMessage());
         }
@@ -172,9 +240,9 @@ class AudioSegmentationService
                     basename($audioPath)
                 )
                 ->post(self::WHISPER_ENDPOINT, [
-                    'model' => 'whisper-1',
-                    'language' => 'en',
-                    'response_format' => 'verbose_json',
+                    'model'                     => 'whisper-1',
+                    'language'                  => 'en',
+                    'response_format'           => 'verbose_json',
                     'timestamp_granularities[]' => 'word',
                 ]);
 
@@ -195,35 +263,56 @@ class AudioSegmentationService
 
     /**
      * Find the best matching transcribed word for a target word.
-     * Uses case-insensitive matching with light fuzzy matching for plurals.
+     *
+     * Three passes in order of confidence:
+     *   1. Exact normalised match.
+     *   2. Prefix match in either direction (≥ 3 chars).
+     *   3. Levenshtein distance ≤ 2 (≥ 4 chars).
+     *
+     * Skips indices already claimed by an earlier DB word.
      */
-    private function findBestMatch(string $target, array $transcribedWords): ?array
+    private function findBestMatch(string $target, array $transcribedWords, array $usedIndices = []): ?array
     {
         $targetLower = mb_strtolower(trim($target));
-        $targetCore = preg_replace('/[^a-z0-9]/', '', $targetLower);
+        $targetCore  = preg_replace('/[^a-z0-9]/i', '', $targetLower);
+        if ($targetCore === '') return null;
 
-        foreach ($transcribedWords as $tw) {
-            $twWord = mb_strtolower(trim($tw['word'] ?? ''));
-            $twCore = preg_replace('/[^a-z0-9]/', '', $twWord);
-
-            // Exact match
+        // Pass 1: exact
+        foreach ($transcribedWords as $i => $tw) {
+            if (isset($usedIndices[$i])) continue;
+            $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
             if ($targetCore === $twCore) {
-                return $tw;
+                return ['_index' => $i, '_reason' => 'exact'] + $tw;
             }
         }
 
-        // Fuzzy match: target is prefix or transcribed contains target
-        foreach ($transcribedWords as $tw) {
-            $twWord = mb_strtolower(trim($tw['word'] ?? ''));
-            $twCore = preg_replace('/[^a-z0-9]/', '', $twWord);
-
-            if (
-                strlen($targetCore) >= 3 &&
-                (str_starts_with($twCore, $targetCore) ||
-                 str_starts_with($targetCore, $twCore))
-            ) {
-                return $tw;
+        // Pass 2: prefix
+        if (strlen($targetCore) >= 3) {
+            foreach ($transcribedWords as $i => $tw) {
+                if (isset($usedIndices[$i])) continue;
+                $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
+                if ($twCore === '') continue;
+                if (str_starts_with($twCore, $targetCore) || str_starts_with($targetCore, $twCore)) {
+                    return ['_index' => $i, '_reason' => 'prefix'] + $tw;
+                }
             }
+        }
+
+        // Pass 3: Levenshtein
+        if (strlen($targetCore) >= 4) {
+            $best = null;
+            $bestDist = PHP_INT_MAX;
+            foreach ($transcribedWords as $i => $tw) {
+                if (isset($usedIndices[$i])) continue;
+                $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
+                if (strlen($twCore) < 3) continue;
+                $d = levenshtein($targetCore, $twCore);
+                if ($d <= 2 && $d < $bestDist) {
+                    $best = ['_index' => $i, '_reason' => "fuzzy(d={$d})"] + $tw;
+                    $bestDist = $d;
+                }
+            }
+            if ($best) return $best;
         }
 
         return null;

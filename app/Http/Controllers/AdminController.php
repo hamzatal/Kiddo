@@ -91,15 +91,32 @@ class AdminController extends Controller
 
     public function uploadUnitImage(Request $request, Unit $unit)
     {
-        // Detect the silent "PHP truncated the upload before we even saw it"
-        // case. When `post_max_size` is exceeded, $_POST/$_FILES are empty
-        // and Laravel's validator just complains about the missing field
-        // — that's the source of the confusing 422 the user reported.
+        // Path A: JSON base64 (avoids POST limits — preferred)
+        if ($request->isJson() || $request->filled('image_base64')) {
+            $payload = $request->validate([
+                'image_base64' => 'required|string',
+            ]);
+            try {
+                $saved = $this->saveBase64Image(
+                    $payload['image_base64'],
+                    'unit_' . $unit->id . '_' . time(),
+                    public_path('assets/uploads/units')
+                );
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'ok'    => false,
+                    'error' => 'Image save failed: ' . $e->getMessage(),
+                ], 500);
+            }
+            $unit->update(['image_path' => $saved]);
+            return response()->json(['ok' => true, 'image_path' => $saved]);
+        }
+
+        // Path B: classic multipart (kept for backwards compat)
         if ($truncated = $this->detectUploadTruncation($request)) {
             return response()->json($truncated, 413);
         }
 
-        // Accept any image type and large sizes (up to 20MB)
         $request->validate([
             'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
         ]);
@@ -433,13 +450,49 @@ class AdminController extends Controller
         ]);
     }
 
+    /**
+     * POST /admin/words/{word}/image
+     *
+     * Two ways to send the image:
+     *
+     * 1. Classic multipart/form-data with field "image" — works for
+     *    small files but capped by PHP's post_max_size / upload_max_filesize
+     *    and nginx client_max_body_size. This is the cause of the
+     *    "POST data is too large" error.
+     *
+     * 2. RECOMMENDED — JSON body with field "image_base64" containing
+     *    a data URL ("data:image/png;base64,...."). The frontend
+     *    resizes and re-encodes the image to ~150 KB before sending
+     *    so it always fits comfortably under any limit.
+     */
     public function uploadWordImage(Request $request, Word $word)
     {
+        // Path A: JSON base64 (post-shrink in the browser, never hits limits)
+        if ($request->isJson() || $request->filled('image_base64')) {
+            $payload = $request->validate([
+                'image_base64' => 'required|string',
+            ]);
+            try {
+                $saved = $this->saveBase64Image(
+                    $payload['image_base64'],
+                    'word_' . $word->id . '_' . time(),
+                    public_path('assets/uploads/words')
+                );
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'ok'    => false,
+                    'error' => 'Image save failed: ' . $e->getMessage(),
+                ], 500);
+            }
+            $word->update(['image_path' => $saved]);
+            return response()->json(['ok' => true, 'image_path' => $saved]);
+        }
+
+        // Path B: classic multipart upload (kept for backwards compat)
         if ($truncated = $this->detectUploadTruncation($request)) {
             return response()->json($truncated, 413);
         }
 
-        // Accept any image type and large sizes (up to 20MB)
         $request->validate([
             'image' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg,bmp|max:20480'
         ]);
@@ -474,6 +527,202 @@ class AdminController extends Controller
         $relativePath = 'assets/uploads/words/' . $filename;
         $word->update(['image_path' => $relativePath]);
         return response()->json(['ok' => true, 'image_path' => $relativePath]);
+    }
+
+    /**
+     * POST /admin/words/auto-segment-all
+     *
+     * Run Whisper on every audio_track that has at least one linked
+     * word. Skips tracks where every word is already segmented unless
+     * `overwrite=1` is passed. Returns a per-track summary so the
+     * admin can review which calls succeeded / which words couldn't
+     * be matched.
+     */
+    public function autoSegmentAll(Request $request)
+    {
+        $service = \App\Services\AudioSegmentationService::make();
+        if (! $service->isConfigured()) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'OPENAI_API_KEY is not configured.',
+            ], 503);
+        }
+
+        $overwrite = (bool) $request->input('overwrite', false);
+        $unitId    = $request->input('unit_id');
+
+        $trackIds = Word::query()
+            ->whereNotNull('audio_track_id')
+            ->when($unitId, fn ($q) => $q->where('unit_id', $unitId))
+            ->when(! $overwrite, fn ($q) => $q->where(function ($q) {
+                $q->whereNull('segment_start_ms')->orWhereNull('segment_end_ms');
+            }))
+            ->distinct()
+            ->pluck('audio_track_id');
+
+        $tracks = AudioTrack::whereIn('id', $trackIds)->get();
+        $report = [];
+        $totalMatched = 0;
+        $totalWords   = 0;
+
+        foreach ($tracks as $track) {
+            $result = $service->segmentTrack($track, $overwrite);
+            $matched = $result['matched'] ?? 0;
+            $total   = $result['total']   ?? 0;
+            $totalMatched += $matched;
+            $totalWords   += $total;
+            $report[] = [
+                'track'   => $track->code,
+                'label'   => $track->label,
+                'matched' => $matched,
+                'total'   => $total,
+                'error'   => $result['error']   ?? null,
+                'message' => $result['message'] ?? null,
+            ];
+        }
+
+        return response()->json([
+            'ok'             => true,
+            'tracks_run'     => count($report),
+            'words_matched'  => $totalMatched,
+            'words_total'    => $totalWords,
+            'report'         => $report,
+        ]);
+    }
+
+    /**
+     * GET /admin/audio/check
+     *
+     * HEAD-probes every AudioTrack URL and returns the broken ones
+     * with status codes / content types. The admin can use this to
+     * spot wrong URLs before children hit them in the lesson.
+     */
+    public function checkAudioUrls()
+    {
+        $service = \App\Services\AudioSegmentationService::make();
+
+        $tracks = AudioTrack::orderBy('source')->orderBy('page')->orderBy('track_no')->get();
+        $broken = [];
+        $ok     = 0;
+
+        foreach ($tracks as $t) {
+            $probe = $service->probeUrl($t->url);
+            if ($probe['ok']) {
+                $ok++;
+            } else {
+                $broken[] = [
+                    'id'    => $t->id,
+                    'code'  => $t->code,
+                    'url'   => $t->url,
+                    'label' => $t->label,
+                    'error' => $probe['error'] ?? 'unknown',
+                    'status'=> $probe['status'] ?? null,
+                ];
+            }
+        }
+
+        return response()->json([
+            'ok'      => true,
+            'total'   => $tracks->count(),
+            'healthy' => $ok,
+            'broken'  => $broken,
+        ]);
+    }
+
+    /**
+     * GET /admin/words/duplicates
+     *
+     * Reports words that appear more than once inside the same unit.
+     * Lets the admin de-duplicate the curriculum quickly.
+     */
+    public function findDuplicateWords()
+    {
+        $duplicates = Word::query()
+            ->selectRaw('LOWER(word) as wlow, unit_id, COUNT(*) as c')
+            ->groupBy('wlow', 'unit_id')
+            ->having('c', '>', 1)
+            ->get();
+
+        $detail = [];
+        foreach ($duplicates as $row) {
+            $rows = Word::with('unit:id,code,title')
+                ->whereRaw('LOWER(word) = ?', [$row->wlow])
+                ->where('unit_id', $row->unit_id)
+                ->get(['id', 'word', 'unit_id', 'category', 'audio_track_id', 'segment_start_ms', 'segment_end_ms', 'image_path']);
+            $detail[] = [
+                'word'    => $row->wlow,
+                'unit_id' => $row->unit_id,
+                'unit'    => $rows->first()?->unit?->title,
+                'count'   => (int) $row->c,
+                'rows'    => $rows->map(fn ($w) => [
+                    'id'             => $w->id,
+                    'word'           => $w->word,
+                    'category'       => $w->category,
+                    'has_segment'    => $w->segment_start_ms !== null && $w->segment_end_ms !== null,
+                    'audio_track_id' => $w->audio_track_id,
+                ])->all(),
+            ];
+        }
+
+        return response()->json([
+            'ok'         => true,
+            'duplicates' => $detail,
+        ]);
+    }
+
+    /**
+     * Decode a data-URL ("data:image/png;base64,...") into a real file
+     * under $dir. Returns the public-relative path the frontend can
+     * point img.src at. Throws on malformed input.
+     */
+    private function saveBase64Image(string $dataUrl, string $baseFilename, string $dir): string
+    {
+        if (! is_dir($dir)) {
+            if (! @mkdir($dir, 0775, true) && ! is_dir($dir)) {
+                throw new \RuntimeException("Cannot create upload folder ({$dir})");
+            }
+        }
+        if (! is_writable($dir)) {
+            throw new \RuntimeException("Upload folder is not writable ({$dir})");
+        }
+
+        // Accept either "data:image/png;base64,xxx" or just the bare base64 string
+        $mime = 'image/png';
+        if (preg_match('~^data:(image/[^;]+);base64,(.+)$~i', trim($dataUrl), $m)) {
+            $mime = strtolower($m[1]);
+            $b64  = $m[2];
+        } else {
+            $b64 = trim($dataUrl);
+        }
+        $bytes = base64_decode($b64, true);
+        if ($bytes === false || strlen($bytes) === 0) {
+            throw new \RuntimeException('Image data is not valid base64');
+        }
+        if (strlen($bytes) > 20 * 1024 * 1024) {
+            throw new \RuntimeException('Image exceeds 20 MB');
+        }
+
+        $extMap = [
+            'image/png'  => 'png',
+            'image/jpeg' => 'jpg',
+            'image/jpg'  => 'jpg',
+            'image/webp' => 'webp',
+            'image/gif'  => 'gif',
+            'image/bmp'  => 'bmp',
+            'image/svg+xml' => 'svg',
+        ];
+        $ext = $extMap[$mime] ?? 'png';
+
+        $filename = $baseFilename . '.' . $ext;
+        $abs = $dir . DIRECTORY_SEPARATOR . $filename;
+        if (file_put_contents($abs, $bytes) === false) {
+            throw new \RuntimeException('file_put_contents failed');
+        }
+
+        // Convert absolute path to public-relative
+        $publicRoot = realpath(public_path()) ?: public_path();
+        $rel = ltrim(str_replace($publicRoot, '', realpath($abs) ?: $abs), DIRECTORY_SEPARATOR);
+        return str_replace(DIRECTORY_SEPARATOR, '/', $rel);
     }
 
     /**
