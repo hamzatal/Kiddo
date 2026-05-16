@@ -60,12 +60,51 @@ const SegmentEditor = ({
     const [loop, setLoop] = useState(false);
     const [autoBusy, setAutoBusy] = useState(false);
     const [autoMsg, setAutoMsg] = useState(null);
+    const [rate, setRate] = useState(1);
 
     // keep state in sync if the parent switches to a different word
     useEffect(() => {
         setStart(initStart ?? null);
         setEnd(initEnd ?? null);
     }, [initStart, initEnd, url]);
+
+    // Apply playback rate to the audio element whenever the user
+    // toggles speed. 0.5x and 0.75x make it dramatically easier to
+    // pinpoint exact word boundaries by ear.
+    useEffect(() => {
+        const a = audioRef.current;
+        if (!a) return;
+        try { a.playbackRate = rate; } catch (_) {}
+    }, [rate]);
+
+    // Arrow-key seeking while the editor is mounted. Left/Right
+    // nudge the playhead by 0.1s, with Shift jumping a full second.
+    // Only fires when the user is NOT typing in an input/textarea
+    // so the parent screen's Space/S/E shortcuts still play nicely.
+    useEffect(() => {
+        const handler = (e) => {
+            const tag = (e.target && e.target.tagName) || "";
+            if (
+                tag === "INPUT" ||
+                tag === "TEXTAREA" ||
+                tag === "SELECT" ||
+                e.target?.isContentEditable
+            ) {
+                return;
+            }
+            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+            e.preventDefault();
+            const step = e.shiftKey ? 1000 : 100;
+            const a = audioRef.current;
+            if (!a) return;
+            const cur = a.currentTime * 1000;
+            const next = e.key === "ArrowLeft" ? cur - step : cur + step;
+            seekTo(next);
+        };
+        document.addEventListener("keydown", handler);
+        return () => document.removeEventListener("keydown", handler);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [duration]);
 
     const announce = useCallback(
         (s, e) => onChange?.({ startMs: s, endMs: e }),
@@ -305,14 +344,39 @@ const SegmentEditor = ({
                         {autoMsg}
                     </span>
                 ) : null}
-                <label className="ml-auto text-[10px] font-black uppercase text-gray-500 flex items-center gap-1 cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={loop}
-                        onChange={(e) => setLoop(e.target.checked)}
-                    />
-                    Loop preview
-                </label>
+                <div className="ml-auto flex items-center gap-2">
+                    {/*
+                      Playback speed selector. Slowing the audio to
+                      0.5x or 0.75x is a fast trick for finding the
+                      exact start/end of a fast-spoken word.
+                    */}
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5">
+                        {[0.5, 0.75, 1].map((r) => (
+                            <button
+                                key={r}
+                                type="button"
+                                onClick={() => setRate(r)}
+                                className={
+                                    "px-2 py-0.5 rounded text-[10px] font-black " +
+                                    (rate === r
+                                        ? "bg-purple-600 text-white"
+                                        : "text-gray-500 hover:bg-gray-100")
+                                }
+                                title={`Play at ${r}x speed`}
+                            >
+                                {r}x
+                            </button>
+                        ))}
+                    </div>
+                    <label className="text-[10px] font-black uppercase text-gray-500 flex items-center gap-1 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={loop}
+                            onChange={(e) => setLoop(e.target.checked)}
+                        />
+                        Loop preview
+                    </label>
+                </div>
             </div>
 
             {/* Timeline (click-to-seek + drag handles) */}
@@ -544,7 +608,7 @@ const SegmentEditor = ({
                     </span>
                 ) : null}
                 <p className="text-[10px] text-gray-400 ml-auto">
-                    Click timeline to seek · drag S/E to fine-tune · keys: Space, S, E, Enter
+                    ← / → seek 0.1s · Shift+arrow 1s · Space play · S start · E end · Enter save
                 </p>
             </div>
         </div>
