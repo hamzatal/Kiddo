@@ -448,12 +448,57 @@ class AdminController extends Controller
         $filename = 'word_' . $word->id . '_' . time() . '.' . $ext;
         $dir = public_path('assets/uploads/words');
         if (! is_dir($dir)) {
-            @mkdir($dir, 0775, true);
+            if (! @mkdir($dir, 0775, true) && ! is_dir($dir)) {
+                return response()->json([
+                    'ok'    => false,
+                    'error' => "Server cannot create the upload folder ({$dir}). Check directory permissions.",
+                ], 500);
+            }
         }
-        $file->move($dir, $filename);
+        if (! is_writable($dir)) {
+            return response()->json([
+                'ok'    => false,
+                'error' => "Upload folder is not writable. Run: chmod -R 775 public/assets/uploads",
+            ], 500);
+        }
+
+        try {
+            $file->move($dir, $filename);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'Could not save the image file: ' . $e->getMessage(),
+            ], 500);
+        }
+
         $relativePath = 'assets/uploads/words/' . $filename;
         $word->update(['image_path' => $relativePath]);
         return response()->json(['ok' => true, 'image_path' => $relativePath]);
+    }
+
+    /**
+     * DELETE /admin/words/{word}
+     * Remove a word entirely. Useful for cleaning up duplicates or
+     * test entries the admin no longer wants. Also wipes the uploaded
+     * image file from public/assets/uploads/words/ so we don't leak
+     * orphan files. Seeded assets under assets/lessons/* are left
+     * alone in case the path was hand-edited to one of those.
+     */
+    public function deleteWord(Word $word)
+    {
+        if (
+            $word->image_path &&
+            str_starts_with(ltrim($word->image_path, '/'), 'assets/uploads/words/')
+        ) {
+            $abs = public_path(ltrim($word->image_path, '/'));
+            if (is_file($abs)) {
+                @unlink($abs);
+            }
+        }
+
+        $word->delete();
+
+        return response()->json(['ok' => true]);
     }
 
     /**

@@ -17,13 +17,39 @@ function formatSegmentLength(startMs, endMs) {
     return diff.toFixed(2) + "s";
 }
 
-function WordRow({ w, tracks, onFocusRow, isFocused }) {
+function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved }) {
     const [row, setRow] = useState(w);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState(null);
     const rowRef = useRef(null);
+
+    async function onDelete() {
+        const sure = window.confirm(
+            `Delete the word "${row.word}" permanently? This cannot be undone.`
+        );
+        if (!sure) return;
+        setDeleting(true);
+        setError(null);
+        try {
+            const res = await axios.delete("/admin/words/" + w.id);
+            if (res.data && res.data.ok) {
+                onRemoved?.(w.id);
+            } else {
+                setError(res.data?.error || "Delete failed");
+                setDeleting(false);
+            }
+        } catch (e) {
+            const msg =
+                e?.response?.data?.error ||
+                e?.response?.data?.message ||
+                "Delete failed";
+            setError(msg);
+            setDeleting(false);
+        }
+    }
 
     const track = useMemo(
         function () {
@@ -284,7 +310,7 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                     </div>
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 text-right flex flex-col items-end gap-1">
                     <button
                         type="button"
                         onClick={toggleOpen}
@@ -292,6 +318,15 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                         className={segBtnCls}
                     >
                         {segBtnLabel}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        disabled={deleting}
+                        className="px-3 py-1 rounded-lg text-[11px] font-black text-rose-700 bg-rose-50 hover:bg-rose-100 disabled:opacity-50"
+                        title="Permanently delete this word"
+                    >
+                        {deleting ? "Deleting…" : "🗑 Delete word"}
                     </button>
                     <div className="text-[10px] mt-1">
                         {saving ? (
@@ -696,6 +731,7 @@ function Words({ units, tracks, words, selected, search }) {
                         tracks={tracks}
                         isFocused={focusedRowId === w.id}
                         onFocusRow={setFocusedRowId}
+                        onRemoved={() => router.reload({ only: ["words"] })}
                     />
                 ))}
 

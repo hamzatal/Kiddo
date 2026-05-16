@@ -97,6 +97,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/tracks/{track}',     [AdminController::class, 'deleteTrack']);
         Route::post('/words',                [AdminController::class, 'createWord']);
         Route::patch('/words/{word}',        [AdminController::class, 'updateWord']);
+        Route::delete('/words/{word}',       [AdminController::class, 'deleteWord']);
         Route::post('/words/{word}/image',   [AdminController::class, 'uploadWordImage']);
         Route::post('/words/{word}/auto-segment', [AdminController::class, 'autoSegmentWord']);
     });
