@@ -35,10 +35,16 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
         },
         [row.audio_track_id, tracks, row.audio_track]
     );
-    // Use the proxy URL for playback to avoid CORS issues with NCCD
-    const trackUrl = track ? `/api/audio/${track.code}` : null;
-    // Keep raw URL as fallback
-    const trackRawUrl = track ? track.url : null;
+    // Use the raw NCCD URL directly — exactly like the Admin → Audio
+    // Tracks page does. <audio src={url}> with no crossOrigin flag
+    // plays NCCD MP3s flawlessly even though qr.nccd.gov.jo doesn't
+    // send CORS headers. Going through /api/audio/{code} adds a 302
+    // redirect that some browsers treat differently for `preload=auto`,
+    // which was the reason segment playback was failing here.
+    const trackUrl = track ? track.url : null;
+    // Keep proxy URL handy as a manual fallback if a future track
+    // has only a `local_path` and no remote URL.
+    const trackProxyUrl = track ? `/api/audio/${track.code}` : null;
 
     async function save(extra) {
         setSaving(true);
@@ -305,6 +311,8 @@ function WordRow({ w, tracks, onFocusRow, isFocused }) {
                 <>
                     <SegmentEditor
                         url={trackUrl}
+                        wordId={w.id}
+                        trackCode={track?.code}
                         startMs={row.segment_start_ms}
                         endMs={row.segment_end_ms}
                         saving={saving}

@@ -269,7 +269,7 @@ const QuizScreen = ({ quizData }) => {
           wordId={currentQ.targetWordId}
           aiEnabled={ai.enabled}
         />
-      )}
+      ) : null}
 
       <style>{`
         @keyframes slideIn {
