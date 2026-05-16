@@ -43,13 +43,21 @@ class Word extends Model
      * segment of a shared NCCD track (streamed, no download needed)
      * and falls back to the per-word audio_path if no track is linked.
      *
+     * The `src` field points DIRECTLY at the upstream NCCD URL, the
+     * same way the Admin → Audio Tracks page plays audio. This lets
+     * the browser stream the mp3 without bouncing through our Laravel
+     * server (no /api/audio/{code} 302) — same trick that fixed the
+     * Words & Segments editor. The proxy URL is still exposed under
+     * `proxySrc` for callers that prefer it.
+     *
      * Shape:
      *   [
-     *     'src'        => '/api/audio/PB6'          // or an asset path
+     *     'src'        => 'https://qr.nccd.gov.jo/.../p6.mp3'
+     *     'proxySrc'   => '/api/audio/PB6'
      *     'startMs'    => 0,                        // null = play from start
      *     'endMs'      => 1800,                     // null = play to end
      *     'trackCode'  => 'PB6',
-     *     'label'      => 'Boy (from PB6, 0.0–1.8s)'
+     *     'label'      => 'Boy'
      *   ]
      */
     public function audioClip(): ?array
@@ -57,7 +65,8 @@ class Word extends Model
         if ($this->audio_track_id && $this->audioTrack) {
             $code = $this->audioTrack->code;
             return [
-                'src'       => "/api/audio/{$code}",
+                'src'       => $this->audioTrack->url,
+                'proxySrc'  => "/api/audio/{$code}",
                 'startMs'   => $this->segment_start_ms,
                 'endMs'     => $this->segment_end_ms,
                 'trackCode' => $code,
