@@ -54,7 +54,7 @@ class AudioStreamController extends Controller
         // 3. Try to download and cache, then serve
         @mkdir(dirname($cachePath), 0775, true);
         try {
-            $response = Http::timeout(30)
+            $response = Http::timeout(10)
                 ->withOptions(['allow_redirects' => true])
                 ->get($track->url);
 
@@ -63,11 +63,16 @@ class AudioStreamController extends Controller
                 return $this->serveLocalFile($cachePath, $track);
             }
         } catch (\Throwable $e) {
-            Log::warning('Audio proxy failed: ' . $e->getMessage());
+            Log::warning('Audio proxy failed for ' . $code . ': ' . $e->getMessage());
         }
 
-        // 4. Last resort: redirect (might fail with CORS but better than nothing)
-        return redirect()->away($track->url, 302);
+        // 4. Return a JSON error so the frontend can show a message
+        // instead of silently breaking with CORS redirect
+        return response()->json([
+            'error' => 'Audio track unavailable. The NCCD server may be unreachable.',
+            'track_code' => $track->code,
+            'tip' => 'Download the track locally using: php artisan kiddo:download-tracks --track=' . $track->code,
+        ], 503)->header('Access-Control-Allow-Origin', '*');
     }
 
     private function serveLocalFile(string $abs, AudioTrack $track): BinaryFileResponse

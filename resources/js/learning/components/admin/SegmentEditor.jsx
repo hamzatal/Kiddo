@@ -134,9 +134,8 @@ const SegmentEditor = ({
                     setPreviewMode(false);
                 }}
                 onError={(e) => {
-                    console.warn('Audio load error, trying direct URL');
+                    console.warn('Audio load error for:', url);
                 }}
-                crossOrigin="anonymous"
             />
 
             {/* Timeline */}

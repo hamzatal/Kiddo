@@ -266,7 +266,7 @@ const QuizScreen = ({ quizData }) => {
       {!isFinished && ai?.enabled !== undefined && currentQ && (
         <FoxHelper
           unitId={unitId}
-          wordId={currentQ.options.find(o => o.isCorrect)?.id || null}
+          wordId={String(currentQ.options.find(o => o.isCorrect)?.id || "1").replace(/[^0-9]/g, '') || "1"}
           aiEnabled={ai.enabled}
         />
       )}
