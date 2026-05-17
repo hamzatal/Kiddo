@@ -51,10 +51,15 @@ const SmartImage = ({
   if (failed || !src) {
     return (
       <div 
-        className={`bg-gradient-to-br ${colors.bg} rounded-2xl flex items-center justify-center font-black ${colors.text} shadow-inner ${className} ${fallbackClassName}`}
+        className={`bg-gradient-to-br ${colors.bg} rounded-2xl flex flex-col items-center justify-center font-black ${colors.text} shadow-inner ${className} ${fallbackClassName}`}
         title={label}
       >
-        <span className="text-[40%] leading-none drop-shadow-sm">{firstLetter}</span>
+        <span className="text-[42%] leading-none drop-shadow-sm">{firstLetter}</span>
+        {label && label.length > 1 ? (
+          <span className="text-[14%] leading-none mt-1 uppercase tracking-wider opacity-80 px-1 truncate max-w-full">
+            {label}
+          </span>
+        ) : null}
       </div>
     );
   }

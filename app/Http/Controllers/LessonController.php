@@ -150,12 +150,15 @@ class LessonController extends Controller
     public function submitResult(Request $request, int $unitId, int $lessonId)
     {
         $data = $request->validate([
-            'rounds'              => 'array',
-            'rounds.*.roundId'    => 'nullable|string',
-            'rounds.*.correct'    => 'required|boolean',
-            'rounds.*.timeMs'     => 'nullable|integer',
-            'rounds.*.wordId'     => 'nullable|integer',
-            'durationMs'          => 'nullable|integer',
+            'rounds'                  => 'array',
+            'rounds.*.roundId'        => 'nullable|string',
+            'rounds.*.correct'        => 'required|boolean',
+            'rounds.*.timeMs'         => 'nullable|integer',
+            'rounds.*.wordId'         => 'nullable|integer',
+            'rounds.*.word'           => 'nullable|string|max:120',
+            'rounds.*.wrongChoice'    => 'nullable|string|max:120',
+            'rounds.*.wrongChoiceId'  => 'nullable|integer',
+            'durationMs'              => 'nullable|integer',
         ]);
 
         $user   = $request->user();

@@ -55,7 +55,7 @@ class ParentDashboardController extends Controller
         $gameResultCount   = GameResult::where('user_id', $user->id)->count();
         $totalStars        = (int) ($user->total_stars ?? 0);
         $hasPerfectLesson  = GameResult::where('user_id', $user->id)
-            ->where('type', 'lesson')
+            ->whereIn('type', ['lesson', 'lesson-game'])
             ->where('score', '>=', 90)
             ->exists();
 
@@ -95,32 +95,73 @@ class ParentDashboardController extends Controller
             ];
         }
 
-        // Error analysis for parents - get wrong answers from game results
+        // Error analysis for parents — surface every wrong-answer the
+        // child has made across lessons, games and unit quizzes.
+        //
+        // Two storage shapes exist on game_results.meta:
+        //   • meta.errors  — array of { word, wrongChoice, wordId? }
+        //                    written by ProgressService (lesson-game)
+        //                    AND by QuizScreen via QuizController::submit
+        //                    (unit-quiz). Same shape, both consumed here.
+        //   • meta.rounds  — array of { word, wordId, correct, wrongChoice }
+        //                    written by every game mode (vocab, drag-drop,
+        //                    memory, listening, etc.). We fall back to it
+        //                    so older rows still surface their errors even
+        //                    if they didn't write meta.errors.
         $recentErrors = GameResult::where('user_id', $user->id)
             ->whereNotNull('meta')
-            ->where('wrong_count', '>', 0)
-            ->orderBy('created_at', 'desc')
-            ->take(20)
+            ->where(function ($q) {
+                $q->where('wrong_count', '>', 0)
+                  ->orWhereNull('wrong_count');
+            })
+            ->orderByDesc('created_at')
+            ->take(60) // wide window so a struggling child's history is fully captured
             ->get()
             ->flatMap(function (GameResult $gr) {
-                $meta = $gr->meta ?? [];
-                $errors = $meta['errors'] ?? [];
-                return collect($errors)->map(fn ($e) => [
-                    'word' => $e['word'] ?? 'unknown',
+                $meta    = $gr->meta ?? [];
+                $entries = collect();
+
+                if (! empty($meta['errors']) && is_array($meta['errors'])) {
+                    $entries = $entries->concat($meta['errors']);
+                }
+
+                // Fallback: derive errors from rounds[] when meta.errors
+                // wasn't recorded (older runs / direct game writes).
+                if ($entries->isEmpty() && ! empty($meta['rounds']) && is_array($meta['rounds'])) {
+                    foreach ($meta['rounds'] as $r) {
+                        if (! is_array($r)) continue;
+                        if (! empty($r['correct'])) continue;
+                        $entries->push([
+                            'word'        => $r['word'] ?? null,
+                            'wrongChoice' => $r['wrongChoice'] ?? null,
+                            'wordId'      => $r['wordId'] ?? null,
+                        ]);
+                    }
+                }
+
+                return $entries->map(fn ($e) => [
+                    'word'        => $e['word'] ?? 'unknown',
                     'wrongChoice' => $e['wrongChoice'] ?? '',
-                    'unit_id' => $gr->unit_id,
-                    'created_at' => $gr->created_at->toDateString(),
+                    'unit_id'     => $gr->unit_id,
+                    'created_at'  => optional($gr->created_at)->toDateString(),
                 ]);
             })
-            ->groupBy('word')
+            ->filter(fn ($e) => ! empty($e['word']) && $e['word'] !== 'unknown')
+            ->groupBy(fn ($e) => mb_strtolower($e['word']))
             ->map(fn ($group) => [
-                'word' => $group->first()['word'],
-                'count' => $group->count(),
-                'wrongChoices' => $group->pluck('wrongChoice')->unique()->values()->all(),
+                'word'         => $group->first()['word'],
+                'count'        => $group->count(),
+                'wrongChoices' => $group
+                    ->pluck('wrongChoice')
+                    ->filter(fn ($v) => $v !== null && $v !== '')
+                    ->unique()
+                    ->values()
+                    ->all(),
+                'lastSeen'     => $group->max('created_at'),
             ])
             ->sortByDesc('count')
             ->values()
-            ->take(10)
+            ->take(20)
             ->all();
 
         return Inertia::render('Parent/ProgressScreen', [

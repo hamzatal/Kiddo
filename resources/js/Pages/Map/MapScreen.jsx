@@ -109,15 +109,32 @@ const UnitNode = ({ unit, onClick }) => {
             </div>
 
             <div className="absolute top-[90%] left-1/2 -translate-x-1/2 pt-2 flex flex-col items-center gap-2 w-max pointer-events-none z-20">
-                {isDone && (
-                    <div className="bg-white/95 backdrop-blur-sm px-4 py-1 rounded-full text-sm shadow-lg border border-gray-100 flex gap-0.5">
-                        {Array.from({ length: unit.stars || 3 }).map((_, i) => (
-                            <span key={i} className="drop-shadow-sm">
-                                ⭐
+                {isDone && (() => {
+                    // Compact star display:
+                    // - 0 stars  -> hide the pill entirely (don't shame the kid)
+                    // - 1..3     -> render that many literal stars
+                    // - 4+       -> render one star + "x N" badge so the
+                    //               unit card never overflows the map
+                    const starCount = Math.max(0, Number(unit.stars) || 0);
+                    if (starCount === 0) return null;
+                    if (starCount <= 3) {
+                        return (
+                            <div className="bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full text-sm shadow-lg border border-gray-100 flex gap-0.5">
+                                {Array.from({ length: starCount }).map((_, i) => (
+                                    <span key={i} className="drop-shadow-sm">⭐</span>
+                                ))}
+                            </div>
+                        );
+                    }
+                    return (
+                        <div className="bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full shadow-lg border border-gray-100 flex items-center gap-1">
+                            <span className="text-sm drop-shadow-sm">⭐</span>
+                            <span className="text-[11px] font-black text-amber-600 leading-none">
+                                ×{starCount}
                             </span>
-                        ))}
-                    </div>
-                )}
+                        </div>
+                    );
+                })()}
 
                 {isActive && (
                     <div className="flex flex-col items-center gap-2">

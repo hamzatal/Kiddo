@@ -42,11 +42,18 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
+            // When the kid took multiple tries, surface the FIRST wrong
+            // choice in the round payload so the parent dashboard can
+            // tell which distractor confused them.
+            const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
             const next = [...results, {
                 roundId: round.roundId,
                 wordId: round.wordId || null,
+                word: prompt?.text || null,
                 correct: firstTry,
                 timeMs: 0,
+                wrongChoice: firstWrongOpt?.word || null,
+                wrongChoiceId: firstWrongOpt?.wordId || null,
             }];
             setResults(next);
             setTimeout(() => advance(next), 1000);

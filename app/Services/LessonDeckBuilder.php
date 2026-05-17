@@ -212,37 +212,116 @@ class LessonDeckBuilder
 
     private function pickDecoys(Word $target, int $n, string $pool, int $unitId): Collection
     {
-        // 1. Hand-authored wrong_options win if rich enough.
-        // Returned Word instances stay transient so they carry image + word
-        // text but no audio_track binding (which is fine: these rows are
-        // only used to render decoy cards, not to speak them).
+        // 1. Hand-authored wrong_options. We RESOLVE each authored entry
+        //    against the live Word table so the decoy carries its real
+        //    image_path + audio binding. Falling back to a transient Word
+        //    instance only when no DB row matches keeps backward compat
+        //    with seeders that ship custom decoy images.
+        //
+        //    Without this resolution step the lesson game would render
+        //    every decoy as a coloured-letter tile (because transient
+        //    Word instances had no image_path), which is the bug the
+        //    teacher reported: "only the correct option shows its image,
+        //    the rest are blanks".
         if (is_array($target->wrong_options) && count($target->wrong_options) >= $n) {
-            return collect($target->wrong_options)
-                ->shuffle()
-                ->take($n)
-                ->map(fn ($w) => new Word([
+            $authored = collect($target->wrong_options)->shuffle()->take($n);
+
+            // Look every authored decoy up by exact word (case-insensitive)
+            // so we can borrow image_path/audio from the real row.
+            $names = $authored
+                ->pluck('word')
+                ->filter()
+                ->map(fn ($w) => mb_strtolower($w))
+                ->unique()
+                ->values()
+                ->all();
+
+            $byName = $names
+                ? Word::with('audioTrack')
+                    ->whereRaw('LOWER(word) IN (' . implode(',', array_fill(0, count($names), '?')) . ')', $names)
+                    ->get()
+                    ->keyBy(fn (Word $w) => mb_strtolower($w->word))
+                : collect();
+
+            return $authored->map(function ($w) use ($byName) {
+                $key = isset($w['word']) ? mb_strtolower($w['word']) : null;
+                $row = $key ? $byName->get($key) : null;
+
+                if ($row instanceof Word) {
+                    // Override the authored image path only when the
+                    // authored entry didn't supply its own (rare, but
+                    // some seeders override the canonical image).
+                    if (! empty($w['image_path'])) {
+                        $row = clone $row;
+                        $row->image_path = $w['image_path'];
+                    }
+                    return $row;
+                }
+
+                // Last resort: transient Word, which still surfaces a
+                // coloured-letter SmartImage fallback so the card is
+                // never empty.
+                return new Word([
                     'word'       => $w['word'] ?? '?',
                     'image_path' => $w['image_path'] ?? null,
-                ]));
+                ]);
+            });
         }
 
         // 2. Query DB: same category first, then fallback to unit.
-        $q = Word::where('unit_id', $unitId)->where('id', '!=', $target->id)->with('audioTrack');
-        if ($pool === 'same_category' && $target->category) {
-            $q->where('category', $target->category);
-        }
-        $candidates = $q->inRandomOrder()->take($n)->get();
+        //    To keep every option visually rich we PREFER decoys that
+        //    have an image_path (so the kid sees three real pictures,
+        //    not two pictures + a coloured letter).
+        $base = Word::where('unit_id', $unitId)
+            ->where('id', '!=', $target->id)
+            ->with('audioTrack');
+
+        $sameCat = $pool === 'same_category' && $target->category
+            ? (clone $base)
+                ->where('category', $target->category)
+                ->whereNotNull('image_path')
+                ->where('image_path', '!=', '')
+                ->inRandomOrder()
+                ->take($n)
+                ->get()
+            : collect();
+
+        $candidates = $sameCat;
 
         if ($candidates->count() < $n) {
-            $candidates = $candidates->concat(
-                Word::with('audioTrack')
-                    ->where('unit_id', $unitId)
-                    ->where('id', '!=', $target->id)
+            // Top up from any unit word with an image, ignoring category.
+            $extra = (clone $base)
+                ->whereNotIn('id', $candidates->pluck('id'))
+                ->whereNotNull('image_path')
+                ->where('image_path', '!=', '')
+                ->inRandomOrder()
+                ->take($n - $candidates->count())
+                ->get();
+            $candidates = $candidates->concat($extra);
+        }
+
+        if ($candidates->count() < $n) {
+            // Last resort: same category, even without an image (so the
+            // card still renders the SmartImage fallback).
+            if ($pool === 'same_category' && $target->category) {
+                $extra = (clone $base)
+                    ->where('category', $target->category)
                     ->whereNotIn('id', $candidates->pluck('id'))
                     ->inRandomOrder()
                     ->take($n - $candidates->count())
-                    ->get()
-            );
+                    ->get();
+                $candidates = $candidates->concat($extra);
+            }
+        }
+
+        if ($candidates->count() < $n) {
+            // Absolute last resort: any unit word.
+            $extra = (clone $base)
+                ->whereNotIn('id', $candidates->pluck('id'))
+                ->inRandomOrder()
+                ->take($n - $candidates->count())
+                ->get();
+            $candidates = $candidates->concat($extra);
         }
 
         return $candidates;
@@ -273,12 +352,14 @@ class LessonDeckBuilder
      * Normalize a stored path to a root-relative URL the browser can load.
      * Accepts: "assets/lessons/welcome/hello.png", "/assets/...", full http URL.
      *
-     * If the path points at a local public/ asset that does NOT exist on
-     * disk, we return null so the SmartImage fallback (coloured letter
-     * tile) renders immediately — no 404 in DevTools, no flash of broken
-     * image. Remote URLs are passed through as-is; the browser will
-     * handle them and SmartImage's onError handler will swap in the
-     * fallback if they fail.
+     * Important: we DO NOT short-circuit to null when the file doesn't
+     * exist on disk. Returning null hides every authored decoy image
+     * because the React SmartImage gives up before even firing an
+     * <img> tag. Instead we always emit the URL — if the file truly
+     * isn't there the <img onError> handler in SmartImage will fall
+     * back to the coloured-letter tile, with at most a single 404 in
+     * DevTools. The trade-off is one cheap 404 vs. a totally missing
+     * decoy image, which is the bug a learner just reported.
      */
     private function assetUrl(?string $path): ?string
     {
@@ -288,14 +369,6 @@ class LessonDeckBuilder
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-
-        $rel = ltrim($path, '/');
-        // Cheap existence check: we only ship a few real images (uploads
-        // by the admin), so most rows are misses. file_exists is fast
-        // and Laravel already fingerprints public/ for serve speed.
-        if (! is_file(public_path($rel))) {
-            return null;
-        }
-        return '/' . $rel;
+        return '/' . ltrim($path, '/');
     }
 }

@@ -27,6 +27,7 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
       seen.add(p.text);
       out.push({
         id: `pair-${out.length}`,
+        wordId: r.wordId || null,
         word: p.text,
         imagePath: p.imagePath,
         audioClip: p.audioClip,
@@ -94,7 +95,14 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
         onComplete({
           correct: attempts.filter(a => a.correct).length,
           total: pairs.length,
-          rounds: attempts,
+          rounds: attempts.map((a) => ({
+            roundId: a.pairId,
+            correct: a.correct,
+            wordId: a.wordId || null,
+            word: a.word || null,
+            wrongChoice: a.wrongChoice || null,
+            wrongChoiceId: a.wrongChoiceId || null,
+          })),
         });
       }, 800);
       return () => clearTimeout(t);
@@ -123,16 +131,30 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     if (matched.includes(targetPair.id)) return;
     playClick();
 
+    const sourcePair = pairs.find((p) => p.id === selectedWord);
+
     if (targetPair.id === selectedWord) {
       // Correct
       playSuccess();
       setMatched(prev => [...prev, targetPair.id]);
-      setAttempts(prev => [...prev, { pairId: targetPair.id, correct: true }]);
+      setAttempts(prev => [...prev, {
+        pairId: targetPair.id,
+        correct: true,
+        wordId: sourcePair?.wordId || null,
+        word: sourcePair?.word || null,
+      }]);
     } else {
       // Wrong
       playFail();
       setWrongFlash({ wordId: selectedWord, picId: targetPair.id });
-      setAttempts(prev => [...prev, { pairId: targetPair.id, correct: false }]);
+      setAttempts(prev => [...prev, {
+        pairId: targetPair.id,
+        correct: false,
+        wordId: sourcePair?.wordId || null,
+        word: sourcePair?.word || null,
+        wrongChoice: targetPair.word,
+        wrongChoiceId: targetPair.wordId || null,
+      }]);
     }
     setSelectedWord(null);
     setTick(n => n + 1);

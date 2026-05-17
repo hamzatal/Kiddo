@@ -310,29 +310,37 @@ const ProgressScreen = ({ user, stats, unitsList, achievements = [], errorAnalys
                                         Words your child found difficult — practice these at home!
                                     </p>
                                     {errorAnalysis && errorAnalysis.length > 0 ? (
-                                        <div className="space-y-3">
+                                        <div className="space-y-3 max-h-[28rem] overflow-y-auto custom-scrollbar pr-1">
                                             {errorAnalysis.map((err, i) => (
                                                 <div
-                                                    key={`err-${i}`}
+                                                    key={`err-${i}-${err.word}`}
                                                     className="flex items-center justify-between p-3 sm:p-4 bg-red-50 rounded-xl border border-red-100"
                                                 >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg font-black text-red-500 shadow-sm border border-red-100">
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg font-black text-red-500 shadow-sm border border-red-100 shrink-0">
                                                             {err.count}
                                                         </div>
-                                                        <div>
-                                                            <p className="font-black text-[#1E293B] text-sm uppercase">{err.word}</p>
+                                                        <div className="min-w-0">
+                                                            <p className="font-black text-[#1E293B] text-sm uppercase truncate">{err.word}</p>
                                                             {err.wrongChoices && err.wrongChoices.length > 0 && (
-                                                                <p className="text-[10px] text-red-400 font-bold">
+                                                                <p className="text-[10px] text-red-400 font-bold truncate">
                                                                     Confused with: {err.wrongChoices.slice(0, 3).join(', ')}
+                                                                </p>
+                                                            )}
+                                                            {err.lastSeen && (
+                                                                <p className="text-[9px] text-gray-400 font-semibold">
+                                                                    Last: {err.lastSeen}
                                                                 </p>
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-1 shrink-0 ml-2">
                                                         {Array.from({ length: Math.min(err.count, 5) }).map((_, j) => (
                                                             <span key={j} className="w-2 h-2 rounded-full bg-red-300" />
                                                         ))}
+                                                        {err.count > 5 && (
+                                                            <span className="text-[9px] text-red-400 font-black ml-1">+{err.count - 5}</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

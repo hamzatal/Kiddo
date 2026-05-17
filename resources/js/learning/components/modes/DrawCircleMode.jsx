@@ -91,9 +91,18 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
+            const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
             const next = [
                 ...results,
-                { roundId: round.roundId, wordId: round.wordId || null, correct: firstTry, timeMs: 0 },
+                {
+                    roundId: round.roundId,
+                    wordId: round.wordId || null,
+                    word: prompt?.text || null,
+                    correct: firstTry,
+                    timeMs: 0,
+                    wrongChoice: firstWrongOpt?.word || null,
+                    wrongChoiceId: firstWrongOpt?.wordId || null,
+                },
             ];
             setResults(next);
             // Give the ring animation a moment to land before advancing

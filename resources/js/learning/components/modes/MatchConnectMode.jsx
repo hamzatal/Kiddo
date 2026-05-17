@@ -120,6 +120,9 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                         roundId: a.pairId,
                         correct: a.correct,
                         wordId: a.wordId || null,
+                        word: a.word || null,
+                        wrongChoice: a.wrongChoice || null,
+                        wrongChoiceId: a.wrongChoiceId || null,
                     })),
                 });
             }, 650);
@@ -158,6 +161,8 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
         if (matched.includes(expectedPairId)) return;
         playClick();
 
+        const sourcePair = pairs.find((p) => p.id === selectedLeft);
+
         if (expectedPairId === selectedLeft) {
             // correct match
             playSuccess();
@@ -167,7 +172,8 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 {
                     pairId: expectedPairId,
                     correct: true,
-                    wordId: pairs.find((p) => p.id === expectedPairId)?.wordId || null,
+                    wordId: sourcePair?.wordId || null,
+                    word: sourcePair?.word || null,
                 },
             ]);
             setSelectedLeft(null);
@@ -180,7 +186,10 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 {
                     pairId: expectedPairId,
                     correct: false,
-                    wordId: pairs.find((p) => p.id === expectedPairId)?.wordId || null,
+                    wordId: sourcePair?.wordId || null,
+                    word: sourcePair?.word || null,
+                    wrongChoice: targetPair?.word || null,
+                    wrongChoiceId: targetPair?.wordId || null,
                 },
             ]);
             setSelectedLeft(null);
