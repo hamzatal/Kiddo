@@ -22,6 +22,18 @@ Route::get('/api/audio/{code}', AudioStreamController::class)
     ->whereAlphaNumeric('code')
     ->name('audio.stream');
 
+// On-demand TTS — generates (or returns the cached) child-friendly
+// OpenAI nova-voice mp3 clip for any word that doesn't have NCCD
+// audio. Throttled per IP to keep the OpenAI bill bounded.
+// Auth is REQUIRED (only logged-in learners can request synthesis).
+Route::middleware(['auth', 'throttle:30,1'])->group(function () {
+    Route::post('/api/words/{word}/tts', [\App\Http\Controllers\TtsController::class, 'generateForWord'])
+        ->whereNumber('word')
+        ->name('api.words.tts');
+    Route::post('/api/tts/by-text', [\App\Http\Controllers\TtsController::class, 'generateForText'])
+        ->name('api.tts.by-text');
+});
+
 Route::get('/about', function () {
     return Inertia::render('AboutScreen');
 })->name('about');
