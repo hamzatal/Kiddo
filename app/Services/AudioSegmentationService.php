@@ -78,7 +78,22 @@ class AudioSegmentationService
             return ['error' => 'Could not retrieve audio file (URL may be broken)', 'matched' => 0, 'total' => $words->count()];
         }
 
-        $transcription = $this->transcribeAudio($audioPath);
+        // Prime Whisper with the exact words we expect to hear so it
+        // recognises rare names like "Hala", "Lama", "Malek" and
+        // preserves child-friendly vocab like "mum" instead of
+        // normalising it to "mom".
+        // We use ALL the unit's words (not just unset ones) so Whisper
+        // gets the full context, but we only update segments for the
+        // filtered subset.
+        $allUnitWords = Word::where('audio_track_id', $track->id)
+            ->orderBy('id')
+            ->pluck('word')
+            ->unique()
+            ->values()
+            ->all();
+        $vocabHint = $this->buildVocabHint($allUnitWords, $track);
+
+        $transcription = $this->transcribeAudio($audioPath, $vocabHint);
         if (! $transcription || empty($transcription['words'])) {
             return ['error' => 'Whisper transcription failed or empty', 'matched' => 0, 'total' => $words->count()];
         }
@@ -228,10 +243,34 @@ class AudioSegmentationService
 
     /**
      * Send audio file to Whisper API and get word-level transcription.
+     *
+     * If a $vocabHint is supplied (a short comma-separated list of
+     * the words we expect to hear), it's passed as Whisper's `prompt`
+     * parameter. Whisper biases its decoder toward those words, which
+     * raises the recognition rate noticeably for child-friendly
+     * vocabulary like "mum", "dad", "Hala", "Lama", etc.
+     *
+     * Reference: OpenAI's Whisper API exposes `prompt` for exactly
+     * this kind of vocabulary priming.
      */
-    private function transcribeAudio(string $audioPath): ?array
+    private function transcribeAudio(string $audioPath, ?string $vocabHint = null): ?array
     {
         try {
+            $payload = [
+                'model'                     => 'whisper-1',
+                'language'                  => 'en',
+                'response_format'           => 'verbose_json',
+                'timestamp_granularities[]' => 'word',
+                // Slight temperature so Whisper preserves rare names
+                // like "Hala", "Bill", "Malek" instead of normalising
+                // them away.
+                'temperature'               => '0',
+            ];
+            if ($vocabHint) {
+                // Cap at ~224 tokens (Whisper's prompt limit).
+                $payload['prompt'] = mb_substr($vocabHint, 0, 600);
+            }
+
             $response = Http::timeout(120)
                 ->withToken($this->apiKey)
                 ->attach(
@@ -239,12 +278,7 @@ class AudioSegmentationService
                     file_get_contents($audioPath),
                     basename($audioPath)
                 )
-                ->post(self::WHISPER_ENDPOINT, [
-                    'model'                     => 'whisper-1',
-                    'language'                  => 'en',
-                    'response_format'           => 'verbose_json',
-                    'timestamp_granularities[]' => 'word',
-                ]);
+                ->post(self::WHISPER_ENDPOINT, $payload);
 
             if (! $response->successful()) {
                 Log::warning('Whisper API error', [
@@ -264,12 +298,17 @@ class AudioSegmentationService
     /**
      * Find the best matching transcribed word for a target word.
      *
-     * Three passes in order of confidence:
-     *   1. Exact normalised match.
-     *   2. Prefix match in either direction (≥ 3 chars).
-     *   3. Levenshtein distance ≤ 2 (≥ 4 chars).
+     * Five passes in order of confidence:
+     *   1. Multi-word phrase match — "Good morning" against two
+     *      consecutive transcribed tokens.
+     *   2. Synonym map — common variants like mum↔mom, hi↔hello.
+     *   3. Exact normalised match.
+     *   4. Prefix match in either direction (≥ 3 chars).
+     *   5. Levenshtein distance ≤ 2 for ≥ 4 chars, ≤ 1 for 3 chars
+     *      (rescues short words like "boy" → "boi").
      *
-     * Skips indices already claimed by an earlier DB word.
+     * Indices already claimed by an earlier (longer) DB word are
+     * skipped so the same spoken token isn't reused.
      */
     private function findBestMatch(string $target, array $transcribedWords, array $usedIndices = []): ?array
     {
@@ -277,7 +316,59 @@ class AudioSegmentationService
         $targetCore  = preg_replace('/[^a-z0-9]/i', '', $targetLower);
         if ($targetCore === '') return null;
 
-        // Pass 1: exact
+        // Pass 1: multi-word phrase. Split target on whitespace; if it
+        // has 2+ tokens, look for consecutive transcribed words that
+        // match all of them.
+        $targetTokens = preg_split('/\s+/', $targetLower);
+        $targetTokens = array_values(array_filter(array_map(
+            fn ($t) => preg_replace('/[^a-z0-9]/i', '', $t),
+            $targetTokens
+        )));
+        if (count($targetTokens) >= 2) {
+            $maxStart = count($transcribedWords) - count($targetTokens);
+            for ($i = 0; $i <= $maxStart; $i++) {
+                if (isset($usedIndices[$i])) continue;
+                $allMatch = true;
+                for ($j = 0; $j < count($targetTokens); $j++) {
+                    if (isset($usedIndices[$i + $j])) { $allMatch = false; break; }
+                    $tw = $transcribedWords[$i + $j] ?? null;
+                    if (! $tw) { $allMatch = false; break; }
+                    $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
+                    if ($twCore !== $targetTokens[$j]
+                        && ! str_starts_with($twCore, $targetTokens[$j])
+                        && ! str_starts_with($targetTokens[$j], $twCore)) {
+                        $allMatch = false;
+                        break;
+                    }
+                }
+                if ($allMatch) {
+                    $first = $transcribedWords[$i];
+                    $last = $transcribedWords[$i + count($targetTokens) - 1];
+                    return [
+                        '_index'  => $i,
+                        '_reason' => 'phrase',
+                        'word'    => $first['word'] ?? $target,
+                        'start'   => $first['start'],
+                        'end'     => $last['end'],
+                    ];
+                }
+            }
+        }
+
+        // Pass 2: synonyms. We match alternate spellings used by
+        // British vs American English and child-friendly variants.
+        $synonyms = $this->synonymGroup($targetCore);
+        if (! empty($synonyms)) {
+            foreach ($transcribedWords as $i => $tw) {
+                if (isset($usedIndices[$i])) continue;
+                $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
+                if (in_array($twCore, $synonyms, true)) {
+                    return ['_index' => $i, '_reason' => 'synonym'] + $tw;
+                }
+            }
+        }
+
+        // Pass 3: exact
         foreach ($transcribedWords as $i => $tw) {
             if (isset($usedIndices[$i])) continue;
             $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
@@ -286,7 +377,7 @@ class AudioSegmentationService
             }
         }
 
-        // Pass 2: prefix
+        // Pass 4: prefix
         if (strlen($targetCore) >= 3) {
             foreach ($transcribedWords as $i => $tw) {
                 if (isset($usedIndices[$i])) continue;
@@ -298,16 +389,20 @@ class AudioSegmentationService
             }
         }
 
-        // Pass 3: Levenshtein
-        if (strlen($targetCore) >= 4) {
+        // Pass 5: Levenshtein. Allowable distance scales with length:
+        //   3 chars → ≤ 1   (boy ↔ boi)
+        //   4-6 chars → ≤ 2
+        //   7+ chars → ≤ 3  (elephant ↔ elaphant)
+        if (strlen($targetCore) >= 3) {
+            $maxDist = strlen($targetCore) >= 7 ? 3 : (strlen($targetCore) >= 4 ? 2 : 1);
             $best = null;
             $bestDist = PHP_INT_MAX;
             foreach ($transcribedWords as $i => $tw) {
                 if (isset($usedIndices[$i])) continue;
                 $twCore = preg_replace('/[^a-z0-9]/i', '', mb_strtolower(trim($tw['word'] ?? '')));
-                if (strlen($twCore) < 3) continue;
+                if (strlen($twCore) < 2) continue;
                 $d = levenshtein($targetCore, $twCore);
-                if ($d <= 2 && $d < $bestDist) {
+                if ($d <= $maxDist && $d < $bestDist) {
                     $best = ['_index' => $i, '_reason' => "fuzzy(d={$d})"] + $tw;
                     $bestDist = $d;
                 }
@@ -317,4 +412,58 @@ class AudioSegmentationService
 
         return null;
     }
+
+    /**
+     * Common British/American/child-friendly synonyms. The lookup is
+     * symmetric: passing any member of a group returns the group.
+     */
+    private function synonymGroup(string $core): array
+    {
+        static $groups = [
+            ['mum', 'mom', 'mummy', 'mommy', 'mother'],
+            ['dad', 'daddy', 'father', 'papa'],
+            ['hi', 'hello', 'hey'],
+            ['bye', 'goodbye'],
+            ['rubber', 'eraser'],
+            ['trousers', 'pants'],
+            ['biscuit', 'cookie'],
+            ['holiday', 'vacation'],
+            ['lift', 'elevator'],
+            ['nappy', 'diaper'],
+            ['lorry', 'truck'],
+            ['football', 'soccer'],
+            ['grandma', 'granny', 'grandmother', 'nana'],
+            ['grandpa', 'grandfather', 'granddad'],
+        ];
+
+        foreach ($groups as $group) {
+            if (in_array($core, $group, true)) {
+                return array_values(array_diff($group, [$core]));
+            }
+        }
+        return [];
+    }
+
+    /**
+     * Build a Whisper `prompt` string from the unit's vocabulary plus
+     * the track's label. The prompt biases recognition toward exactly
+     * the words we want to find. Format follows what Whisper expects:
+     * a natural-sounding sentence containing the target words.
+     */
+    private function buildVocabHint(array $words, AudioTrack $track): string
+    {
+        if (empty($words)) {
+            return '';
+        }
+
+        $vocab = implode(', ', array_slice($words, 0, 40));
+        $label = $track->label ?: 'a children\'s English lesson';
+
+        // The "context" sentence helps Whisper lock its language
+        // model. Mentioning the words verbatim here makes Whisper
+        // bias toward them in the transcription.
+        return "This is {$label} for first-grade English learners. "
+             . "The audio includes these words: {$vocab}.";
+    }
+
 }
