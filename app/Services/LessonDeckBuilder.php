@@ -244,26 +244,94 @@ class LessonDeckBuilder
             return $resolved;
         }
 
-        // 2. Query DB: same category first, then fallback to unit.
-        $q = Word::where('unit_id', $unitId)->where('id', '!=', $target->id)->with('audioTrack');
-        if ($pool === 'same_category' && $target->category) {
-            $q->where('category', $target->category);
-        }
-        $candidates = $q->inRandomOrder()->take($n)->get();
-
-        if ($candidates->count() < $n) {
-            $candidates = $candidates->concat(
-                Word::with('audioTrack')
-                    ->where('unit_id', $unitId)
-                    ->where('id', '!=', $target->id)
-                    ->whereNotIn('id', $candidates->pluck('id'))
-                    ->inRandomOrder()
-                    ->take($n - $candidates->count())
-                    ->get()
-            );
-        }
+        // 2. Query DB. We pull a generous candidate set (3x) and then
+        //    score them so that decoys WITH image_path appear first.
+        //    The previous strategy returned random words, which often
+        //    surfaced rows with empty image_path — leaving the kid
+        //    looking at coloured fallback tiles for every wrong choice
+        //    while only the target word showed a real picture.
+        //
+        //    Order of preference (highest first):
+        //      a) same category AND has image_path
+        //      b) any unit word with image_path
+        //      c) same category (no image)
+        //      d) any unit word
+        $candidates = $this->preferImageRichDecoys($target, $n, $pool, $unitId);
 
         return $candidates;
+    }
+
+    /**
+     * Score-and-pick decoys so the lesson screen never has to render
+     * coloured fallback tiles when there ARE words with images
+     * available in the unit. Falls through tiers gracefully.
+     */
+    private function preferImageRichDecoys(Word $target, int $n, string $pool, int $unitId): Collection
+    {
+        $wantCategory = $pool === 'same_category' && $target->category;
+
+        // Tier A: same category + has image
+        $tierA = collect();
+        if ($wantCategory) {
+            $tierA = Word::with('audioTrack')
+                ->where('unit_id', $unitId)
+                ->where('id', '!=', $target->id)
+                ->where('category', $target->category)
+                ->whereNotNull('image_path')
+                ->where('image_path', '!=', '')
+                ->inRandomOrder()
+                ->take($n)
+                ->get();
+        }
+        if ($tierA->count() >= $n) {
+            return $tierA;
+        }
+
+        // Tier B: any unit word with an image (excluding tier A picks)
+        $picked = $tierA->pluck('id');
+        $tierB = Word::with('audioTrack')
+            ->where('unit_id', $unitId)
+            ->where('id', '!=', $target->id)
+            ->whereNotIn('id', $picked)
+            ->whereNotNull('image_path')
+            ->where('image_path', '!=', '')
+            ->inRandomOrder()
+            ->take($n - $tierA->count())
+            ->get();
+
+        $combined = $tierA->concat($tierB);
+        if ($combined->count() >= $n) {
+            return $combined;
+        }
+
+        // Tier C: same category (no image filter)
+        $picked = $combined->pluck('id');
+        if ($wantCategory) {
+            $tierC = Word::with('audioTrack')
+                ->where('unit_id', $unitId)
+                ->where('id', '!=', $target->id)
+                ->whereNotIn('id', $picked)
+                ->where('category', $target->category)
+                ->inRandomOrder()
+                ->take($n - $combined->count())
+                ->get();
+            $combined = $combined->concat($tierC);
+        }
+        if ($combined->count() >= $n) {
+            return $combined;
+        }
+
+        // Tier D: any other word in the unit
+        $picked = $combined->pluck('id');
+        $tierD = Word::with('audioTrack')
+            ->where('unit_id', $unitId)
+            ->where('id', '!=', $target->id)
+            ->whereNotIn('id', $picked)
+            ->inRandomOrder()
+            ->take($n - $combined->count())
+            ->get();
+
+        return $combined->concat($tierD);
     }
 
     private function audioTrackPayload(Lesson $lesson): ?array

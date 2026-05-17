@@ -1,13 +1,18 @@
 import React, { useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
-import { playAudio, stopAllAudio, speakText } from "@/learning/utils/playAudio";
+import { speakWord, stopAllAudio } from "@/learning/utils/playAudio";
 
 /**
  * OptionCard - Reusable clickable card for game modes.
- * Shows an image (with elegant fallback when missing) + optional label.
- * Now includes a small speaker button so children can hear the word
- * pronounced — uses the segment audio clip when available, or falls
- * back to browser TTS / OpenAI TTS clip automatically.
+ *
+ * Shows an image (with elegant fallback when missing) + optional
+ * label. A small speaker button in the top-left lets the child hear
+ * the word pronounced. The button uses `speakWord()` which:
+ *
+ *   1. plays the segment from the NCCD audio track when available,
+ *   2. otherwise asks the server to synthesise a child-friendly
+ *      OpenAI TTS clip and plays the cached mp3,
+ *   3. otherwise falls back to the browser's speechSynthesis.
  *
  * Fully responsive: square on mobile, fixed height on tablet+.
  */
@@ -15,6 +20,7 @@ const OptionCard = ({
     imagePath,
     label,
     audioClip,
+    wordId,
     state = "idle",      // idle | correct | wrong | disabled
     onClick,
     showLabel = true,
@@ -47,17 +53,19 @@ const OptionCard = ({
         }
         setSpeaking(true);
         try {
-            if (audioClip && (audioClip.src || audioClip.tts)) {
-                await playAudio(audioClip);
-            } else if (label) {
-                // No clip data at all — use browser TTS as last resort.
-                await speakText(label);
-            }
+            // The wordId is preferred — it lets the server reuse a
+            // cached mp3 across kids. If it's missing, we still try
+            // by-text synthesis using the label.
+            await speakWord({
+                wordId: wordId || audioClip?.wordId || null,
+                label,
+                audioClip,
+            });
         } catch (_) {}
         setSpeaking(false);
     };
 
-    // Determine if we have something speakable.
+    // Show the speaker if we have anything pronounceable.
     const canSpeak = showAudio && (audioClip?.src || audioClip?.tts || label);
 
     return (
@@ -82,16 +90,19 @@ const OptionCard = ({
                 </span>
             ) : null}
 
-            {/* Small speaker button — lets the child hear any word */}
+            {/* Speaker button — auto-generates TTS when there's no
+                real audio for this word, so the child can always
+                hear the pronunciation. */}
             {canSpeak ? (
                 <div
                     role="button"
                     tabIndex={-1}
                     onClick={handleSpeak}
-                    className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm shadow-md border-2 border-white transition-all z-20
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm shadow-md border-2 border-white transition-all z-20 cursor-pointer
                         ${speaking
                             ? "bg-amber-400 text-white scale-110"
-                            : "bg-emerald-500 text-white opacity-70 group-hover:opacity-100 hover:scale-110 active:scale-95"
+                            : "bg-emerald-500 text-white opacity-80 group-hover:opacity-100 hover:scale-110 active:scale-95"
                         }`}
                     title={`Listen to "${label}"`}
                 >
