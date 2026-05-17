@@ -246,9 +246,13 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </p>
             </div>
 
+            {/* Wider middle gutter (160px / 200px on lg) so the SVG
+                connector lines have visible breathing room between
+                the two columns — without it the cards almost touch
+                and the green/red lines look squashed. */}
             <div
                 ref={containerRef}
-                className="relative w-full max-w-4xl grid grid-cols-[1fr_80px_1fr] gap-4 lg:gap-6 items-stretch"
+                className="relative w-full max-w-5xl grid grid-cols-[1fr_160px_1fr] lg:grid-cols-[1fr_200px_1fr] gap-3 lg:gap-4 items-stretch px-2"
             >
                 {/* Left column — word cards */}
                 <div className="flex flex-col gap-3 lg:gap-4">
