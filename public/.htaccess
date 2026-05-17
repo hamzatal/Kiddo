@@ -20,22 +20,24 @@
     RewriteRule ^ index.php [L]
 </IfModule>
 
-# Allow large file uploads (up to 20MB) for admin image management
+# Allow large uploads for admin image management.
+# Bumped from 20M -> 64M in merge #15 because the React UI base64-encodes
+# images (~33% size penalty) and shared hosts often run with tiny defaults.
 <IfModule mod_php.c>
-    php_value upload_max_filesize 20M
-    php_value post_max_size 25M
-    php_value max_execution_time 300
-    php_value memory_limit 256M
+    php_value upload_max_filesize 64M
+    php_value post_max_size 80M
+    php_value max_execution_time 600
+    php_value memory_limit 512M
 </IfModule>
 <IfModule mod_php7.c>
-    php_value upload_max_filesize 20M
-    php_value post_max_size 25M
-    php_value max_execution_time 300
-    php_value memory_limit 256M
+    php_value upload_max_filesize 64M
+    php_value post_max_size 80M
+    php_value max_execution_time 600
+    php_value memory_limit 512M
 </IfModule>
 <IfModule mod_php8.c>
-    php_value upload_max_filesize 20M
-    php_value post_max_size 25M
-    php_value max_execution_time 300
-    php_value memory_limit 256M
+    php_value upload_max_filesize 64M
+    php_value post_max_size 80M
+    php_value max_execution_time 600
+    php_value memory_limit 512M
 </IfModule>

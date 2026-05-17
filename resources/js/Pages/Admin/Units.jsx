@@ -1,17 +1,21 @@
 import React, { useState } from "react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
 
 /**
  * Inline-editable list of units. Each row is a small form that PATCHes
  * /admin/units/{id} on blur; the UI shows a check mark for 1s after a
  * successful save so the admin knows it went through.
  */
-const UnitRow = ({ u }) => {
+const UnitRow = ({ u, onRemoved }) => {
     const [row, setRow] = useState(u);
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
+    const [ingesting, setIngesting] = useState(false);
+    const [ttsBusy, setTtsBusy] = useState(false);
+    const [aiReport, setAiReport] = useState(null);
 
     const save = async () => {
         setSaving(true);
@@ -34,8 +38,62 @@ const UnitRow = ({ u }) => {
         }
     };
 
+    const onDelete = async () => {
+        const sure = window.confirm(
+            `Delete unit "${u.title}" and ALL its lessons & words? This cannot be undone.`
+        );
+        if (!sure) return;
+        try {
+            const { data } = await axios.delete(`/admin/units/${u.id}`);
+            if (data.ok) onRemoved?.(u.id);
+        } catch (e) {
+            setError(e?.response?.data?.error || 'Delete failed');
+        }
+    };
+
+    const aiIngest = async () => {
+        const sure = window.confirm(
+            `AI-ingest unit "${u.title}"?\n\nThis will:\n• Transcribe every PB audio in the unit's pages with Whisper.\n• Use GPT to extract vocabulary, summary, objectives & sentences.\n• Add missing Word rows + auto-segment them.\n\nMay take 30-90 seconds.`
+        );
+        if (!sure) return;
+        setIngesting(true); setAiReport(null); setError(null);
+        try {
+            const { data } = await axios.post(`/admin/units/${u.id}/ai-ingest`);
+            setAiReport(data.report || null);
+            if (!data.ok && data.report?.errors?.length) {
+                setError(data.report.errors[0]);
+            }
+        } catch (e) {
+            setError(e?.response?.data?.error || e?.response?.data?.report?.errors?.[0] || 'AI ingest failed');
+        } finally {
+            setIngesting(false);
+        }
+    };
+
+    const ttsAll = async () => {
+        const sure = window.confirm(
+            `Generate child-friendly voice clips for every word in "${u.title}"?\n\nUseful for U0 Welcome — uses OpenAI TTS so each word has a clean, isolated pronunciation.`
+        );
+        if (!sure) return;
+        setTtsBusy(true); setError(null);
+        try {
+            const { data } = await axios.post(`/admin/units/${u.id}/tts-fallback`);
+            if (data.ok) {
+                setSaved(true);
+                setTimeout(() => setSaved(false), 1500);
+            } else {
+                setError(data?.error || 'TTS generation failed');
+            }
+        } catch (e) {
+            setError(e?.response?.data?.error || 'TTS failed');
+        } finally {
+            setTtsBusy(false);
+        }
+    };
+
     return (
-        <div className="grid grid-cols-12 gap-3 items-start bg-white rounded-xl border border-gray-100 p-4 mb-3">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-3">
+            <div className="grid grid-cols-12 gap-3 items-start">
             <div className="col-span-12 md:col-span-1 flex items-center gap-2">
                 <span className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 font-black flex items-center justify-center">
                     {u.code}
@@ -54,7 +112,7 @@ const UnitRow = ({ u }) => {
                 />
             </div>
 
-            <div className="col-span-12 md:col-span-4">
+            <div className="col-span-12 md:col-span-3">
                 <label className="text-[10px] font-black text-gray-400 uppercase">
                     Description
                 </label>
@@ -88,17 +146,41 @@ const UnitRow = ({ u }) => {
                             onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
-                                const formData = new FormData();
-                                formData.append('image', file);
+                                if (file.size > MAX_INPUT_BYTES) {
+                                    setError(`File is too large (${(file.size/1024/1024).toFixed(1)} MB). Max 20 MB.`);
+                                    e.target.value = "";
+                                    return;
+                                }
+                                if (!isSupportedImage(file)) {
+                                    setError("Please pick an image file (JPG, PNG, GIF, WebP, SVG, BMP).");
+                                    e.target.value = "";
+                                    return;
+                                }
                                 try {
-                                    const res = await axios.post(`/admin/units/${u.id}/image`, formData);
+                                    setError(null);
+                                    // Resize-on-the-client → base64 JSON.
+                                    // Bypasses PHP/nginx multipart size limits.
+                                    const dataUrl = await shrinkForAdminUpload(file);
+                                    const res = await axios.post(
+                                        `/admin/units/${u.id}/image`,
+                                        { image_base64: dataUrl },
+                                        { headers: { "Content-Type": "application/json" } }
+                                    );
                                     if (res.data?.ok) {
                                         setRow({ ...row, image_path: res.data.image_path });
                                         setSaved(true);
                                         setTimeout(() => setSaved(false), 1200);
+                                    } else {
+                                        setError(res.data?.error || 'Upload failed');
                                     }
                                 } catch (err) {
-                                    setError('Upload failed');
+                                    setError(
+                                        err?.response?.data?.error ||
+                                        err?.message ||
+                                        'Upload failed'
+                                    );
+                                } finally {
+                                    e.target.value = "";
                                 }
                             }}
                         />
@@ -127,11 +209,58 @@ const UnitRow = ({ u }) => {
                 {saved && <span className="text-emerald-500 text-sm">✓</span>}
                 {error && <span className="text-rose-500 text-[10px]">{error}</span>}
             </div>
+
+            <div className="col-span-12 flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-50">
+                <button
+                    onClick={aiIngest}
+                    disabled={ingesting}
+                    className="px-2 py-1 rounded-lg text-[11px] font-black bg-violet-50 text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+                    title="Use Whisper + GPT to add words and details from this unit's audio"
+                >
+                    {ingesting ? '🤖 Ingesting…' : '🤖 AI ingest from audio'}
+                </button>
+                <button
+                    onClick={ttsAll}
+                    disabled={ttsBusy}
+                    className="px-2 py-1 rounded-lg text-[11px] font-black bg-cyan-50 text-cyan-700 hover:bg-cyan-100 disabled:opacity-50"
+                    title="Generate child-friendly voice for every word in this unit"
+                >
+                    {ttsBusy ? '🎙 Generating…' : '🎙 TTS for all words'}
+                </button>
+                <button
+                    onClick={onDelete}
+                    className="px-2 py-1 rounded-lg text-[11px] font-black bg-rose-50 text-rose-700 hover:bg-rose-100"
+                    title="Delete this unit and everything inside it"
+                >
+                    🗑 Delete unit
+                </button>
+            </div>
+
+            {aiReport ? (
+                <div className="col-span-12 mt-2 p-3 rounded-xl bg-violet-50/60 border border-violet-100">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-violet-700 mb-2">
+                        AI ingest report
+                    </p>
+                    <ul className="text-[11px] text-gray-600 font-semibold space-y-0.5">
+                        <li>Tracks transcribed: <b>{aiReport.transcribed}/{aiReport.tracks}</b></li>
+                        <li>Vocabulary added: <b className="text-emerald-600">+{aiReport.vocab_added}</b></li>
+                        <li>Vocabulary updated: <b>{aiReport.vocab_updated}</b></li>
+                        <li>Lessons annotated: <b>{aiReport.lessons_touched}</b></li>
+                        {aiReport.errors?.length ? (
+                            <li className="text-rose-500">
+                                {aiReport.errors.length} warning{aiReport.errors.length === 1 ? '' : 's'}: {aiReport.errors[0]}
+                            </li>
+                        ) : null}
+                    </ul>
+                </div>
+            ) : null}
+            </div>
         </div>
     );
 };
 
 const Units = ({ units }) => {
+    const [list, setList] = useState(units);
     const [showCreate, setShowCreate] = useState(false);
     const [newUnit, setNewUnit] = useState({ title: '', description: '', code: '', unit_number: '', color_key: 'purple' });
     const [creating, setCreating] = useState(false);
@@ -187,8 +316,12 @@ const Units = ({ units }) => {
                     </div>
                 )}
 
-                {units.map((u) => (
-                    <UnitRow key={u.id} u={u} />
+                {list.map((u) => (
+                    <UnitRow
+                        key={u.id}
+                        u={u}
+                        onRemoved={(id) => setList(list.filter((x) => x.id !== id))}
+                    />
                 ))}
             </div>
         </AdminLayout>
