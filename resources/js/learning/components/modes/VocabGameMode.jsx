@@ -128,6 +128,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                             key={opt.id}
                             imagePath={useText ? null : opt.imagePath}
                             label={opt.word}
+                            audioClip={opt.audioClip}
                             showLabel={useText || style !== "word-to-image"}
                             state={state}
                             onClick={() => handlePick(opt)}

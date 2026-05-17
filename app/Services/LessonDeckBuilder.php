@@ -212,18 +212,36 @@ class LessonDeckBuilder
 
     private function pickDecoys(Word $target, int $n, string $pool, int $unitId): Collection
     {
-        // 1. Hand-authored wrong_options win if rich enough.
-        // Returned Word instances stay transient so they carry image + word
-        // text but no audio_track binding (which is fine: these rows are
-        // only used to render decoy cards, not to speak them).
+        // 1. Hand-authored wrong_options — try to resolve them against
+        //    real DB rows so they carry image_path + audioClip. If a
+        //    wrong_option word exists in the same unit, use that row
+        //    directly (with its real image). Only fall back to a bare
+        //    Word instance when the word doesn't exist in the DB.
         if (is_array($target->wrong_options) && count($target->wrong_options) >= $n) {
-            return collect($target->wrong_options)
-                ->shuffle()
-                ->take($n)
-                ->map(fn ($w) => new Word([
-                    'word'       => $w['word'] ?? '?',
-                    'image_path' => $w['image_path'] ?? null,
-                ]));
+            $wrongWords = collect($target->wrong_options)->shuffle()->take($n);
+            $resolved = collect();
+
+            foreach ($wrongWords as $w) {
+                $wordText = is_array($w) ? ($w['word'] ?? '') : (string) $w;
+                if (! $wordText) continue;
+
+                // Try to find a real Word row in the same unit.
+                $real = Word::with('audioTrack')
+                    ->where('unit_id', $unitId)
+                    ->whereRaw('LOWER(word) = ?', [mb_strtolower($wordText)])
+                    ->where('id', '!=', $target->id)
+                    ->first();
+
+                if ($real) {
+                    $resolved->push($real);
+                } else {
+                    $resolved->push(new Word([
+                        'word'       => $wordText,
+                        'image_path' => is_array($w) ? ($w['image_path'] ?? null) : null,
+                    ]));
+                }
+            }
+            return $resolved;
         }
 
         // 2. Query DB: same category first, then fallback to unit.
@@ -273,12 +291,13 @@ class LessonDeckBuilder
      * Normalize a stored path to a root-relative URL the browser can load.
      * Accepts: "assets/lessons/welcome/hello.png", "/assets/...", full http URL.
      *
-     * If the path points at a local public/ asset that does NOT exist on
-     * disk, we return null so the SmartImage fallback (coloured letter
-     * tile) renders immediately — no 404 in DevTools, no flash of broken
-     * image. Remote URLs are passed through as-is; the browser will
-     * handle them and SmartImage's onError handler will swap in the
-     * fallback if they fail.
+     * We ALWAYS return the URL if a path is set — even if the file doesn't
+     * currently exist on disk. SmartImage on the frontend has an onError
+     * handler that gracefully shows a colourful letter tile when the img
+     * 404s. The old behaviour of returning null meant decoy cards never
+     * even ATTEMPTED to load their image, making the game look broken
+     * (only the target word showed a picture, everything else was a
+     * coloured square).
      */
     private function assetUrl(?string $path): ?string
     {
@@ -290,12 +309,6 @@ class LessonDeckBuilder
         }
 
         $rel = ltrim($path, '/');
-        // Cheap existence check: we only ship a few real images (uploads
-        // by the admin), so most rows are misses. file_exists is fast
-        // and Laravel already fingerprints public/ for serve speed.
-        if (! is_file(public_path($rel))) {
-            return null;
-        }
         return '/' . $rel;
     }
 }
