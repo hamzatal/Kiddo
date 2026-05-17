@@ -56,7 +56,12 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
                         <span className="font-black text-sm text-[#1E293B] uppercase tracking-wide">
                             {c.word}
                         </span>
-                        <AudioClipButton clip={c.audioClip} size="sm" />
+                        <AudioClipButton
+                            clip={c.audioClip}
+                            wordId={c.id}
+                            label={c.word}
+                            size="sm"
+                        />
                     </button>
                 ))}
             </div>

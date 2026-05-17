@@ -60,6 +60,8 @@ const SegmentEditor = ({
     const [loop, setLoop] = useState(false);
     const [autoBusy, setAutoBusy] = useState(false);
     const [autoMsg, setAutoMsg] = useState(null);
+    const [ttsBusy, setTtsBusy] = useState(false);
+    const [ttsMsg, setTtsMsg] = useState(null);
     const [rate, setRate] = useState(1);
 
     // keep state in sync if the parent switches to a different word
@@ -293,6 +295,58 @@ const SegmentEditor = ({
         }
     };
 
+    // ───── Generate child-friendly TTS clip for this word ─────
+    //
+    // When the linked NCCD track has no clear pronunciation of this
+    // word (or the audio is missing entirely), the operator can ask
+    // OpenAI's tts-1-hd model with the warm "shimmer" voice to
+    // synthesise a fresh clip. The resulting mp3 is stored at
+    // /assets/audio/tts/word_{id}.mp3 and the Word's audio_path is
+    // pointed at it. Children then hear the same warm, clearly-
+    // articulated voice everywhere the word appears.
+    //
+    // We POST to /admin/words/{id}/tts (already wired in routes/web.php)
+    // which returns { ok, audio_path }. After a successful generation
+    // we reload the page so the row picks up the new audio_path and
+    // the audio editor re-mounts with the new file.
+
+    const generateTts = async () => {
+        if (!wordId) return;
+        if (!confirm(
+            "Generate a fresh child-friendly voice clip for this word?\n\n" +
+            "This calls OpenAI tts-1-hd (~$0.001) and replaces any " +
+            "existing per-word audio file. The browser will reload " +
+            "so the new clip plays immediately."
+        )) return;
+
+        setTtsBusy(true);
+        setTtsMsg("🎙 Generating warm child voice…");
+        try {
+            const { data } = await axios.post(
+                `/admin/words/${wordId}/tts`,
+                { overwrite: true },
+            );
+            if (data?.ok && data?.audio_path) {
+                setTtsMsg("✓ Voice ready, reloading…");
+                // Give the operator a moment to read the message, then
+                // refresh so the row picks up the new audio_path.
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                setTtsMsg(data?.error || data?.fallback || "TTS failed");
+                setTimeout(() => setTtsMsg(null), 5000);
+            }
+        } catch (e) {
+            setTtsMsg(
+                e?.response?.data?.error ||
+                e?.response?.data?.message ||
+                "TTS failed"
+            );
+            setTimeout(() => setTtsMsg(null), 5000);
+        } finally {
+            setTtsBusy(false);
+        }
+    };
+
     const pct = duration > 0 ? (position / duration) * 100 : 0;
     const startPct = duration > 0 && start != null ? (start / duration) * 100 : null;
     const endPct = duration > 0 && end != null ? (end / duration) * 100 : null;
@@ -339,9 +393,25 @@ const SegmentEditor = ({
                         {autoBusy ? "Finding…" : "✨ Auto-find this word"}
                     </button>
                 ) : null}
+                {wordId ? (
+                    <button
+                        onClick={generateTts}
+                        type="button"
+                        disabled={ttsBusy}
+                        className="text-[11px] font-black px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm disabled:opacity-50"
+                        title="Generate a warm, child-friendly voice clip for this word using OpenAI tts-1-hd (replaces the linked track audio)"
+                    >
+                        {ttsBusy ? "Generating…" : "🎙 Generate Voice"}
+                    </button>
+                ) : null}
                 {autoMsg ? (
                     <span className="text-[11px] font-bold text-gray-600">
                         {autoMsg}
+                    </span>
+                ) : null}
+                {ttsMsg ? (
+                    <span className="text-[11px] font-bold text-emerald-600">
+                        {ttsMsg}
                     </span>
                 ) : null}
                 <div className="ml-auto flex items-center gap-2">

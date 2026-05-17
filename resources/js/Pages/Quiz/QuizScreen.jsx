@@ -157,7 +157,7 @@ const QuizScreen = ({ quizData }) => {
 
       {!isFinished ? (
         <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 relative z-10 overflow-y-auto">
-          <div key={currentIndex} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-4 sm:gap-6 animate-slideIn">
+          <div key={currentIndex} className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto flex flex-col items-center gap-4 sm:gap-6 animate-slideIn">
             {/* Question prompt */}
             <div className="bg-white/90 backdrop-blur px-5 sm:px-8 py-4 sm:py-5 rounded-2xl sm:rounded-3xl shadow-lg border border-white/60 flex items-center gap-3 sm:gap-4 w-full max-w-lg">
               <button
@@ -178,7 +178,7 @@ const QuizScreen = ({ quizData }) => {
             {/* Options grid — uses OptionCard so every option has a
                 speaker button + matching SmartImage fallback, exactly
                 like the lesson modes. */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl px-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl px-1">
               {currentQ.options.map((opt) => {
                 const isWrong = wrongClicks.includes(opt.id);
                 const isCorrectPick = selectedCorrect === opt.id;

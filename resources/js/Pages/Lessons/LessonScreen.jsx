@@ -68,22 +68,29 @@ const LessonScreen = (props) => {
 
   const onModeComplete = (summary) => {
     setResult(summary);
-    setShowCelebration(true);
 
-    // Big celebration sounds
+    // Big celebration sounds + confetti — only the visual flourish
+    // is time-bound. The reward STAGE is reached only after the
+    // confetti settles, and stays put until the user taps Continue.
+    setShowCelebration(true);
     playCheer();
     launchConfetti(4500);
     setTimeout(() => playStarCollect(), 600);
     setTimeout(() => playStarCollect(), 1100);
     setTimeout(() => playStarCollect(), 1600);
 
-    // Move to reward stage after a delay (so confetti is visible)
+    // After the big "Awesome!" overlay (2.2s) we transition to the
+    // permanent reward card. The reward card itself does NOT auto-
+    // dismiss — the kid (or teacher) has to read the stars + Next
+    // info and tap Continue. This avoids the flash-and-vanish bug
+    // we had before.
     setTimeout(() => {
       setStage(LESSON_STAGES.REWARD);
       setShowCelebration(false);
-    }, 2500);
+    }, 2200);
 
-    // Persist to backend
+    // Persist round results to the backend — the response carries
+    // the next stage info (lesson vs quiz) which we read below.
     router.post(
       `/lesson/${safeUnit.id}/${safeLesson.id}/result`,
       { rounds: summary.rounds || [], durationMs: 0 },
@@ -147,6 +154,25 @@ const LessonScreen = (props) => {
   const totalStars = auth?.user?.total_stars;
   const xp = auth?.user?.xp;
 
+  // What's coming after this lesson? The reward stage shows this so
+  // the child knows where the Continue button will take them.
+  const nextStep = useMemo(() => {
+    if (currentLesson >= totalLessons) {
+      return {
+        kind: "quiz",
+        label: "Unit Quiz",
+        emoji: "🏆",
+        hint: `Show what you learned in ${safeUnit.title}!`,
+      };
+    }
+    return {
+      kind: "lesson",
+      label: `Lesson ${currentLesson + 1} of ${totalLessons}`,
+      emoji: "📚",
+      hint: "Next adventure is waiting!",
+    };
+  }, [currentLesson, totalLessons, safeUnit.title]);
+
   return (
     <div className="min-h-[100dvh] h-[100dvh] w-screen font-sans flex flex-col relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-amber-50">
       {/* Background decorative blobs */}
@@ -178,6 +204,10 @@ const LessonScreen = (props) => {
           <CelebrationStage
             stars={starsEarned}
             accuracy={accuracy}
+            nextStep={nextStep}
+            unitTitle={safeUnit.title}
+            lessonNumber={currentLesson}
+            totalLessons={totalLessons}
             onContinue={continueAfterReward}
           />
         )}
@@ -223,10 +253,25 @@ const LessonScreen = (props) => {
 };
 
 /**
- * CelebrationStage - Big reward screen after lesson.
- * Shows stars, accuracy, and Continue button. Stays until user clicks.
+ * CelebrationStage — the permanent reward screen the child sees
+ * AFTER a lesson is complete. It DOES NOT auto-dismiss; the child
+ * (or supervising adult) must read it and tap Continue.
+ *
+ * Shows:
+ *   - Stars + accuracy summary
+ *   - "Next: …" panel telling the child exactly where Continue
+ *     will take them (next lesson within the same unit, or the
+ *     final unit quiz when all lessons are done).
  */
-const CelebrationStage = ({ stars = 1, accuracy = 100, onContinue }) => {
+const CelebrationStage = ({
+  stars = 1,
+  accuracy = 100,
+  nextStep = null,
+  unitTitle = "",
+  lessonNumber = 1,
+  totalLessons = 1,
+  onContinue,
+}) => {
   const [animateIn, setAnimateIn] = useState(false);
 
   useEffect(() => {
@@ -241,8 +286,14 @@ const CelebrationStage = ({ stars = 1, accuracy = 100, onContinue }) => {
   };
   const msg = getMessage();
 
+  const continueLabel = nextStep?.kind === "quiz"
+    ? "Start the Unit Quiz! 🏆"
+    : "Next Lesson! →";
+
   return (
-    <div className={`w-full max-w-lg mx-auto transition-all duration-500 ${animateIn ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
+    <div
+      className={`w-full max-w-lg mx-auto transition-all duration-500 ${animateIn ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+    >
       <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 lg:p-12 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden">
         {/* Decorative bg */}
         <div className={`absolute inset-x-0 top-0 h-32 bg-gradient-to-b ${msg.color} opacity-10`} />
@@ -258,15 +309,22 @@ const CelebrationStage = ({ stars = 1, accuracy = 100, onContinue }) => {
           <h1 className={`text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r ${msg.color} bg-clip-text text-transparent mb-2`}>
             {msg.title}
           </h1>
+
+          {/* Which lesson did the child just finish? */}
+          {unitTitle ? (
+            <p className="text-xs sm:text-sm font-black text-gray-500 uppercase tracking-wider mb-1">
+              {unitTitle} · Lesson {lessonNumber}/{totalLessons}
+            </p>
+          ) : null}
           <p className="text-sm sm:text-lg text-gray-500 font-bold mb-5 sm:mb-6">{msg.subtitle}</p>
 
           {/* Stars row */}
-          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 mb-5 sm:mb-7">
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 mb-5 sm:mb-6">
             {[1, 2, 3].map((s) => (
               <span
                 key={s}
                 className={`text-4xl sm:text-6xl lg:text-7xl transition-all duration-700 ${
-                  s <= stars ? 'opacity-100 scale-110 drop-shadow-xl' : 'opacity-20 grayscale scale-75'
+                  s <= stars ? "opacity-100 scale-110 drop-shadow-xl" : "opacity-20 grayscale scale-75"
                 }`}
                 style={{ animationDelay: `${s * 0.2}s` }}
               >
@@ -276,7 +334,7 @@ const CelebrationStage = ({ stars = 1, accuracy = 100, onContinue }) => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-3 w-full max-w-xs mb-6 sm:mb-8">
+          <div className="grid grid-cols-2 gap-3 w-full max-w-xs mb-5">
             <div className="bg-emerald-50 border border-emerald-100 px-4 py-3 rounded-2xl text-center">
               <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-0.5">Accuracy</p>
               <p className="text-xl sm:text-2xl font-black text-emerald-700">{accuracy}%</p>
@@ -287,12 +345,31 @@ const CelebrationStage = ({ stars = 1, accuracy = 100, onContinue }) => {
             </div>
           </div>
 
+          {/* Next-step hint — tells the child exactly what tapping
+              Continue will do. */}
+          {nextStep ? (
+            <div className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-2xl px-4 py-3 mb-5 flex items-center gap-3 text-left">
+              <span className="text-2xl sm:text-3xl shrink-0">{nextStep.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-black text-blue-500 uppercase tracking-wider">
+                  Coming up next
+                </p>
+                <p className="text-sm sm:text-base font-black text-blue-900 truncate">
+                  {nextStep.label}
+                </p>
+                <p className="text-[10px] sm:text-xs text-blue-500 font-semibold truncate">
+                  {nextStep.hint}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           {/* Continue button */}
           <button
             onClick={onContinue}
             className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3.5 sm:py-4 rounded-2xl font-black text-base sm:text-lg lg:text-xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
           >
-            Continue Adventure! →
+            {continueLabel}
           </button>
         </div>
       </div>
