@@ -28,6 +28,7 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
       seenWords.add(p.text);
       items.push({
         word: p.text,
+        wordId: r?.wordId || null,
         imagePath: p.imagePath,
         audioClip: p.audioClip,
       });
@@ -54,20 +55,25 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
   const [attempts, setAttempts] = useState(0);
   const [checking, setChecking] = useState(false);
   const [errors, setErrors] = useState(0);
+  const [errorRounds, setErrorRounds] = useState([]);
 
   const totalPairs = cards.length / 2;
 
   useEffect(() => {
     if (matched.size === totalPairs && totalPairs > 0) {
       setTimeout(() => {
+        const correctRounds = Array.from({ length: totalPairs }).map((_, i) => ({
+          roundId: `pic-correct-${i}`,
+          correct: true,
+        }));
         onComplete({
           correct: totalPairs,
           total: totalPairs,
-          rounds: [{ roundId: "picmatch", correct: errors === 0, timeMs: 0 }],
+          rounds: [...correctRounds, ...errorRounds],
         });
       }, 1500);
     }
-  }, [matched.size, totalPairs, onComplete, errors]);
+  }, [matched.size, totalPairs, onComplete, errorRounds]);
 
   const handleFlip = (card) => {
     if (checking || flipped.length >= 2 || flipped.includes(card.id) || matched.has(card.pairId)) return;
@@ -93,6 +99,14 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
         } else {
           playFail();
           setErrors(e => e + 1);
+          setErrorRounds(prev => [...prev, {
+            roundId: `pic-${prev.length}`,
+            correct: false,
+            wordId: first.wordId || null,
+            word: first.word,
+            wrongChoice: second.word,
+            wrongChoiceId: second.wordId || null,
+          }]);
         }
         setFlipped([]);
         setChecking(false);

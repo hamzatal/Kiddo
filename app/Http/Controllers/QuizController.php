@@ -57,10 +57,19 @@ class QuizController extends Controller
                 foreach (array_slice($word->wrong_options, 0, 2) as $index => $wrong) {
                     $decoyWord = $wrong['word'] ?? 'Wrong';
                     $row = $allUnitWords->get(mb_strtolower($decoyWord));
+
+                    // Prefer the authored image_path; otherwise fall back
+                    // to the live DB row's image_path so every decoy card
+                    // still shows a real picture instead of a coloured tile.
+                    $img = $wrong['image_path'] ?? null;
+                    if (! $img && $row instanceof Word) {
+                        $img = $row->image_path;
+                    }
+
                     $options->push([
                         'id'        => 'wrong_' . $word->id . '_' . $index,
                         'word'      => $decoyWord,
-                        'imagePath' => $this->asset($wrong['image_path'] ?? null),
+                        'imagePath' => $this->asset($img),
                         'isCorrect' => false,
                         'audioClip' => $row ? $row->audioClip() : null,
                     ]);
@@ -147,10 +156,13 @@ class QuizController extends Controller
     }
 
     /**
-     * Convert a stored image path into a browser URL, returning null
-     * when the file is missing on disk so the React SmartImage shows
-     * its coloured-letter fallback instead of letting the browser fire
-     * a 404 request.
+     * Convert a stored image path into a browser URL. We always emit
+     * the URL — if the file isn't on disk the React SmartImage's
+     * <img onError> handler swaps in the coloured-letter tile.
+     *
+     * Returning null short-circuits SmartImage and ends up hiding
+     * every distractor image, which is exactly the bug a teacher
+     * just reported ("only the correct option shows its picture").
      */
     private function asset(?string $path): ?string
     {
@@ -160,10 +172,6 @@ class QuizController extends Controller
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-        $rel = ltrim($path, '/');
-        if (! is_file(public_path($rel))) {
-            return null;
-        }
-        return '/' . $rel;
+        return '/' . ltrim($path, '/');
     }
 }

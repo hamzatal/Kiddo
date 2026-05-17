@@ -17,7 +17,13 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
       const p = r?.prompt;
       if (!p?.text || seen.has(p.text)) continue;
       seen.add(p.text);
-      out.push({ id: `item-${out.length}`, word: p.text, imagePath: p.imagePath, audioClip: p.audioClip });
+      out.push({
+        id: `item-${out.length}`,
+        wordId: r.wordId || null,
+        word: p.text,
+        imagePath: p.imagePath,
+        audioClip: p.audioClip,
+      });
       if (out.length >= 5) break;
     }
     return out;
@@ -45,7 +51,14 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
         onComplete({
           correct: attempts.filter(a => a.correct).length,
           total: items.length,
-          rounds: attempts,
+          rounds: attempts.map((a) => ({
+            roundId: a.roundId || null,
+            correct: a.correct,
+            wordId: a.wordId || null,
+            word: a.word || null,
+            wrongChoice: a.wrongChoice || null,
+            wrongChoiceId: a.wrongChoiceId || null,
+          })),
         });
       }, 800);
     }
@@ -71,17 +84,34 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
     if (!selectedImage || matched.has(item.id)) return;
     playClick();
 
+    const sourceItem = items.find((it) => it.id === selectedImage);
+
     if (selectedImage === item.id) {
       // Correct match
       playSuccess();
       setMatched(prev => new Set([...prev, item.id]));
-      setAttempts(prev => [...prev, { roundId: item.id, correct: true, timeMs: 0 }]);
+      setAttempts(prev => [...prev, {
+        roundId: item.id,
+        wordId: item.wordId || null,
+        word: item.word,
+        correct: true,
+        timeMs: 0,
+      }]);
       setSelectedImage(null);
       setWrongPair(null);
     } else {
-      // Wrong match
+      // Wrong match — record what the kid was actually trying to find
+      // (the image they picked) and which word they linked it to.
       playFail();
-      setAttempts(prev => [...prev, { roundId: item.id, correct: false, timeMs: 0 }]);
+      setAttempts(prev => [...prev, {
+        roundId: sourceItem?.id || item.id,
+        wordId: sourceItem?.wordId || null,
+        word: sourceItem?.word || item.word,
+        wrongChoice: item.word,
+        wrongChoiceId: item.wordId || null,
+        correct: false,
+        timeMs: 0,
+      }]);
       setWrongPair(item.id);
       setTimeout(() => setWrongPair(null), 600);
       setSelectedImage(null);

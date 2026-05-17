@@ -62,9 +62,12 @@ class HomeController extends Controller
     }
 
     /**
-     * Convert a stored image path into a browser URL, or null when the
-     * file is missing on disk so SmartImage shows its colored-letter
-     * fallback without firing a 404.
+     * Convert a stored image path into a browser URL. We always emit
+     * the URL even when the file is missing on disk — SmartImage's
+     * onError handler swaps in the coloured-letter tile, which is
+     * preferable to silently dropping the image and shifting the
+     * layout to a fallback that other parts of the page might not
+     * have rendered.
      */
     private function asset(?string $path): ?string
     {
@@ -74,10 +77,6 @@ class HomeController extends Controller
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-        $rel = ltrim($path, '/');
-        if (! is_file(public_path($rel))) {
-            return null;
-        }
-        return '/' . $rel;
+        return '/' . ltrim($path, '/');
     }
 }

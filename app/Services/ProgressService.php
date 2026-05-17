@@ -41,22 +41,47 @@ class ProgressService
         $stars = $this->starsForLesson($lesson->type, $percent);
         $xp    = $this->xpForLesson($lesson->type);
 
-        // FIX 8 — collect wrong wordIds from rounds so the parent
-        // dashboard / AI report can highlight specific weak words.
-        $wordErrors = [];
+        // FIX 8 — collect rich error objects from rounds so the parent
+        // dashboard / AI report can highlight specific weak words AND
+        // the distractor that confused the kid. We also keep the
+        // legacy `word_errors` IDs list for any consumer that already
+        // reads it.
+        $wordErrors = [];     // numeric ids only (legacy shape)
+        $errorObjects = [];   // { word, wordId, wrongChoice } — what the dashboard reads
         if (! empty($stats['rounds']) && is_array($stats['rounds'])) {
             foreach ($stats['rounds'] as $r) {
                 if (! is_array($r)) continue;
                 if (! isset($r['correct']) || $r['correct']) continue;
+
                 $wid = $r['wordId'] ?? $r['word_id'] ?? null;
                 if ($wid !== null && $wid !== '') {
                     $wordErrors[] = (int) $wid;
                 }
+
+                // Resolve a friendly word label even when the round
+                // didn't carry one (we look it up from the DB by id).
+                $wordLabel = $r['word'] ?? null;
+                if (! $wordLabel && $wid) {
+                    $wordLabel = optional(\App\Models\Word::find($wid))->word;
+                }
+                if (! $wordLabel) continue;
+
+                $errorObjects[] = [
+                    'word'        => $wordLabel,
+                    'wordId'      => $wid ? (int) $wid : null,
+                    'wrongChoice' => $r['wrongChoice'] ?? null,
+                ];
             }
         }
         $meta = $stats;
         if (! empty($wordErrors)) {
             $meta['word_errors'] = array_values(array_unique($wordErrors));
+        }
+        if (! empty($errorObjects)) {
+            // The ParentDashboardController error-analysis aggregator
+            // reads meta.errors.[].{word,wrongChoice} so write that
+            // shape exactly.
+            $meta['errors'] = $errorObjects;
         }
 
         GameResult::create([

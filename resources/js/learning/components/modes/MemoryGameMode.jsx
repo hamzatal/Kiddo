@@ -15,10 +15,11 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
     items.forEach((round, i) => {
       const target = round?.prompt;
       if (!target) return;
+      const wordId = round?.wordId || null;
       // Word card
-      cards.push({ id: `w-${i}`, pairId: i, type: 'word', word: target.text, audioClip: target.audioClip });
+      cards.push({ id: `w-${i}`, pairId: i, type: 'word', wordId, word: target.text, audioClip: target.audioClip });
       // Image card
-      cards.push({ id: `i-${i}`, pairId: i, type: 'image', imagePath: target.imagePath, word: target.text, audioClip: target.audioClip });
+      cards.push({ id: `i-${i}`, pairId: i, type: 'image', wordId, imagePath: target.imagePath, word: target.text, audioClip: target.audioClip });
     });
     // Shuffle
     for (let j = cards.length - 1; j > 0; j--) {
@@ -32,20 +33,28 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
   const [matched, setMatched] = useState(new Set());
   const [attempts, setAttempts] = useState(0);
   const [checking, setChecking] = useState(false);
+  const [errorRounds, setErrorRounds] = useState([]); // {wordId, word, wrongChoice}
 
   const totalPairs = pairs.length / 2;
 
   useEffect(() => {
     if (matched.size === totalPairs && totalPairs > 0) {
       setTimeout(() => {
+        // Build a rounds array: one correct entry per matched pair
+        // plus one error entry per wrong flip so the parent dashboard
+        // sees which words the kid actually struggled to recall.
+        const correctRounds = Array.from({ length: totalPairs }).map((_, i) => ({
+          roundId: `mem-correct-${i}`,
+          correct: true,
+        }));
         onComplete({
           correct: totalPairs,
           total: totalPairs,
-          rounds: [{ roundId: 'memory', correct: true, timeMs: 0 }],
+          rounds: [...correctRounds, ...errorRounds],
         });
       }, 800);
     }
-  }, [matched.size, totalPairs, onComplete]);
+  }, [matched.size, totalPairs, onComplete, errorRounds]);
 
   const handleFlip = (card) => {
     if (checking || flipped.length >= 2 || flipped.includes(card.id) || matched.has(card.pairId)) return;
@@ -70,6 +79,16 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
           setMatched(prev => new Set([...prev, first.pairId]));
         } else {
           playFail();
+          // Track the mismatch — surface BOTH cards' words so the
+          // dashboard can show a "confused X with Y" line.
+          setErrorRounds(prev => [...prev, {
+            roundId: `mem-${prev.length}`,
+            correct: false,
+            wordId: first.wordId || null,
+            word: first.word,
+            wrongChoice: second.word,
+            wrongChoiceId: second.wordId || null,
+          }]);
         }
         setFlipped([]);
         setChecking(false);
