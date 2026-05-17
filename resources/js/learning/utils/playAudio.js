@@ -190,6 +190,131 @@ export const playAudio = (input, maybeRange) => {
     });
 };
 
+// ─────────────────────────────────────────────────────────────
+// On-demand server-side TTS helper
+// ─────────────────────────────────────────────────────────────
+
+// Process-wide cache so we never hit the server for the same word
+// twice in the same session. Maps wordId / text → audio_path string.
+const ttsCache = new Map();
+
+/**
+ * Read the CSRF token from the meta tag Laravel injects in the head.
+ * Falls back to scraping XSRF-TOKEN cookie.
+ */
+function csrfToken() {
+    if (typeof document === "undefined") return "";
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta?.content) return meta.content;
+    const m = (document.cookie || "").match(/XSRF-TOKEN=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : "";
+}
+
+/**
+ * Ask the backend to synthesise (or return the cached) TTS clip for
+ * a given Word DB id. Resolves to an audio path (string) or null.
+ *
+ * Network failures resolve to null so the caller falls through to
+ * browser speechSynthesis without throwing.
+ */
+export const fetchWordTts = async (wordId) => {
+    if (!wordId) return null;
+    if (ttsCache.has(`w:${wordId}`)) return ttsCache.get(`w:${wordId}`);
+    try {
+        const res = await fetch(`/api/words/${wordId}/tts`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+                "X-CSRF-TOKEN": csrfToken(),
+            },
+        });
+        if (!res.ok) {
+            ttsCache.set(`w:${wordId}`, null);
+            return null;
+        }
+        const data = await res.json().catch(() => ({}));
+        const path = data?.audio_path || null;
+        ttsCache.set(`w:${wordId}`, path);
+        return path;
+    } catch (_) {
+        ttsCache.set(`w:${wordId}`, null);
+        return null;
+    }
+};
+
+/**
+ * Same as `fetchWordTts` but for free-form text (no DB row needed).
+ * Caches by exact text so repeated taps on the same decoy reuse the
+ * file.
+ */
+export const fetchTextTts = async (text) => {
+    if (!text) return null;
+    const key = `t:${String(text).toLowerCase().trim()}`;
+    if (ttsCache.has(key)) return ttsCache.get(key);
+    try {
+        const res = await fetch("/api/tts/by-text", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+                "X-CSRF-TOKEN": csrfToken(),
+            },
+            body: JSON.stringify({ text }),
+        });
+        if (!res.ok) {
+            ttsCache.set(key, null);
+            return null;
+        }
+        const data = await res.json().catch(() => ({}));
+        const path = data?.audio_path || null;
+        ttsCache.set(key, path);
+        return path;
+    } catch (_) {
+        ttsCache.set(key, null);
+        return null;
+    }
+};
+
+/**
+ * Smart speak — tries in order:
+ *   1. The pre-built `audioClip` (NCCD segment, per-word file, etc.)
+ *   2. If no `src`, asks the server to synthesise a child-friendly
+ *      TTS clip and plays the returned mp3.
+ *   3. If the server can't synthesise (no API key / error), falls
+ *      through to the browser's built-in speechSynthesis.
+ *
+ * Pass either `{ wordId, label, audioClip }` or just a string label.
+ */
+export const speakWord = async ({ wordId, label, audioClip } = {}) => {
+    // 1) Have a real audio clip? Just play it (it has its own TTS
+    //    fallback inside playAudioClip).
+    if (audioClip && audioClip.src) {
+        return playAudio(audioClip);
+    }
+
+    // 2) Try server-side TTS (cached after first call).
+    let path = null;
+    if (wordId) {
+        path = await fetchWordTts(wordId);
+    } else if (label) {
+        path = await fetchTextTts(label);
+    }
+    if (path) {
+        return playAudioClip(path, {
+            tts: label || audioClip?.tts || null,
+        });
+    }
+
+    // 3) Last-resort: browser TTS.
+    const text = label || audioClip?.tts || audioClip?.label || "";
+    if (text) return speakText(text);
+    return Promise.resolve();
+};
+
 // Pre-warm the voice list. Some browsers (notably Chrome) load the
 // voice list asynchronously; touching it here once at module-load
 // makes the first speakText() call sound right instead of using the
