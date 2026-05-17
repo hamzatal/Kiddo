@@ -147,11 +147,12 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
                   : 'bg-white/90 border-white/60 hover:border-teal-300 hover:shadow-md'
               }`}
             >
-              {item.imagePath ? (
-                <SmartImage src={item.imagePath} label={item.word || ""} className="w-full h-[80%]" imgClassName="w-full h-full object-contain" />
-              ) : (
-                <SmartImage src={null} label={item.word || "?"} className="w-full h-[80%]" />
-              )}
+              <SmartImage
+                src={item.imagePath}
+                label={item.word || ""}
+                className="w-full h-[80%]"
+                imgClassName="w-full h-full object-contain"
+              />
               {isMatched && <span className="absolute text-lg">✅</span>}
             </button>
           );

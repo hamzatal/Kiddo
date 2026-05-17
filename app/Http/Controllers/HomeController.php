@@ -62,12 +62,9 @@ class HomeController extends Controller
     }
 
     /**
-     * Convert a stored image path into a browser URL. We always emit
-     * the URL even when the file is missing on disk — SmartImage's
-     * onError handler swaps in the coloured-letter tile, which is
-     * preferable to silently dropping the image and shifting the
-     * layout to a fallback that other parts of the page might not
-     * have rendered.
+     * Resolve a unit cover image. Same SVG fallback strategy as
+     * Word::imageUrl() so units with missing seed art still surface
+     * something visually consistent on the homepage.
      */
     private function asset(?string $path): ?string
     {
@@ -77,6 +74,10 @@ class HomeController extends Controller
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-        return '/' . ltrim($path, '/');
+        $rel = ltrim($path, '/');
+        if (is_file(public_path($rel))) {
+            return '/' . $rel;
+        }
+        return null; // Home cards have their own emoji placeholder
     }
 }

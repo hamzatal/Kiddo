@@ -49,7 +49,7 @@ class LessonDeckBuilder
                 'cards'      => $words->map(fn (Word $w) => [
                     'id'        => $w->id,
                     'word'      => $w->word,
-                    'imagePath' => $this->assetUrl($w->image_path),
+                    'imagePath' => $this->resolveImage($w),
                     'audioClip' => $w->audioClip(),
                 ])->all(),
             ],
@@ -191,7 +191,7 @@ class LessonDeckBuilder
             'id'        => "o{$id}_{$i}",
             'wordId'    => $w->id ?: null,
             'word'      => $w->word,
-            'imagePath' => $this->assetUrl($w->image_path),
+            'imagePath' => $this->resolveImage($w),
             'audioClip' => $w->audioClip(),
             'isCorrect' => $w->is($target),
         ])->shuffle()->values()->all();
@@ -203,11 +203,45 @@ class LessonDeckBuilder
             'prompt'  => [
                 'kind'      => in_array($style, ['image-to-word', 'audio-to-image']) ? 'image' : 'word',
                 'text'      => $target->word,
-                'imagePath' => $this->assetUrl($target->image_path),
+                'imagePath' => $this->resolveImage($target),
                 'audioClip' => $target->audioClip(),
             ],
             'options' => $options,
         ];
+    }
+
+    /**
+     * Resolve any Word into a guaranteed-renderable URL. Saved DB
+     * rows use the centralized Word::imageUrl() helper which falls
+     * back to the dynamic SVG endpoint when the original file is
+     * missing. Transient Word instances (built from authored
+     * wrong_options that don't match a DB row) get a by-text SVG so
+     * the card still displays something delightful instead of a
+     * coloured letter tile.
+     */
+    private function resolveImage(Word $w): ?string
+    {
+        if ($w->exists) {
+            return $w->imageUrl();
+        }
+
+        // Transient Word: try the raw image_path first, otherwise the
+        // dynamic by-text SVG endpoint.
+        $path = $w->image_path;
+        if ($path) {
+            if (preg_match('~^https?://~i', $path)) {
+                return $path;
+            }
+            $rel = ltrim($path, '/');
+            if (is_file(public_path($rel))) {
+                return '/' . $rel;
+            }
+        }
+        if ($w->word) {
+            $slug = rawurlencode(preg_replace('/[^A-Za-z0-9 ]+/', '', $w->word));
+            return "/api/word-svg-by-text/{$slug}.svg";
+        }
+        return null;
     }
 
     private function pickDecoys(Word $target, int $n, string $pool, int $unitId): Collection

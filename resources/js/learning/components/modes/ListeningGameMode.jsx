@@ -135,11 +135,15 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
               onClick={() => handlePick(opt)}
               className={`aspect-square p-3 sm:p-4 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1 ${style}`}
             >
-              {opt.imagePath ? (
-                <SmartImage src={opt.imagePath} label={opt.word || ""} className="w-full h-[75%]" imgClassName="w-full h-full object-contain" />
-              ) : (
-                <SmartImage src={null} label={opt.word || "?"} className="w-full h-[75%]" />
-              )}
+              {/* Image: SmartImage handles the imagePath including
+                  fallback to /api/word-svg when the file is missing,
+                  so we never need a separate src=null branch. */}
+              <SmartImage
+                src={opt.imagePath}
+                label={opt.word || ""}
+                className="w-full h-[75%]"
+                imgClassName="w-full h-full object-contain"
+              />
               {isCorrect && (
                 <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow animate-bounce">✓</div>
               )}
