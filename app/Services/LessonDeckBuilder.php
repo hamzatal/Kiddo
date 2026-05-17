@@ -212,119 +212,126 @@ class LessonDeckBuilder
 
     private function pickDecoys(Word $target, int $n, string $pool, int $unitId): Collection
     {
-        // 1. Hand-authored wrong_options. We RESOLVE each authored entry
-        //    against the live Word table so the decoy carries its real
-        //    image_path + audio binding. Falling back to a transient Word
-        //    instance only when no DB row matches keeps backward compat
-        //    with seeders that ship custom decoy images.
-        //
-        //    Without this resolution step the lesson game would render
-        //    every decoy as a coloured-letter tile (because transient
-        //    Word instances had no image_path), which is the bug the
-        //    teacher reported: "only the correct option shows its image,
-        //    the rest are blanks".
+        // 1. Hand-authored wrong_options — try to resolve them against
+        //    real DB rows so they carry image_path + audioClip. If a
+        //    wrong_option word exists in the same unit, use that row
+        //    directly (with its real image). Only fall back to a bare
+        //    Word instance when the word doesn't exist in the DB.
         if (is_array($target->wrong_options) && count($target->wrong_options) >= $n) {
-            $authored = collect($target->wrong_options)->shuffle()->take($n);
+            $wrongWords = collect($target->wrong_options)->shuffle()->take($n);
+            $resolved = collect();
 
-            // Look every authored decoy up by exact word (case-insensitive)
-            // so we can borrow image_path/audio from the real row.
-            $names = $authored
-                ->pluck('word')
-                ->filter()
-                ->map(fn ($w) => mb_strtolower($w))
-                ->unique()
-                ->values()
-                ->all();
+            foreach ($wrongWords as $w) {
+                $wordText = is_array($w) ? ($w['word'] ?? '') : (string) $w;
+                if (! $wordText) continue;
 
-            $byName = $names
-                ? Word::with('audioTrack')
-                    ->whereRaw('LOWER(word) IN (' . implode(',', array_fill(0, count($names), '?')) . ')', $names)
-                    ->get()
-                    ->keyBy(fn (Word $w) => mb_strtolower($w->word))
-                : collect();
+                // Try to find a real Word row in the same unit.
+                $real = Word::with('audioTrack')
+                    ->where('unit_id', $unitId)
+                    ->whereRaw('LOWER(word) = ?', [mb_strtolower($wordText)])
+                    ->where('id', '!=', $target->id)
+                    ->first();
 
-            return $authored->map(function ($w) use ($byName) {
-                $key = isset($w['word']) ? mb_strtolower($w['word']) : null;
-                $row = $key ? $byName->get($key) : null;
-
-                if ($row instanceof Word) {
-                    // Override the authored image path only when the
-                    // authored entry didn't supply its own (rare, but
-                    // some seeders override the canonical image).
-                    if (! empty($w['image_path'])) {
-                        $row = clone $row;
-                        $row->image_path = $w['image_path'];
-                    }
-                    return $row;
+                if ($real) {
+                    $resolved->push($real);
+                } else {
+                    $resolved->push(new Word([
+                        'word'       => $wordText,
+                        'image_path' => is_array($w) ? ($w['image_path'] ?? null) : null,
+                    ]));
                 }
-
-                // Last resort: transient Word, which still surfaces a
-                // coloured-letter SmartImage fallback so the card is
-                // never empty.
-                return new Word([
-                    'word'       => $w['word'] ?? '?',
-                    'image_path' => $w['image_path'] ?? null,
-                ]);
-            });
+            }
+            return $resolved;
         }
 
-        // 2. Query DB: same category first, then fallback to unit.
-        //    To keep every option visually rich we PREFER decoys that
-        //    have an image_path (so the kid sees three real pictures,
-        //    not two pictures + a coloured letter).
-        $base = Word::where('unit_id', $unitId)
-            ->where('id', '!=', $target->id)
-            ->with('audioTrack');
+        // 2. Query DB. We pull a generous candidate set (3x) and then
+        //    score them so that decoys WITH image_path appear first.
+        //    The previous strategy returned random words, which often
+        //    surfaced rows with empty image_path — leaving the kid
+        //    looking at coloured fallback tiles for every wrong choice
+        //    while only the target word showed a real picture.
+        //
+        //    Order of preference (highest first):
+        //      a) same category AND has image_path
+        //      b) any unit word with image_path
+        //      c) same category (no image)
+        //      d) any unit word
+        $candidates = $this->preferImageRichDecoys($target, $n, $pool, $unitId);
 
-        $sameCat = $pool === 'same_category' && $target->category
-            ? (clone $base)
+        return $candidates;
+    }
+
+    /**
+     * Score-and-pick decoys so the lesson screen never has to render
+     * coloured fallback tiles when there ARE words with images
+     * available in the unit. Falls through tiers gracefully.
+     */
+    private function preferImageRichDecoys(Word $target, int $n, string $pool, int $unitId): Collection
+    {
+        $wantCategory = $pool === 'same_category' && $target->category;
+
+        // Tier A: same category + has image
+        $tierA = collect();
+        if ($wantCategory) {
+            $tierA = Word::with('audioTrack')
+                ->where('unit_id', $unitId)
+                ->where('id', '!=', $target->id)
                 ->where('category', $target->category)
                 ->whereNotNull('image_path')
                 ->where('image_path', '!=', '')
                 ->inRandomOrder()
                 ->take($n)
-                ->get()
-            : collect();
-
-        $candidates = $sameCat;
-
-        if ($candidates->count() < $n) {
-            // Top up from any unit word with an image, ignoring category.
-            $extra = (clone $base)
-                ->whereNotIn('id', $candidates->pluck('id'))
-                ->whereNotNull('image_path')
-                ->where('image_path', '!=', '')
-                ->inRandomOrder()
-                ->take($n - $candidates->count())
                 ->get();
-            $candidates = $candidates->concat($extra);
+        }
+        if ($tierA->count() >= $n) {
+            return $tierA;
         }
 
-        if ($candidates->count() < $n) {
-            // Last resort: same category, even without an image (so the
-            // card still renders the SmartImage fallback).
-            if ($pool === 'same_category' && $target->category) {
-                $extra = (clone $base)
-                    ->where('category', $target->category)
-                    ->whereNotIn('id', $candidates->pluck('id'))
-                    ->inRandomOrder()
-                    ->take($n - $candidates->count())
-                    ->get();
-                $candidates = $candidates->concat($extra);
-            }
+        // Tier B: any unit word with an image (excluding tier A picks)
+        $picked = $tierA->pluck('id');
+        $tierB = Word::with('audioTrack')
+            ->where('unit_id', $unitId)
+            ->where('id', '!=', $target->id)
+            ->whereNotIn('id', $picked)
+            ->whereNotNull('image_path')
+            ->where('image_path', '!=', '')
+            ->inRandomOrder()
+            ->take($n - $tierA->count())
+            ->get();
+
+        $combined = $tierA->concat($tierB);
+        if ($combined->count() >= $n) {
+            return $combined;
         }
 
-        if ($candidates->count() < $n) {
-            // Absolute last resort: any unit word.
-            $extra = (clone $base)
-                ->whereNotIn('id', $candidates->pluck('id'))
+        // Tier C: same category (no image filter)
+        $picked = $combined->pluck('id');
+        if ($wantCategory) {
+            $tierC = Word::with('audioTrack')
+                ->where('unit_id', $unitId)
+                ->where('id', '!=', $target->id)
+                ->whereNotIn('id', $picked)
+                ->where('category', $target->category)
                 ->inRandomOrder()
-                ->take($n - $candidates->count())
+                ->take($n - $combined->count())
                 ->get();
-            $candidates = $candidates->concat($extra);
+            $combined = $combined->concat($tierC);
+        }
+        if ($combined->count() >= $n) {
+            return $combined;
         }
 
-        return $candidates;
+        // Tier D: any other word in the unit
+        $picked = $combined->pluck('id');
+        $tierD = Word::with('audioTrack')
+            ->where('unit_id', $unitId)
+            ->where('id', '!=', $target->id)
+            ->whereNotIn('id', $picked)
+            ->inRandomOrder()
+            ->take($n - $combined->count())
+            ->get();
+
+        return $combined->concat($tierD);
     }
 
     private function audioTrackPayload(Lesson $lesson): ?array
@@ -352,14 +359,13 @@ class LessonDeckBuilder
      * Normalize a stored path to a root-relative URL the browser can load.
      * Accepts: "assets/lessons/welcome/hello.png", "/assets/...", full http URL.
      *
-     * Important: we DO NOT short-circuit to null when the file doesn't
-     * exist on disk. Returning null hides every authored decoy image
-     * because the React SmartImage gives up before even firing an
-     * <img> tag. Instead we always emit the URL — if the file truly
-     * isn't there the <img onError> handler in SmartImage will fall
-     * back to the coloured-letter tile, with at most a single 404 in
-     * DevTools. The trade-off is one cheap 404 vs. a totally missing
-     * decoy image, which is the bug a learner just reported.
+     * We ALWAYS return the URL if a path is set — even if the file doesn't
+     * currently exist on disk. SmartImage on the frontend has an onError
+     * handler that gracefully shows a colourful letter tile when the img
+     * 404s. The old behaviour of returning null meant decoy cards never
+     * even ATTEMPTED to load their image, making the game look broken
+     * (only the target word showed a picture, everything else was a
+     * coloured square).
      */
     private function assetUrl(?string $path): ?string
     {
@@ -369,6 +375,8 @@ class LessonDeckBuilder
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
-        return '/' . ltrim($path, '/');
+
+        $rel = ltrim($path, '/');
+        return '/' . $rel;
     }
 }

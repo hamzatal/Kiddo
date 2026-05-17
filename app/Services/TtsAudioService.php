@@ -106,6 +106,44 @@ class TtsAudioService
     }
 
     /**
+     * Synthesise an arbitrary string and return the raw mp3 bytes
+     * (or null on failure). Doesn't write to disk — the caller
+     * decides where to cache the file. Used by the public on-demand
+     * TTS endpoint when the kid taps the speaker on a decoy that
+     * isn't backed by a real Word row.
+     */
+    public function synthesizeText(string $text): ?string
+    {
+        $text = trim($text);
+        if ($text === '' || ! $this->isConfigured()) {
+            return null;
+        }
+        try {
+            $resp = Http::timeout(60)
+                ->withToken($this->apiKey)
+                ->withHeaders(['Accept' => 'audio/mpeg'])
+                ->post(self::ENDPOINT, [
+                    'model'  => $this->model,
+                    'voice'  => $this->voice,
+                    'input'  => $text,
+                    'format' => 'mp3',
+                    'speed'  => 0.9,
+                ]);
+            if (! $resp->successful() || strlen($resp->body()) < 512) {
+                Log::warning('TTS api returned non-audio for text', [
+                    'status' => $resp->status(),
+                    'len'    => strlen($resp->body()),
+                ]);
+                return null;
+            }
+            return $resp->body();
+        } catch (\Throwable $e) {
+            Log::warning('tts text exception: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Generate clips for every word in a Unit that doesn't already have
      * a usable per-word audio file. Used by the admin "Generate child
      * voice for all words in U0" button.
