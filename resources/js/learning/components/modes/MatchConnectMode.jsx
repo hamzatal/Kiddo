@@ -246,9 +246,13 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </p>
             </div>
 
+            {/* Wider middle gutter (160px / 200px on lg) so the SVG
+                connector lines have visible breathing room between
+                the two columns — without it the cards almost touch
+                and the green/red lines look squashed. */}
             <div
                 ref={containerRef}
-                className="relative w-full max-w-4xl grid grid-cols-[1fr_80px_1fr] gap-4 lg:gap-6 items-stretch"
+                className="relative w-full max-w-5xl grid grid-cols-[1fr_160px_1fr] lg:grid-cols-[1fr_200px_1fr] gap-3 lg:gap-4 items-stretch px-2"
             >
                 {/* Left column — word cards */}
                 <div className="flex flex-col gap-3 lg:gap-4">
@@ -347,20 +351,12 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                                     isMatched ? "cursor-default" : ""
                                 }`}
                             >
-                                {p.imagePath ? (
-                                    <SmartImage
-                                        src={p.imagePath}
-                                        label={p.word}
-                                        className="w-full h-full"
-                                        imgClassName="max-w-full max-h-full object-contain drop-shadow-md"
-                                    />
-                                ) : (
-                                    <SmartImage
-                                        src={null}
-                                        label={p.word}
-                                        className="w-full h-full"
-                                    />
-                                )}
+                                <SmartImage
+                                    src={p.imagePath}
+                                    label={p.word}
+                                    className="w-full h-full"
+                                    imgClassName="max-w-full max-h-full object-contain drop-shadow-md"
+                                />
                                 {isMatched && (
                                     <span className="absolute -top-2 -right-2 bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black border-4 border-white shadow-sm">
                                         ✓

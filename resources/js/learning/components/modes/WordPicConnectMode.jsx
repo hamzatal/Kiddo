@@ -199,7 +199,10 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
       </div>
 
       {/* Two-column layout with SVG overlay for connecting lines */}
-      <div ref={containerRef} className="relative w-full max-w-2xl grid grid-cols-[1fr_60px_1fr] sm:grid-cols-[1fr_80px_1fr] gap-3 sm:gap-4 items-stretch">
+      {/* Wider middle column so the SVG connector lines have real
+          breathing room and never look like the two card columns are
+          glued together. 140px on phones, 200px on tablet+. */}
+      <div ref={containerRef} className="relative w-full max-w-3xl grid grid-cols-[1fr_140px_1fr] sm:grid-cols-[1fr_200px_1fr] gap-2 sm:gap-3 items-stretch px-2">
         {/* Words column */}
         <div className="flex flex-col gap-2 sm:gap-3">
           {pairs.map(p => {

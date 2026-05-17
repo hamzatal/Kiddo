@@ -39,6 +39,43 @@ class Word extends Model
     }
 
     /**
+     * Centralized image-URL resolver used by every controller and
+     * service so we never accidentally short-circuit to null again.
+     *
+     * Behaviour:
+     *   1. If image_path is empty → null. (Caller should render a
+     *      SmartImage, which produces a coloured emoji tile.)
+     *   2. If image_path is an absolute http(s) URL → return as-is.
+     *   3. If the file exists in public/ → return /<path>.
+     *   4. Otherwise fall back to /api/word-svg/{id}.svg, a server-
+     *      rendered SVG card with the word and a tinted background.
+     *      This way EVERY card on every game/lesson/quiz screen
+     *      renders something meaningful — never a broken icon.
+     *
+     * The frontend SmartImage's onError handler still kicks in if
+     * even the SVG endpoint fails, so we have three layers of safety.
+     */
+    public function imageUrl(): ?string
+    {
+        $path = $this->image_path;
+        if (! $path) {
+            return $this->id ? "/api/word-svg/{$this->id}.svg" : null;
+        }
+
+        if (preg_match('~^https?://~i', $path)) {
+            return $path;
+        }
+
+        $rel = ltrim($path, '/');
+        if (is_file(public_path($rel))) {
+            return '/' . $rel;
+        }
+
+        // Fall through to the dynamic SVG so every card has art.
+        return $this->id ? "/api/word-svg/{$this->id}.svg" : '/' . $rel;
+    }
+
+    /**
      * Build a front-end friendly audio clip descriptor. Prefers a
      * segment of a shared NCCD track (streamed, no download needed)
      * and falls back to the per-word audio_path if no track is linked.

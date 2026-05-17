@@ -22,6 +22,17 @@ Route::get('/api/audio/{code}', AudioStreamController::class)
     ->whereAlphaNumeric('code')
     ->name('audio.stream');
 
+// Dynamic SVG word image — used as the universal fallback when a
+// Word's image_path doesn't exist on disk. Returns a curated emoji
+// + the word label inside a coloured gradient card. Cached for a
+// year (the SVG is deterministic per word).
+Route::get('/api/word-svg/{word}.svg', [\App\Http\Controllers\WordImageController::class, 'show'])
+    ->whereNumber('word')
+    ->name('word.svg');
+Route::get('/api/word-svg-by-text/{text}.svg', [\App\Http\Controllers\WordImageController::class, 'byText'])
+    ->where('text', '[A-Za-z0-9 _-]+')
+    ->name('word.svg.byText');
+
 // On-demand TTS — generates (or returns the cached) child-friendly
 // OpenAI nova-voice mp3 clip for any word that doesn't have NCCD
 // audio. Throttled per IP to keep the OpenAI bill bounded.

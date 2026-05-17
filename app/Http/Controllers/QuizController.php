@@ -44,8 +44,9 @@ class QuizController extends Controller
         $questions = $words->map(function (Word $word) use ($unit, $allUnitWords) {
             $correct = [
                 'id'        => 'correct_' . $word->id,
+                'wordId'    => $word->id,
                 'word'      => $word->word,
-                'imagePath' => $this->asset($word->image_path),
+                'imagePath' => $word->imageUrl(),
                 'isCorrect' => true,
                 'audioClip' => $word->audioClip(),
             ];
@@ -58,18 +59,23 @@ class QuizController extends Controller
                     $decoyWord = $wrong['word'] ?? 'Wrong';
                     $row = $allUnitWords->get(mb_strtolower($decoyWord));
 
-                    // Prefer the authored image_path; otherwise fall back
-                    // to the live DB row's image_path so every decoy card
-                    // still shows a real picture instead of a coloured tile.
-                    $img = $wrong['image_path'] ?? null;
-                    if (! $img && $row instanceof Word) {
-                        $img = $row->image_path;
+                    // Resolve to the live row's URL when we found one
+                    // (so the decoy gets the real image / SVG fallback).
+                    // Otherwise build a by-text SVG URL from the decoy
+                    // word so the card still renders meaningfully.
+                    if ($row instanceof Word) {
+                        $img = $row->imageUrl();
+                    } elseif (! empty($wrong['image_path'])) {
+                        $img = $this->resolveAuthoredPath($wrong['image_path'], $decoyWord);
+                    } else {
+                        $img = $this->byTextSvg($decoyWord);
                     }
 
                     $options->push([
                         'id'        => 'wrong_' . $word->id . '_' . $index,
+                        'wordId'    => $row?->id,
                         'word'      => $decoyWord,
-                        'imagePath' => $this->asset($img),
+                        'imagePath' => $img,
                         'isCorrect' => false,
                         'audioClip' => $row ? $row->audioClip() : null,
                     ]);
@@ -97,8 +103,9 @@ class QuizController extends Controller
                 foreach ($siblings as $i => $sib) {
                     $options->push([
                         'id'        => 'wrong_' . $word->id . '_' . $i,
+                        'wordId'    => $sib->id,
                         'word'      => $sib->word,
-                        'imagePath' => $this->asset($sib->image_path),
+                        'imagePath' => $sib->imageUrl(),
                         'isCorrect' => false,
                         'audioClip' => $sib->audioClip(),
                     ]);
@@ -108,7 +115,7 @@ class QuizController extends Controller
             return [
                 'targetWord' => $word->word,
                 'targetWordId' => $word->id,
-                'audioPath'  => $this->asset($word->audio_path),
+                'audioPath'  => $word->audio_path ? '/' . ltrim($word->audio_path, '/') : null,
                 'audioClip'  => $word->audioClip(),
                 'options'    => $options->shuffle()->values()->all(),
             ];
@@ -156,13 +163,10 @@ class QuizController extends Controller
     }
 
     /**
-     * Convert a stored image path into a browser URL. We always emit
-     * the URL — if the file isn't on disk the React SmartImage's
-     * <img onError> handler swaps in the coloured-letter tile.
-     *
-     * Returning null short-circuits SmartImage and ends up hiding
-     * every distractor image, which is exactly the bug a teacher
-     * just reported ("only the correct option shows its picture").
+     * Convert a stored image path into a browser URL. Used for the
+     * raw audio file path; image paths now go through Word::imageUrl()
+     * directly so they automatically fall back to /api/word-svg/...
+     * when the asset is missing on disk.
      */
     private function asset(?string $path): ?string
     {
@@ -173,5 +177,28 @@ class QuizController extends Controller
             return $path;
         }
         return '/' . ltrim($path, '/');
+    }
+
+    /**
+     * Resolve an authored decoy image path. Returns the real file
+     * URL when it exists, or a by-text SVG URL when it doesn't, so
+     * a typo or missing seed asset never produces a broken image.
+     */
+    private function resolveAuthoredPath(string $path, string $word): string
+    {
+        if (preg_match('~^https?://~i', $path)) {
+            return $path;
+        }
+        $rel = ltrim($path, '/');
+        if (is_file(public_path($rel))) {
+            return '/' . $rel;
+        }
+        return $this->byTextSvg($word);
+    }
+
+    private function byTextSvg(string $word): string
+    {
+        $slug = rawurlencode(preg_replace('/[^A-Za-z0-9 ]+/', '', $word));
+        return "/api/word-svg-by-text/{$slug}.svg";
     }
 }

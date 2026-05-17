@@ -3,7 +3,7 @@ import { router, usePage } from "@inertiajs/react";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
-import SmartImage from "@/learning/components/ui/SmartImage";
+import OptionCard from "@/learning/components/ui/OptionCard";
 import AppHeader from "@/learning/components/ui/AppHeader";
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 
@@ -175,40 +175,29 @@ const QuizScreen = ({ quizData }) => {
               </div>
             </div>
 
-            {/* Options grid */}
+            {/* Options grid — uses OptionCard so every option has a
+                speaker button + matching SmartImage fallback, exactly
+                like the lesson modes. */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl px-1">
               {currentQ.options.map((opt) => {
                 const isWrong = wrongClicks.includes(opt.id);
                 const isCorrectPick = selectedCorrect === opt.id;
-
-                let cardStyle = "border-white/60 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1";
-                if (isCorrectPick) cardStyle = "border-emerald-400 bg-emerald-50 scale-[1.02] shadow-xl ring-2 ring-emerald-200";
-                else if (isWrong) cardStyle = "border-red-200 bg-red-50/50 opacity-50 scale-95 cursor-not-allowed";
+                let cardState = "idle";
+                if (isCorrectPick) cardState = "correct";
+                else if (isWrong) cardState = "wrong";
+                else if (selectedCorrect !== null) cardState = "disabled";
 
                 return (
-                  <button
+                  <OptionCard
                     key={opt.id}
-                    disabled={selectedCorrect !== null || isWrong}
+                    imagePath={opt.imagePath}
+                    label={opt.word}
+                    audioClip={opt.audioClip}
+                    wordId={opt.wordId || null}
+                    state={cardState}
                     onClick={() => handleChoice(opt)}
-                    className={`relative aspect-square sm:aspect-[4/3] p-3 sm:p-4 lg:p-5 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1.5 ${cardStyle}`}
-                  >
-                    <SmartImage
-                      src={opt.imagePath}
-                      label={opt.word}
-                      className="w-full h-[60%]"
-                      imgClassName="w-full h-full object-contain"
-                    />
-                    <span className="text-[10px] sm:text-xs lg:text-sm font-black uppercase text-gray-600 tracking-wide truncate w-full text-center">
-                      {opt.word}
-                    </span>
-
-                    {isCorrectPick && (
-                      <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg font-black border-2 border-white shadow-lg animate-bounce">✓</div>
-                    )}
-                    {isWrong && (
-                      <div className="absolute -top-2 -right-2 bg-red-400 text-white w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg font-black border-2 border-white shadow">✕</div>
-                    )}
-                  </button>
+                    showLabel
+                  />
                 );
               })}
             </div>
