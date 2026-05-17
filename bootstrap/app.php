@@ -18,10 +18,11 @@ use App\Http\Middleware\HandleInertiaRequests;
 // all behave the same. .htaccess already sets the same values for
 // the Apache case; this block covers the rest.
 // ───────────────────────────────────────────────────────────
-@ini_set('upload_max_filesize', '20M');
-@ini_set('post_max_size',       '25M');
-@ini_set('memory_limit',        '256M');
-@ini_set('max_execution_time',  '300');
+@ini_set('upload_max_filesize', '64M');
+@ini_set('post_max_size',       '80M');
+@ini_set('memory_limit',        '512M');
+@ini_set('max_execution_time',  '600');
+@ini_set('max_input_time',      '600');
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(

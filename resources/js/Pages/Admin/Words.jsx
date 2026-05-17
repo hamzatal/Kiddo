@@ -18,7 +18,7 @@ function formatSegmentLength(startMs, endMs) {
     return diff.toFixed(2) + "s";
 }
 
-function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved }) {
+function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onToggleSelect }) {
     const [row, setRow] = useState(w);
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -151,6 +151,13 @@ function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved }) {
             } p-4 mb-3`}
         >
             <div className="flex items-start gap-4 flex-wrap">
+                <input
+                    type="checkbox"
+                    checked={!!isSelected}
+                    onChange={(e) => onToggleSelect?.(w.id, e.target.checked)}
+                    className="mt-2 w-4 h-4 accent-purple-600"
+                    title="Select for bulk delete"
+                />
                 <div className="shrink-0 w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden relative group cursor-pointer">
                     {row.image_path ? (
                         <img
@@ -398,6 +405,78 @@ function Words({ units, tracks, words, selected, search }) {
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState(null);
     const fileRef = useRef(null);
+    // Bulk selection set + duplicates panel state.
+    const [selectedIds, setSelectedIds] = useState(() => new Set());
+    const [dupOpen, setDupOpen] = useState(false);
+    const [dupBusy, setDupBusy] = useState(false);
+    const [dupReport, setDupReport] = useState(null);
+    const [autoSegBusy, setAutoSegBusy] = useState(false);
+    const [autoSegReport, setAutoSegReport] = useState(null);
+    const [bulkBusy, setBulkBusy] = useState(false);
+
+    function toggleSelect(id, on) {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (on) next.add(id); else next.delete(id);
+            return next;
+        });
+    }
+
+    async function bulkDelete() {
+        if (selectedIds.size === 0) return;
+        const sure = window.confirm(
+            `Delete ${selectedIds.size} word${selectedIds.size === 1 ? "" : "s"} permanently? This cannot be undone.`
+        );
+        if (!sure) return;
+        setBulkBusy(true);
+        try {
+            const { data } = await axios.post("/admin/words/bulk-delete", {
+                ids: Array.from(selectedIds),
+            });
+            if (data.ok) {
+                setSelectedIds(new Set());
+                router.reload({ only: ["words"] });
+            }
+        } catch (e) {
+            alert(e?.response?.data?.error || e?.response?.data?.message || "Bulk delete failed");
+        } finally {
+            setBulkBusy(false);
+        }
+    }
+
+    async function loadDuplicates() {
+        setDupBusy(true);
+        try {
+            const { data } = await axios.get("/admin/words/duplicates");
+            setDupReport(data);
+            setDupOpen(true);
+        } catch (e) {
+            alert(e?.response?.data?.error || "Could not load duplicates");
+        } finally {
+            setDupBusy(false);
+        }
+    }
+
+    async function runAutoSegmentAll() {
+        const sure = window.confirm(
+            unit
+                ? "AI auto-segment every track linked to words in this unit? Sends each track to OpenAI Whisper."
+                : "AI auto-segment every track that has linked words? This may make many Whisper API calls."
+        );
+        if (!sure) return;
+        setAutoSegBusy(true); setAutoSegReport(null);
+        try {
+            const { data } = await axios.post("/admin/words/auto-segment-all", {
+                unit_id: unit || null,
+            });
+            setAutoSegReport(data);
+            setTimeout(() => router.reload({ only: ["words"] }), 800);
+        } catch (e) {
+            alert(e?.response?.data?.error || "Auto-segment failed");
+        } finally {
+            setAutoSegBusy(false);
+        }
+    }
 
     function onFilter(e) {
         e.preventDefault();
@@ -417,13 +496,24 @@ function Words({ units, tracks, words, selected, search }) {
         try {
             let imagePath = draft.image_path || null;
             if (fileRef.current?.files?.[0]) {
-                const fd = new FormData();
-                fd.append("image", fileRef.current.files[0]);
-                fd.append("folder", (draft.category || draft.word).toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32));
-                const r = await axios.post("/admin/uploads", fd, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                });
-                imagePath = r.data.path;
+                const file = fileRef.current.files[0];
+                if (file.size > MAX_INPUT_BYTES) {
+                    throw new Error(`Image is too large (${(file.size/1024/1024).toFixed(1)} MB). Max 20 MB.`);
+                }
+                if (!isSupportedImage(file)) {
+                    throw new Error("Pick a JPG, PNG, GIF, WebP, SVG or BMP image.");
+                }
+                // Browser-side resize → JSON base64 so PHP/nginx never sees a big POST.
+                const dataUrl = await shrinkForAdminUpload(file);
+                const r = await axios.post(
+                    "/admin/uploads/image",
+                    {
+                        image_base64: dataUrl,
+                        folder: (draft.category || draft.word).toLowerCase().replace(/[^a-z0-9_-]/g, "-").slice(0, 32),
+                    },
+                    { headers: { "Content-Type": "application/json" } }
+                );
+                imagePath = r.data?.path || r.data?.image_path;
             }
             const { data } = await axios.post("/admin/words", {
                 unit_id: Number(draft.unit_id),
@@ -438,7 +528,7 @@ function Words({ units, tracks, words, selected, search }) {
                 router.reload({ only: ["words"] });
             }
         } catch (e) {
-            setErr(e?.response?.data?.message || "Create failed");
+            setErr(e?.response?.data?.error || e?.response?.data?.message || e?.message || "Create failed");
         } finally {
             setBusy(false);
         }
@@ -668,6 +758,128 @@ function Words({ units, tracks, words, selected, search }) {
                     </div>
                 ) : null}
 
+                {/* Bulk action toolbar — visible whenever there are
+                    rows on the page so admins can delete duplicates,
+                    select-all, run AI auto-segment, etc. */}
+                <div className="bg-white rounded-2xl border border-gray-100 p-3 mb-4 flex items-center gap-2 flex-wrap text-xs">
+                    <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100 font-black text-gray-600">
+                        <input
+                            type="checkbox"
+                            checked={visibleWords.length > 0 && visibleWords.every((w) => selectedIds.has(w.id))}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setSelectedIds(new Set([...selectedIds, ...visibleWords.map((w) => w.id)]));
+                                } else {
+                                    const next = new Set(selectedIds);
+                                    visibleWords.forEach((w) => next.delete(w.id));
+                                    setSelectedIds(next);
+                                }
+                            }}
+                            className="w-3.5 h-3.5 accent-purple-600"
+                        />
+                        Select all on page
+                    </label>
+                    <span className="text-gray-400 font-bold">
+                        {selectedIds.size} selected
+                    </span>
+                    <button
+                        type="button"
+                        onClick={bulkDelete}
+                        disabled={selectedIds.size === 0 || bulkBusy}
+                        className="px-3 py-1.5 rounded-lg bg-rose-500 text-white font-black disabled:opacity-40"
+                        title="Delete every selected word"
+                    >
+                        {bulkBusy ? "Deleting…" : `🗑 Delete selected (${selectedIds.size})`}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={loadDuplicates}
+                        disabled={dupBusy}
+                        className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-black disabled:opacity-40"
+                        title="Show all words duplicated within the same unit"
+                    >
+                        {dupBusy ? "Scanning…" : "🔍 Find duplicates"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={runAutoSegmentAll}
+                        disabled={autoSegBusy}
+                        className="px-3 py-1.5 rounded-lg bg-violet-100 text-violet-800 font-black disabled:opacity-40"
+                        title="Send every track to OpenAI Whisper and auto-fill segment timestamps"
+                    >
+                        {autoSegBusy ? "🤖 Working…" : "🤖 AI auto-segment all"}
+                    </button>
+                </div>
+
+                {dupOpen && dupReport ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-sm font-black text-amber-800">
+                                🔍 Duplicate words by unit ({dupReport.duplicates?.length || 0} groups)
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setDupOpen(false)}
+                                className="text-xs text-amber-700 hover:text-amber-900 font-black"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        {dupReport.duplicates?.length ? (
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {dupReport.duplicates.map((d) => (
+                                    <div key={`${d.unit_id}-${d.word}`} className="bg-white rounded-lg border border-amber-100 p-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-sm font-black text-[#1E293B]">{d.word}</span>
+                                            <span className="text-[10px] font-black uppercase text-gray-400">{d.unit}</span>
+                                            <span className="text-[10px] font-black bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+                                                {d.count} copies
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    // Pre-select every duplicate copy except the first one.
+                                                    const ids = (d.rows || []).slice(1).map((r) => r.id);
+                                                    setSelectedIds((prev) => new Set([...prev, ...ids]));
+                                                }}
+                                                className="ml-auto text-[11px] font-black text-rose-600 hover:text-rose-800"
+                                            >
+                                                Mark extras for delete
+                                            </button>
+                                        </div>
+                                        <ul className="mt-1 text-[11px] text-gray-500 font-mono space-x-3">
+                                            {(d.rows || []).map((r) => (
+                                                <span key={r.id} className={selectedIds.has(r.id) ? "text-rose-600 line-through" : ""}>
+                                                    #{r.id}{r.has_segment ? "·✂" : ""}
+                                                </span>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs font-bold text-gray-500">No duplicates 🎉</p>
+                        )}
+                    </div>
+                ) : null}
+
+                {autoSegReport ? (
+                    <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-4">
+                        <p className="text-sm font-black text-violet-800">
+                            🤖 Auto-segment summary: {autoSegReport.words_matched}/{autoSegReport.words_total} words matched across {autoSegReport.tracks_run} tracks.
+                        </p>
+                        {autoSegReport.report?.length ? (
+                            <ul className="mt-2 max-h-40 overflow-y-auto text-[11px] font-mono text-gray-700 space-y-0.5">
+                                {autoSegReport.report.slice(0, 50).map((r, i) => (
+                                    <li key={i}>
+                                        {r.track}: {r.matched}/{r.total} {r.error ? `· ${r.error}` : ""}{r.message ? `· ${r.message}` : ""}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 {visibleWords.map((w) => (
                     <WordRow
                         key={w.id}
@@ -676,6 +888,8 @@ function Words({ units, tracks, words, selected, search }) {
                         isFocused={focusedRowId === w.id}
                         onFocusRow={setFocusedRowId}
                         onRemoved={() => router.reload({ only: ["words"] })}
+                        isSelected={selectedIds.has(w.id)}
+                        onToggleSelect={toggleSelect}
                     />
                 ))}
 

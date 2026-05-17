@@ -86,22 +86,34 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/tracks',   [AdminController::class, 'tracks'])->name('tracks');
         Route::get('/words',    [AdminController::class, 'words'])->name('words');
 
+        // Generic uploads (used by create-word / create-lesson before
+        // the row exists) — base64 path so we never hit POST limits.
+        Route::post('/uploads',       [AdminController::class, 'uploadGenericImage']);
+        Route::post('/uploads/image', [AdminController::class, 'uploadGenericImage']);
+
         // JSON API (PATCH-style updates the React UI uses)
         Route::post('/units',                [AdminController::class, 'createUnit']);
         Route::patch('/units/{unit}',        [AdminController::class, 'updateUnit']);
+        Route::delete('/units/{unit}',       [AdminController::class, 'deleteUnit']);
         Route::post('/units/{unit}/image',   [AdminController::class, 'uploadUnitImage']);
+        Route::post('/units/{unit}/tts-fallback', [AdminController::class, 'generateTtsForUnit']);
+        Route::post('/units/{unit}/ai-ingest',    [AdminController::class, 'ingestUnitFromAudio']);
         Route::post('/lessons',              [AdminController::class, 'createLesson']);
         Route::patch('/lessons/{lesson}',    [AdminController::class, 'updateLesson']);
+        Route::delete('/lessons/{lesson}',   [AdminController::class, 'deleteLesson']);
         Route::post('/tracks',               [AdminController::class, 'createTrack']);
         Route::patch('/tracks/{track}',      [AdminController::class, 'updateTrack']);
         Route::delete('/tracks/{track}',     [AdminController::class, 'deleteTrack']);
         Route::post('/words',                [AdminController::class, 'createWord']);
         Route::patch('/words/{word}',        [AdminController::class, 'updateWord']);
         Route::delete('/words/{word}',       [AdminController::class, 'deleteWord']);
+        Route::post('/words/bulk-delete',    [AdminController::class, 'bulkDeleteWords']);
         Route::post('/words/{word}/image',   [AdminController::class, 'uploadWordImage']);
         Route::post('/words/{word}/auto-segment', [AdminController::class, 'autoSegmentWord']);
+        Route::post('/words/{word}/tts',          [AdminController::class, 'generateTtsForWord']);
         Route::post('/words/auto-segment-all',    [AdminController::class, 'autoSegmentAll']);
         Route::get('/words/duplicates',           [AdminController::class, 'findDuplicateWords']);
         Route::get('/audio/check',                [AdminController::class, 'checkAudioUrls']);
+        Route::post('/audio/discover',            [AdminController::class, 'discoverNccdAudio']);
     });
 });
