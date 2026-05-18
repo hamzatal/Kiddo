@@ -3,6 +3,7 @@ import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
 import SegmentEditor from "@/learning/components/admin/SegmentEditor";
+import AudioPanel from "@/learning/components/admin/AudioPanel";
 import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
 
 const TYPE_BADGE_CLS =
@@ -21,6 +22,7 @@ function formatSegmentLength(startMs, endMs) {
 function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onToggleSelect }) {
     const [row, setRow] = useState(w);
     const [open, setOpen] = useState(false);
+    const [audioOpen, setAudioOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -272,36 +274,40 @@ function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onTo
                                 className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-xs font-mono text-gray-700"
                             />
                         </label>
-                        <label className="text-[10px] font-black uppercase text-gray-400">
-                            Audio track
-                            <select
-                                value={
-                                    row.audio_track_id == null
-                                        ? ""
-                                        : String(row.audio_track_id)
-                                }
-                                onChange={(e) => {
-                                    const id =
-                                        e.target.value === ""
-                                            ? null
-                                            : Number(e.target.value);
-                                    setRow(
-                                        Object.assign({}, row, {
-                                            audio_track_id: id,
-                                        })
-                                    );
-                                    save({ audio_track_id: id });
+                        <div className="text-[10px] font-black uppercase text-gray-400">
+                            Audio source
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const next = !audioOpen;
+                                    setAudioOpen(next);
+                                    if (next && onFocusRow) onFocusRow(w.id);
                                 }}
-                                className="w-full mt-1 px-2 py-1 rounded-lg border border-gray-200 text-xs font-sans text-[#1E293B]"
+                                className={
+                                    "w-full mt-1 flex items-center justify-between gap-2 px-2 py-2 rounded-lg border text-xs font-bold normal-case " +
+                                    (audioOpen
+                                        ? "bg-purple-50 border-purple-200 text-purple-700"
+                                        : "bg-white border-gray-200 text-[#1E293B] hover:border-purple-200")
+                                }
                             >
-                                <option value="">-- none --</option>
-                                {tracks.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                        {t.code} - {t.label ? t.label.slice(0, 40) : ""}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                                <span className="truncate">
+                                    {row.audio_track
+                                        ? `📚 NCCD · ${row.audio_track.code}`
+                                        : (function () {
+                                            const p = row.audio_path
+                                                ? String(row.audio_path).replace(/^\//, "")
+                                                : "";
+                                            if (p.startsWith("assets/audio/tts/")) return "✨ AI voice clip";
+                                            if (p.startsWith("assets/uploads/words/audio/")) return "📁 Custom upload";
+                                            if (p) return "✍️ " + p.split("/").pop();
+                                            return "🤐 Falls back to TTS";
+                                        })()}
+                                </span>
+                                <span className="text-[10px] font-black text-purple-500 shrink-0">
+                                    {audioOpen ? "Hide ▲" : "Edit 🎧"}
+                                </span>
+                            </button>
+                        </div>
                         <label className="text-[10px] font-black uppercase text-gray-400">
                             Category
                             <input
@@ -352,6 +358,20 @@ function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onTo
                     </div>
                 </div>
             </div>
+
+            {audioOpen ? (
+                <AudioPanel
+                    word={row}
+                    onClose={() => setAudioOpen(false)}
+                    onChange={(next) => {
+                        // The backend always returns the freshly-loaded
+                        // word with its audio_track relationship eager-
+                        // loaded, so we just spread it on top of our row
+                        // state to stay in sync.
+                        setRow((prev) => Object.assign({}, prev, next));
+                    }}
+                />
+            ) : null}
 
             {open && trackUrl ? (
                 <>

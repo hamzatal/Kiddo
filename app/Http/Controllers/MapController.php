@@ -88,6 +88,17 @@ class MapController extends Controller
 
         $totalStars = $units->sum('stars_earned');
 
+        // Games Arena (mixed-review playground) unlocks the moment
+        // the learner has finished at least one lesson — i.e. has
+        // a UserProgress with current_lesson > 1 OR status='done'.
+        // We also unlock it when *any* word exists in unlocked
+        // units so the kid never lands on an empty Arena room.
+        $arenaUnlocked = $units->contains(fn ($u) => $u['status'] === 'done')
+            || (bool) $user->progresses()
+                ->where(function ($q) {
+                    $q->where('current_lesson', '>', 1)->orWhere('status', 'done');
+                })->exists();
+
         return Inertia::render('Map/MapScreen', [
             'user' => [
                 'id'          => $user->id,
@@ -99,6 +110,11 @@ class MapController extends Controller
                 'isAdmin'     => method_exists($user, 'isAdmin') ? $user->isAdmin() : false,
             ],
             'units' => $units,
+            'arena' => [
+                'unlocked' => $arenaUnlocked,
+                'title'    => 'Games Arena',
+                'subtitle' => 'Mixed practice across every unit',
+            ],
             'stats' => [
                 'completionPercentage' => $completionPercentage,
                 'latestLesson'         => $latestLessonTitle,
