@@ -51,6 +51,24 @@ const ArenaScreen = ({ arena }) => {
     const style  = round?.style || "word-to-image";
     const meta   = STYLE_META[style] || STYLE_META["word-to-image"];
 
+    /**
+     * Reset every per-session piece of state. We use a session key
+     * derived from the deck identity so when the operator clicks
+     * "Play again" we re-fetch a fresh deck (Inertia reloads the
+     * `arena` prop) and the effect snaps the UI back to round 1.
+     */
+    const sessionKey = (rounds[0]?.roundId || "") + ":" + rounds.length;
+    useEffect(() => {
+        setIdx(0);
+        setResults([]);
+        setWrong([]);
+        setCorrectId(null);
+        setFinished(false);
+        setSubmitting(false);
+        startedAtRef.current = Date.now();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionKey]);
+
     // Auto-play prompt audio for listening-style rounds. We also
     // pre-warm the speaker for word/image rounds so a tap responds
     // instantly. Always stop any previous audio first to avoid
@@ -203,6 +221,10 @@ const ArenaScreen = ({ arena }) => {
                                 // the answer to be the WORD label, no image
                                 // (otherwise the kid just matches images).
                                 const useText = style === "image-to-word" || style === "listen-then-spell";
+                                // Hide labels on "audio-to-image" rounds so the
+                                // child has to listen, not read. Every other
+                                // style benefits from the visible word.
+                                const wantLabel = useText || style !== "audio-to-image";
 
                                 return (
                                     <OptionCard
@@ -211,7 +233,7 @@ const ArenaScreen = ({ arena }) => {
                                         label={opt.word}
                                         audioClip={opt.audioClip}
                                         wordId={opt.wordId || null}
-                                        showLabel={useText || style === "audio-to-image" === false}
+                                        showLabel={wantLabel}
                                         state={cardState}
                                         onClick={() => handlePick(opt)}
                                     />
