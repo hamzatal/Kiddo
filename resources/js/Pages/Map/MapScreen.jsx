@@ -158,9 +158,60 @@ const UnitNode = ({ unit, onClick }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
+   ArenaNode — mixed-review pin floating above the map
+   ══════════════════════════════════════════════════════════ */
+const ArenaNode = ({ unlocked }) => (
+    <div
+        className={`flex flex-col items-center gap-2 select-none transition-transform duration-300 ${
+            unlocked ? "cursor-pointer group" : "cursor-default"
+        }`}
+        style={{ filter: unlocked ? "none" : "grayscale(60%) opacity(0.65)" }}
+        onClick={unlocked ? () => router.visit("/arena") : undefined}
+    >
+        {/* Top label */}
+        <div className="absolute bottom-[90%] left-1/2 -translate-x-1/2 pb-2 flex flex-col items-center gap-1.5 w-max pointer-events-none z-30 transition-transform group-hover:-translate-y-2">
+            {unlocked && (
+                <div className="bg-gradient-to-r from-fuchsia-500 to-amber-400 text-white text-[10px] font-black px-4 py-1 rounded-full shadow-lg -rotate-2 animate-bounce whitespace-nowrap border-2 border-white pointer-events-auto">
+                    Mixed Practice!
+                </div>
+            )}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-5 py-1.5 rounded-full font-black text-[12px] shadow-xl flex items-center gap-2 whitespace-nowrap pointer-events-auto border-2 border-white/40 backdrop-blur-md">
+                <span className="text-base leading-none">🏆</span>
+                Games Arena
+            </div>
+        </div>
+
+        {/* The pin itself */}
+        <div className="w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 flex items-center justify-center relative drop-shadow-xl group-hover:scale-105 transition-transform">
+            <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-300 via-pink-300 to-amber-200 rounded-[2rem] rotate-3 shadow-2xl border-4 border-white/70" />
+            <div className="absolute inset-2 bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-500 rounded-[1.6rem] -rotate-2 flex items-center justify-center shadow-inner">
+                <span className="text-5xl sm:text-6xl drop-shadow-lg">🎮</span>
+            </div>
+            {!unlocked && (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="bg-black/55 backdrop-blur-md rounded-full w-14 h-14 flex items-center justify-center shadow-2xl border-2 border-white/20">
+                        <span className="text-3xl">🔒</span>
+                    </div>
+                </div>
+            )}
+            {unlocked && (
+                <div className="absolute inset-0 rounded-[2rem] bg-white/20 animate-ping opacity-30 pointer-events-none" />
+            )}
+        </div>
+
+        {/* Bottom hint pill */}
+        <div className="absolute top-[90%] left-1/2 -translate-x-1/2 pt-2 flex flex-col items-center gap-2 w-max pointer-events-none z-20">
+            <div className="bg-white/95 backdrop-blur px-4 py-1.5 rounded-full shadow-lg border border-gray-100 text-[10px] font-black text-purple-600">
+                {unlocked ? "All units · all words" : "Finish a lesson to unlock"}
+            </div>
+        </div>
+    </div>
+);
+
+/* ══════════════════════════════════════════════════════════
    MapScreen
 ══════════════════════════════════════════════════════════ */
-const MapScreen = ({ user, units: propUnits }) => {
+const MapScreen = ({ user, units: propUnits, arena }) => {
     const [soundOn, setSoundOn] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showQuizResult, setShowQuizResult] = useState(false);
@@ -323,6 +374,20 @@ const MapScreen = ({ user, units: propUnits }) => {
                                     </div>
                                 );
                             })}
+
+                            {/* Games Arena pin — sits in the top-right of the
+                                map between U1 and U2 so it never overlaps a
+                                unit node. Hidden when nothing is unlocked
+                                yet, but the prop is still passed so the
+                                Inertia hydration is stable. */}
+                            {arena ? (
+                                <div
+                                    className="absolute -translate-x-1/2 -translate-y-1/2"
+                                    style={{ left: "87%", top: "12%" }}
+                                >
+                                    <ArenaNode unlocked={!!arena.unlocked} />
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
@@ -461,6 +526,34 @@ const MapScreen = ({ user, units: propUnits }) => {
                                     </div>
                                 );
                             })}
+
+                            {/* Games Arena entry — sits at the bottom of
+                                the Map Index so the kid recognises it as
+                                a separate "always-on" practice mode. */}
+                            {arena ? (
+                                <div
+                                    onClick={
+                                        arena.unlocked
+                                            ? () => router.visit("/arena")
+                                            : undefined
+                                    }
+                                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition-colors mt-1 ${
+                                        arena.unlocked
+                                            ? "border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-amber-50 cursor-pointer hover:from-fuchsia-100"
+                                            : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                                    }`}
+                                >
+                                    <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-6 h-6 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm">
+                                        🏆
+                                    </div>
+                                    <p className="text-[11px] font-black text-[#1E293B] flex-1 truncate">
+                                        Games Arena
+                                    </p>
+                                    <span className="text-sm bg-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
+                                        {arena.unlocked ? "🎮" : "🔒"}
+                                    </span>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 

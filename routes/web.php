@@ -12,6 +12,7 @@ use App\Http\Controllers\ParentDashboardController;
 use App\Http\Controllers\HelpCenterController;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\GamesArenaController;
 // Public routes
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -88,6 +89,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/quiz/submit', [QuizController::class, 'submit'])
         ->name('quiz.submit');
 
+    // ─── Games Arena (mixed review across all unlocked units) ───
+    Route::get('/arena',         [GamesArenaController::class, 'show'])->name('arena');
+    Route::post('/arena/submit', [GamesArenaController::class, 'submit'])->name('arena.submit');
+
     Route::get('/progress', [ParentDashboardController::class, 'index'])
         ->name('progress');
 
@@ -132,11 +137,15 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/words/{word}',       [AdminController::class, 'deleteWord']);
         Route::post('/words/bulk-delete',    [AdminController::class, 'bulkDeleteWords']);
         Route::post('/words/{word}/image',   [AdminController::class, 'uploadWordImage']);
+        Route::post('/words/{word}/audio',         [AdminController::class, 'uploadWordAudio']);
+        Route::post('/words/{word}/clear-audio',   [AdminController::class, 'clearWordAudio']);
         Route::post('/words/{word}/auto-segment', [AdminController::class, 'autoSegmentWord']);
         Route::post('/words/{word}/tts',          [AdminController::class, 'generateTtsForWord']);
         Route::post('/words/auto-segment-all',    [AdminController::class, 'autoSegmentAll']);
         Route::get('/words/duplicates',           [AdminController::class, 'findDuplicateWords']);
         Route::get('/audio/check',                [AdminController::class, 'checkAudioUrls']);
+        Route::get('/audio/library',              [AdminController::class, 'audioLibrary']);
         Route::post('/audio/discover',            [AdminController::class, 'discoverNccdAudio']);
+        Route::post('/audio/auto-map',            [AdminController::class, 'autoMapCurriculum']);
     });
 });
