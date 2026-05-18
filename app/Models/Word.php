@@ -43,14 +43,16 @@ class Word extends Model
      * service so we never accidentally short-circuit to null again.
      *
      * Behaviour:
-     *   1. If image_path is empty → null. (Caller should render a
-     *      SmartImage, which produces a coloured emoji tile.)
+     *   1. If image_path is empty → fall to dynamic SVG.
      *   2. If image_path is an absolute http(s) URL → return as-is.
-     *   3. If the file exists in public/ → return /<path>.
+     *   3. If the file exists in public/ → return /<path>?v=<mtime>
+     *      so when the operator re-uploads the SAME filename the
+     *      browser's cached version doesn't keep showing the old
+     *      picture in subsequent rounds. (The "numbers leaking
+     *      into the next question" complaint was the digit-emoji
+     *      fallback rendering because of stale cached 404s.)
      *   4. Otherwise fall back to /api/word-svg/{id}.svg, a server-
      *      rendered SVG card with the word and a tinted background.
-     *      This way EVERY card on every game/lesson/quiz screen
-     *      renders something meaningful — never a broken icon.
      *
      * The frontend SmartImage's onError handler still kicks in if
      * even the SVG endpoint fails, so we have three layers of safety.
@@ -67,8 +69,12 @@ class Word extends Model
         }
 
         $rel = ltrim($path, '/');
-        if (is_file(public_path($rel))) {
-            return '/' . $rel;
+        $abs = public_path($rel);
+        if (is_file($abs)) {
+            // Cache-bust by mtime so re-uploaded images take effect
+            // without forcing the kid to hard-refresh.
+            $v = @filemtime($abs);
+            return '/' . $rel . ($v ? '?v=' . $v : '');
         }
 
         // Fall through to the dynamic SVG so every card has art.
