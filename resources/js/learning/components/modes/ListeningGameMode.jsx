@@ -1,158 +1,160 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
-import { playSuccess, playFail, playClick, playBounce } from "@/learning/utils/soundEffects";
+import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
 /**
- * ListeningGameMode - Audio-only matching game.
- * The child hears a word and must pick the correct image from options.
- * Unlike VocabGame, the word is NEVER shown - only heard.
- * Forces listening comprehension skills.
+ * ListeningGameMode — audio-only matching game (no word displayed).
+ *
+ * Layout v3:
+ *  • Compact prompt header with progress + 🔊 button + listen-again
+ *    hint inside one rounded card.
+ *  • 3-column grid on desktop, 2 on phones, all aspect-square so
+ *    the grid never breaks alignment.
+ *  • Fits a 720p tablet without scroll.
  */
 const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
-  const rounds = useMemo(() => deck || [], [deck]);
-  const [idx, setIdx] = useState(0);
-  const [results, setResults] = useState([]);
-  const [wrong, setWrong] = useState([]);
-  const [correctId, setCorrectId] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+    const rounds = useMemo(() => deck || [], [deck]);
+    const maxRounds = Math.min(rounds.length, lesson?.config?.rounds || 6);
+    const activeRounds = rounds.slice(0, maxRounds);
 
-  const maxRounds = Math.min(rounds.length, lesson?.config?.rounds || 6);
-  const activeRounds = rounds.slice(0, maxRounds);
+    const [idx, setIdx] = useState(0);
+    const [results, setResults] = useState([]);
+    const [wrong, setWrong] = useState([]);
+    const [correctId, setCorrectId] = useState(null);
+    const [isPlaying, setIsPlaying] = useState(false);
 
-  if (!activeRounds.length) {
+    const round = activeRounds[idx];
+    const prompt = round?.prompt;
+
+    useEffect(() => {
+        if (prompt?.audioClip) {
+            const t = setTimeout(() => {
+                setIsPlaying(true);
+                playAudio(prompt.audioClip).then(() => setIsPlaying(false));
+            }, 400);
+            return () => clearTimeout(t);
+        }
+    }, [idx]);
+
+    if (!activeRounds.length) {
+        return (
+            <div className="text-center p-8">
+                <p className="text-gray-500 font-bold">No rounds available yet.</p>
+                <button onClick={() => onComplete({ correct: 0, total: 1, rounds: [] })}
+                    className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-2xl font-bold">
+                    Skip
+                </button>
+            </div>
+        );
+    }
+
+    const handlePlayAgain = () => {
+        playClick();
+        if (prompt?.audioClip) {
+            setIsPlaying(true);
+            playAudio(prompt.audioClip).then(() => setIsPlaying(false));
+        }
+    };
+
+    const handlePick = (option) => {
+        if (correctId !== null) return;
+        playClick();
+
+        if (option.isCorrect) {
+            setCorrectId(option.id);
+            playSuccess();
+            const firstTry = wrong.length === 0;
+            const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
+            const next = [...results, {
+                roundId: round.roundId,
+                wordId: round.wordId,
+                word: prompt?.text,
+                correct: firstTry,
+                timeMs: 0,
+                wrongChoice: firstWrongOpt?.word,
+                wrongChoiceId: firstWrongOpt?.wordId,
+            }];
+            setResults(next);
+            setTimeout(() => advance(next), 1000);
+        } else {
+            playFail();
+            setWrong((w) => [...w, option.id]);
+        }
+    };
+
+    const advance = (finalResults) => {
+        if (idx + 1 >= activeRounds.length) {
+            onComplete({
+                correct: finalResults.filter((r) => r.correct).length,
+                total: activeRounds.length,
+                rounds: finalResults,
+            });
+            return;
+        }
+        setIdx(idx + 1);
+        setWrong([]);
+        setCorrectId(null);
+    };
+
+    const progressPct = Math.round((idx / activeRounds.length) * 100);
+
     return (
-      <div className="text-center p-8">
-        <p className="text-gray-500 font-bold">No rounds available yet.</p>
-        <button onClick={() => onComplete({ correct: 0, total: 1, rounds: [] })} className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-2xl font-bold">Skip</button>
-      </div>
-    );
-  }
+        <div className="w-full max-w-3xl flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-fade-in-up px-2">
+            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl shadow-md border border-white px-4 py-2.5 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-blue-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-blue-400 to-cyan-500" style={{ width: `${progressPct}%` }} />
+                    </div>
+                    <span className="text-[10px] font-black text-blue-600">{idx + 1}/{activeRounds.length}</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                    <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Listen &amp; Choose!</p>
+                    <button
+                        onClick={handlePlayAgain}
+                        disabled={isPlaying}
+                        className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-2xl sm:text-3xl text-white shadow-xl transition-all ${
+                            isPlaying
+                                ? "bg-gradient-to-br from-amber-400 to-orange-500 animate-pulse scale-110"
+                                : "bg-gradient-to-br from-blue-500 to-cyan-600 hover:scale-110 active:scale-95"
+                        }`}
+                    >{isPlaying ? "🎵" : "🔊"}</button>
+                    <p className="text-[10px] text-gray-400 font-bold">Tap to listen again</p>
+                </div>
+            </div>
 
-  const round = activeRounds[idx];
-  const prompt = round?.prompt;
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl">
+                {(round.options || []).map((opt) => {
+                    const isCorrect = correctId === opt.id;
+                    const isWrong = wrong.includes(opt.id);
+                    const disabled = correctId !== null || isWrong;
 
-  // Auto-play audio when a new round starts
-  useEffect(() => {
-    if (prompt?.audioClip) {
-      setTimeout(() => {
-        setIsPlaying(true);
-        playAudio(prompt.audioClip).then(() => setIsPlaying(false));
-      }, 400);
-    }
-  }, [idx]);
+                    let cls = "border-white/60 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1";
+                    if (isCorrect) cls = "border-emerald-400 bg-emerald-50 scale-[1.02] shadow-xl ring-2 ring-emerald-200";
+                    if (isWrong)   cls = "border-red-200 bg-red-50/50 opacity-50 scale-95";
 
-  const handlePlayAgain = () => {
-    playClick();
-    if (prompt?.audioClip) {
-      setIsPlaying(true);
-      playAudio(prompt.audioClip).then(() => setIsPlaying(false));
-    }
-  };
-
-  const handlePick = (option) => {
-    if (correctId !== null) return;
-    playClick();
-
-    if (option.isCorrect) {
-      setCorrectId(option.id);
-      playSuccess();
-      const firstTry = wrong.length === 0;
-      const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
-      const next = [...results, {
-        roundId: round.roundId,
-        wordId: round.wordId || null,
-        word: prompt?.text || null,
-        correct: firstTry,
-        timeMs: 0,
-        wrongChoice: firstWrongOpt?.word || null,
-        wrongChoiceId: firstWrongOpt?.wordId || null,
-      }];
-      setResults(next);
-      setTimeout(() => advance(next), 1000);
-    } else {
-      playFail();
-      setWrong(w => [...w, option.id]);
-    }
-  };
-
-  const advance = (finalResults) => {
-    if (idx + 1 >= activeRounds.length) {
-      onComplete({
-        correct: finalResults.filter(r => r.correct).length,
-        total: activeRounds.length,
-        rounds: finalResults,
-      });
-      return;
-    }
-    setIdx(idx + 1);
-    setWrong([]);
-    setCorrectId(null);
-  };
-
-  return (
-    <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up px-2 sm:px-4">
-      {/* Progress */}
-      <div className="flex items-center gap-2 w-full max-w-sm sm:max-w-md">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full transition-all duration-500" style={{ width: `${(idx / activeRounds.length) * 100}%` }} />
+                    return (
+                        <button
+                            key={opt.id}
+                            disabled={disabled}
+                            onClick={() => handlePick(opt)}
+                            className={`relative aspect-square p-2 sm:p-3 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex items-center justify-center ${cls}`}
+                        >
+                            <SmartImage
+                                src={opt.imagePath}
+                                label={opt.word || ""}
+                                className="w-full h-full"
+                                imgClassName="w-full h-full object-contain drop-shadow"
+                            />
+                            {isCorrect && (
+                                <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow animate-bounce">✓</div>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
-        <span className="text-xs font-black text-gray-500">{idx + 1}/{activeRounds.length}</span>
-      </div>
-
-      {/* Audio prompt - big listen button */}
-      <div className="bg-white/90 backdrop-blur px-6 sm:px-10 py-6 sm:py-8 rounded-2xl sm:rounded-3xl shadow-lg border border-white/50 flex flex-col items-center gap-3 w-full max-w-sm sm:max-w-md">
-        <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Listen & Choose!</p>
-        <button
-          onClick={handlePlayAgain}
-          disabled={isPlaying}
-          className={`w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-full flex items-center justify-center text-3xl sm:text-4xl lg:text-5xl text-white shadow-xl transition-all ${
-            isPlaying 
-              ? 'bg-gradient-to-br from-amber-400 to-orange-500 animate-pulse scale-110' 
-              : 'bg-gradient-to-br from-blue-500 to-cyan-600 hover:scale-110 active:scale-95'
-          }`}
-        >
-          {isPlaying ? '🎵' : '🔊'}
-        </button>
-        <p className="text-xs text-gray-400 font-bold">Tap to listen again</p>
-      </div>
-
-      {/* Options - images only, no word shown */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
-        {(round.options || []).map((opt) => {
-          const isCorrect = correctId === opt.id;
-          const isWrong = wrong.includes(opt.id);
-          const disabled = correctId !== null || isWrong;
-
-          let style = "border-white/60 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1";
-          if (isCorrect) style = "border-emerald-400 bg-emerald-50 scale-[1.02] shadow-xl ring-2 ring-emerald-200";
-          if (isWrong) style = "border-red-200 bg-red-50/50 opacity-50 scale-95";
-
-          return (
-            <button
-              key={opt.id}
-              disabled={disabled}
-              onClick={() => handlePick(opt)}
-              className={`relative aspect-square p-3 sm:p-4 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1 ${style}`}
-            >
-              {/* Image: SmartImage handles the imagePath including
-                  fallback to /api/word-svg when the file is missing,
-                  so we never need a separate src=null branch. */}
-              <SmartImage
-                src={opt.imagePath}
-                label={opt.word || ""}
-                className="w-full h-[80%]"
-                imgClassName="w-full h-full object-contain"
-              />
-              {isCorrect && (
-                <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow animate-bounce">✓</div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+    );
 };
 
 export default ListeningGameMode;

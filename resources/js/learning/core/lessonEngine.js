@@ -1,6 +1,6 @@
 /**
- * Small pure helpers used by the LessonScreen v2 engine.
- * These are deliberately framework-agnostic so we can unit-test them.
+ * Small pure helpers used by the LessonScreen v3 engine.
+ * Framework-agnostic so we can unit-test them.
  */
 
 /**
@@ -22,10 +22,14 @@ export const resolveMode = (lesson) => {
         "draw-circle",
         "match-connect",
         "memory-game",
+        "memory-flip",
         "listening-game",
         "drag-drop",
         "picture-match",
         "word-pic-connect",
+        "bubble-pop",
+        "sequence-build",
+        "speed-tap",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -54,21 +58,25 @@ export const computeRoundStars = (results, lessonType = "vocab-game") => {
  */
 export const modeMeta = (mode) => {
     const map = {
-        "intro":          { label: "Learn",   icon: "📖", color: "#7C3AED" },
-        "vocab-game":     { label: "Play",    icon: "🎮", color: "#10B981" },
-        "phonics-game":   { label: "Phonics", icon: "🔤", color: "#F59E0B" },
-        "review":         { label: "Review",  icon: "🔁", color: "#0EA5E9" },
-        "story":          { label: "Story",   icon: "📚", color: "#EC4899" },
-        "song":           { label: "Sing",    icon: "🎵", color: "#8B5CF6" },
-        "project":        { label: "Project", icon: "✂️", color: "#F97316" },
-        "picture-dict":   { label: "Trace",   icon: "✏️", color: "#14B8A6" },
-        "draw-circle":    { label: "Circle",  icon: "⭕", color: "#EF4444" },
-        "match-connect":  { label: "Match",   icon: "🔗", color: "#0EA5E9" },
-        "memory-game":    { label: "Memory",  icon: "🧠", color: "#F59E0B" },
-        "listening-game": { label: "Listen",  icon: "👂", color: "#06B6D4" },
-        "drag-drop":      { label: "Sort",    icon: "🎯", color: "#8B5CF6" },
-        "picture-match":  { label: "Pairs",   icon: "🎴", color: "#EC4899" },
+        "intro":            { label: "Learn",   icon: "📖", color: "#7C3AED" },
+        "vocab-game":       { label: "Play",    icon: "🎮", color: "#10B981" },
+        "phonics-game":     { label: "Phonics", icon: "🔤", color: "#F59E0B" },
+        "review":           { label: "Review",  icon: "🔁", color: "#0EA5E9" },
+        "story":            { label: "Story",   icon: "📚", color: "#EC4899" },
+        "song":             { label: "Sing",    icon: "🎵", color: "#8B5CF6" },
+        "project":          { label: "Project", icon: "✂️", color: "#F97316" },
+        "picture-dict":     { label: "Trace",   icon: "✏️", color: "#14B8A6" },
+        "draw-circle":      { label: "Circle",  icon: "⭕", color: "#EF4444" },
+        "match-connect":    { label: "Match",   icon: "🔗", color: "#0EA5E9" },
+        "memory-game":      { label: "Memory",  icon: "🧠", color: "#F59E0B" },
+        "memory-flip":      { label: "Flip",    icon: "🃏", color: "#A855F7" },
+        "listening-game":   { label: "Listen",  icon: "👂", color: "#06B6D4" },
+        "drag-drop":        { label: "Sort",    icon: "🎯", color: "#8B5CF6" },
+        "picture-match":    { label: "Pairs",   icon: "🎴", color: "#EC4899" },
         "word-pic-connect": { label: "Connect", icon: "🔗", color: "#06B6D4" },
+        "bubble-pop":       { label: "Pop!",    icon: "🫧", color: "#3B82F6" },
+        "sequence-build":   { label: "Build",   icon: "🧱", color: "#84CC16" },
+        "speed-tap":        { label: "Whack",   icon: "⚡", color: "#F59E0B" },
     };
     return map[mode] || map["vocab-game"];
 };

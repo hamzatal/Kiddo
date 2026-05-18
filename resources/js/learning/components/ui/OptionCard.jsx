@@ -3,25 +3,26 @@ import SmartImage from "@/learning/components/ui/SmartImage";
 import { speakWord, stopAllAudio } from "@/learning/utils/playAudio";
 
 /**
- * OptionCard - Reusable clickable card for game modes.
+ * OptionCard — clickable card for game modes (Kiddo v3).
  *
  * Shows an image (with elegant fallback when missing) + optional
  * label. A small speaker button in the top-left lets the child hear
- * the word pronounced. The button uses `speakWord()` which:
+ * the word pronounced.
  *
- *   1. plays the segment from the NCCD audio track when available,
- *   2. otherwise asks the server to synthesise a child-friendly
- *      OpenAI TTS clip and plays the cached mp3,
- *   3. otherwise falls back to the browser's speechSynthesis.
- *
- * Fully responsive: square on mobile, fixed height on tablet+.
+ * Layout v3:
+ *  • Always `aspect-square` on phones, `aspect-[4/3]` on tablet+,
+ *    so the grid lays out as an even matrix and the picture frame
+ *    has consistent proportions.
+ *  • Padding scales with size so big illustrations breathe and
+ *    `object-contain` never crops the image edges.
+ *  • Speaker button stays in the top-left even on tiny phones.
  */
 const OptionCard = ({
     imagePath,
     label,
     audioClip,
     wordId,
-    state = "idle",      // idle | correct | wrong | disabled
+    state = "idle",
     onClick,
     showLabel = true,
     showAudio = true,
@@ -30,19 +31,15 @@ const OptionCard = ({
     const [speaking, setSpeaking] = useState(false);
 
     const base =
-        "group relative p-3 sm:p-4 lg:p-5 bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl border-2 sm:border-3 transition-all duration-300 shadow-sm flex flex-col items-center justify-center select-none";
+        "group relative p-2 sm:p-3 lg:p-4 bg-white/95 backdrop-blur rounded-xl sm:rounded-2xl border-2 sm:border-[3px] transition-all duration-300 shadow-sm flex flex-col items-center justify-center select-none";
 
     const stateClass = {
         idle:     "border-white hover:border-purple-300 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0",
-        correct:  "border-green-500 bg-green-50 scale-105 z-10 shadow-2xl ring-4 ring-green-200 animate-[pop_0.4s_ease-out]",
+        correct:  "border-green-500 bg-green-50 scale-105 z-10 shadow-2xl ring-4 ring-green-200",
         wrong:    "border-red-200 bg-red-50 opacity-40 grayscale scale-95 cursor-not-allowed",
         disabled: "border-gray-100 opacity-60 cursor-not-allowed",
     }[state];
 
-    /**
-     * Play this word's audio. Stops propagation so tapping the speaker
-     * doesn't count as a "pick this answer" click.
-     */
     const handleSpeak = async (e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -53,9 +50,6 @@ const OptionCard = ({
         }
         setSpeaking(true);
         try {
-            // The wordId is preferred — it lets the server reuse a
-            // cached mp3 across kids. If it's missing, we still try
-            // by-text synthesis using the label.
             await speakWord({
                 wordId: wordId || audioClip?.wordId || null,
                 label,
@@ -65,7 +59,6 @@ const OptionCard = ({
         setSpeaking(false);
     };
 
-    // Show the speaker if we have anything pronounceable.
     const canSpeak = showAudio && (audioClip?.src || audioClip?.tts || label);
 
     return (
@@ -73,26 +66,23 @@ const OptionCard = ({
             type="button"
             disabled={state === "wrong" || state === "disabled" || state === "correct"}
             onClick={onClick}
-            className={`${base} ${stateClass} aspect-square sm:aspect-auto sm:h-40 lg:h-44 xl:h-52 ${className}`}
+            className={`${base} ${stateClass} aspect-square sm:aspect-[4/3] ${className}`}
         >
             <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
                 <SmartImage
                     src={imagePath}
                     label={label}
                     className="w-full h-full"
-                    imgClassName="max-w-full max-h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+                    imgClassName="max-w-full max-h-full object-contain drop-shadow group-hover:scale-105 transition-transform"
                 />
             </div>
 
             {showLabel && label ? (
-                <span className="mt-2 text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-gray-800 truncate max-w-full">
+                <span className="mt-1.5 text-[10px] sm:text-xs lg:text-sm font-black uppercase tracking-wide text-gray-800 truncate max-w-full">
                     {label}
                 </span>
             ) : null}
 
-            {/* Speaker button — auto-generates TTS when there's no
-                real audio for this word, so the child can always
-                hear the pronunciation. */}
             {canSpeak ? (
                 <div
                     role="button"
@@ -111,23 +101,15 @@ const OptionCard = ({
             ) : null}
 
             {state === "correct" && (
-                <div className="absolute -top-3 -right-3 bg-green-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-black border-4 border-white shadow-lg animate-bounce">
+                <div className="absolute -top-2 -right-2 bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-black border-3 border-white shadow-lg animate-bounce text-sm">
                     ✓
                 </div>
             )}
             {state === "wrong" && (
-                <div className="absolute -top-3 -right-3 bg-red-400 text-white w-10 h-10 rounded-full flex items-center justify-center font-black border-4 border-white shadow-lg">
+                <div className="absolute -top-2 -right-2 bg-red-400 text-white w-8 h-8 rounded-full flex items-center justify-center font-black border-3 border-white shadow-lg text-sm">
                     ✕
                 </div>
             )}
-
-            <style>{`
-                @keyframes pop {
-                    0% { transform: scale(0.92); }
-                    60% { transform: scale(1.08); }
-                    100% { transform: scale(1.05); }
-                }
-            `}</style>
         </button>
     );
 };
