@@ -26,6 +26,12 @@ const UnitRow = ({ u, onRemoved }) => {
                 description: row.description,
                 image_path: row.image_path,
                 color_key: row.color_key,
+                // Map placement is now editable inline (admin can
+                // drag pins by typing exact x/y percentages).
+                map_x: row.map_x === "" || row.map_x === null ? null : Number(row.map_x),
+                map_y: row.map_y === "" || row.map_y === null ? null : Number(row.map_y),
+                map_size: row.map_size || null,
+                map_image_path: row.map_image_path || null,
             });
             if (data.ok) {
                 setSaved(true);
@@ -208,6 +214,71 @@ const UnitRow = ({ u, onRemoved }) => {
                 {saving && <span className="text-[10px] text-gray-400">saving…</span>}
                 {saved && <span className="text-emerald-500 text-sm">✓</span>}
                 {error && <span className="text-rose-500 text-[10px]">{error}</span>}
+            </div>
+
+            {/* ── Map placement (inline-editable, no code changes
+                 needed to move a pin) ── */}
+            <div className="col-span-12 mt-2 pt-2 border-t border-gray-50">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                    Map placement
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-500">Map X (%)</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={row.map_x ?? ""}
+                            onChange={(e) => setRow({ ...row, map_x: e.target.value })}
+                            onBlur={save}
+                            placeholder="e.g. 35"
+                            className="w-full text-xs font-black text-[#1E293B] bg-transparent border-b border-gray-100 focus:border-purple-300 outline-none py-1"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-500">Map Y (%)</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={row.map_y ?? ""}
+                            onChange={(e) => setRow({ ...row, map_y: e.target.value })}
+                            onBlur={save}
+                            placeholder="e.g. 40"
+                            className="w-full text-xs font-black text-[#1E293B] bg-transparent border-b border-gray-100 focus:border-purple-300 outline-none py-1"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-500">Map size</label>
+                        <select
+                            value={row.map_size || ""}
+                            onChange={(e) => setRow({ ...row, map_size: e.target.value })}
+                            onBlur={save}
+                            className="w-full text-xs font-black text-[#1E293B] bg-transparent border-b border-gray-100 focus:border-purple-300 outline-none py-1"
+                        >
+                            <option value="">(default)</option>
+                            <option value="w-24 h-24 sm:w-32 sm:h-32">Small</option>
+                            <option value="w-32 h-32 sm:w-40 sm:h-40 lg:w-44 lg:h-44">Medium</option>
+                            <option value="w-40 h-40 sm:w-48 sm:h-48 lg:w-52 lg:h-52">Large</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-500">Map icon override</label>
+                        <input
+                            value={row.map_image_path || ""}
+                            onChange={(e) => setRow({ ...row, map_image_path: e.target.value })}
+                            onBlur={save}
+                            placeholder="(uses unit image)"
+                            className="w-full text-xs text-gray-600 font-semibold bg-transparent border-b border-gray-100 focus:border-purple-300 outline-none py-1"
+                        />
+                    </div>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5 italic">
+                    Tip: X &amp; Y are 0–100% of the map area. Lower X = farther left, lower Y = higher up.
+                </p>
             </div>
 
             <div className="col-span-12 flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-50">

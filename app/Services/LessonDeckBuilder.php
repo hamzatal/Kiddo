@@ -187,7 +187,25 @@ class LessonDeckBuilder
 
     private function assembleRound(string $id, Word $target, Collection $decoys, string $style): array
     {
-        $options = $decoys->push($target)->map(fn (Word $w, int $i) => [
+        // Final safety pass: never let the target's word text appear
+        // among the decoys, and never let two options share the same
+        // word text (case-insensitive). This is the last line of
+        // defense — the seeders, AI ingest and admin editor can all
+        // accidentally introduce duplicates and we'd rather render
+        // fewer-than-expected options than confuse the kid with two
+        // identical-looking cards.
+        $targetKey = mb_strtolower(trim((string) $target->word));
+        $seen = [$targetKey => true];
+        $cleanDecoys = $decoys->filter(function (Word $w) use (&$seen) {
+            $key = mb_strtolower(trim((string) $w->word));
+            if ($key === '' || isset($seen[$key])) {
+                return false;
+            }
+            $seen[$key] = true;
+            return true;
+        })->values();
+
+        $options = $cleanDecoys->push($target)->map(fn (Word $w, int $i) => [
             'id'        => "o{$id}_{$i}",
             'wordId'    => $w->id ?: null,
             'word'      => $w->word,
@@ -251,18 +269,31 @@ class LessonDeckBuilder
         //    wrong_option word exists in the same unit, use that row
         //    directly (with its real image). Only fall back to a bare
         //    Word instance when the word doesn't exist in the DB.
-        if (is_array($target->wrong_options) && count($target->wrong_options) >= $n) {
-            $wrongWords = collect($target->wrong_options)->shuffle()->take($n);
+        //
+        //    We DEDUPE by lowercase word text so a malformed
+        //    wrong_options array (or one that AI ingest re-wrote) can
+        //    never produce two identical cards on the same round.
+        if (is_array($target->wrong_options) && count($target->wrong_options) >= 1) {
+            $targetKey = mb_strtolower(trim((string) $target->word));
+            $seen = [$targetKey => true];
             $resolved = collect();
 
-            foreach ($wrongWords as $w) {
-                $wordText = is_array($w) ? ($w['word'] ?? '') : (string) $w;
-                if (! $wordText) continue;
+            $shuffledAuthored = collect($target->wrong_options)->shuffle();
+
+            foreach ($shuffledAuthored as $w) {
+                if ($resolved->count() >= $n) break;
+
+                $wordText = is_array($w) ? trim((string) ($w['word'] ?? '')) : trim((string) $w);
+                if ($wordText === '') continue;
+
+                $key = mb_strtolower($wordText);
+                if (isset($seen[$key])) continue;          // skip duplicates
+                $seen[$key] = true;
 
                 // Try to find a real Word row in the same unit.
                 $real = Word::with('audioTrack')
                     ->where('unit_id', $unitId)
-                    ->whereRaw('LOWER(word) = ?', [mb_strtolower($wordText)])
+                    ->whereRaw('LOWER(word) = ?', [$key])
                     ->where('id', '!=', $target->id)
                     ->first();
 
@@ -275,37 +306,70 @@ class LessonDeckBuilder
                     ]));
                 }
             }
-            return $resolved;
+
+            // If authored decoys were enough — return.
+            if ($resolved->count() >= $n) {
+                return $resolved;
+            }
+
+            // Otherwise top up from the DB while still avoiding
+            // duplicates and the target itself.
+            $topUp = $this->preferImageRichDecoys(
+                $target,
+                $n - $resolved->count(),
+                $pool,
+                $unitId,
+                array_keys($seen)
+            );
+            return $resolved->concat($topUp);
         }
 
-        // 2. Query DB. We pull a generous candidate set (3x) and then
-        //    score them so that decoys WITH image_path appear first.
-        //    The previous strategy returned random words, which often
-        //    surfaced rows with empty image_path — leaving the kid
-        //    looking at coloured fallback tiles for every wrong choice
-        //    while only the target word showed a real picture.
-        //
-        //    Order of preference (highest first):
-        //      a) same category AND has image_path
-        //      b) any unit word with image_path
-        //      c) same category (no image)
-        //      d) any unit word
-        $candidates = $this->preferImageRichDecoys($target, $n, $pool, $unitId);
-
-        return $candidates;
+        return $this->preferImageRichDecoys($target, $n, $pool, $unitId, []);
     }
 
     /**
-     * Score-and-pick decoys so the lesson screen never has to render
-     * coloured fallback tiles when there ARE words with images
-     * available in the unit. Falls through tiers gracefully.
+     * Score-and-pick decoys that match the target's category whenever
+     * possible. The PREVIOUS implementation would happily pull a
+     * "Boy" decoy for a "Six" question — because it tried "any unit
+     * word with an image" before "same-category without image". On a
+     * unit where only a few categories have real PNGs (e.g. Welcome:
+     * boy/hello/goodbye/hut on disk, but no number/colour PNGs) the
+     * kid saw mismatched answers ("Six" → cards: Boy, Hello, Six).
+     *
+     * New ordering — strictly preserves the target's category so the
+     * answer set is always educationally meaningful, even when that
+     * means falling through to the dynamic SVG fallback for decoys:
+     *
+     *   A) same category + has image_path
+     *   B) same category (image_path optional — relies on SVG fallback)
+     *   C) any other word in the unit (last-resort)
      */
-    private function preferImageRichDecoys(Word $target, int $n, string $pool, int $unitId): Collection
+    private function preferImageRichDecoys(Word $target, int $n, string $pool, int $unitId, array $excludeWordKeys = []): Collection
     {
+        if ($n <= 0) {
+            return collect();
+        }
+
         $wantCategory = $pool === 'same_category' && $target->category;
+        $excludeIds = [$target->id];
+        $excludeKeys = array_flip(array_map('mb_strtolower', $excludeWordKeys));
+        $excludeKeys[mb_strtolower((string) $target->word)] = true;
+
+        $picked = collect();
+        $applyFilter = function ($collection) use (&$excludeKeys, &$excludeIds, &$picked, $n) {
+            $remaining = $n - $picked->count();
+            if ($remaining <= 0) return collect();
+            return $collection->filter(function (Word $w) use (&$excludeKeys, &$excludeIds) {
+                $key = mb_strtolower(trim((string) $w->word));
+                if (isset($excludeKeys[$key])) return false;
+                if (in_array($w->id, $excludeIds, true)) return false;
+                $excludeKeys[$key] = true;
+                $excludeIds[] = $w->id;
+                return true;
+            })->take($remaining)->values();
+        };
 
         // Tier A: same category + has image
-        $tierA = collect();
         if ($wantCategory) {
             $tierA = Word::with('audioTrack')
                 ->where('unit_id', $unitId)
@@ -314,58 +378,39 @@ class LessonDeckBuilder
                 ->whereNotNull('image_path')
                 ->where('image_path', '!=', '')
                 ->inRandomOrder()
-                ->take($n)
+                ->take($n * 3)
                 ->get();
-        }
-        if ($tierA->count() >= $n) {
-            return $tierA;
-        }
+            $picked = $picked->concat($applyFilter($tierA));
+            if ($picked->count() >= $n) return $picked;
 
-        // Tier B: any unit word with an image (excluding tier A picks)
-        $picked = $tierA->pluck('id');
-        $tierB = Word::with('audioTrack')
-            ->where('unit_id', $unitId)
-            ->where('id', '!=', $target->id)
-            ->whereNotIn('id', $picked)
-            ->whereNotNull('image_path')
-            ->where('image_path', '!=', '')
-            ->inRandomOrder()
-            ->take($n - $tierA->count())
-            ->get();
-
-        $combined = $tierA->concat($tierB);
-        if ($combined->count() >= $n) {
-            return $combined;
-        }
-
-        // Tier C: same category (no image filter)
-        $picked = $combined->pluck('id');
-        if ($wantCategory) {
-            $tierC = Word::with('audioTrack')
+            // Tier B: same category (image OR SVG fallback). This is
+            // crucial for Welcome unit's numbers — the SVG fallback
+            // already shows a keycap emoji per number so the cards
+            // stay visually distinct AND on-topic.
+            $tierB = Word::with('audioTrack')
                 ->where('unit_id', $unitId)
                 ->where('id', '!=', $target->id)
-                ->whereNotIn('id', $picked)
                 ->where('category', $target->category)
                 ->inRandomOrder()
-                ->take($n - $combined->count())
+                ->take($n * 3)
                 ->get();
-            $combined = $combined->concat($tierC);
-        }
-        if ($combined->count() >= $n) {
-            return $combined;
+            $picked = $picked->concat($applyFilter($tierB));
+            if ($picked->count() >= $n) return $picked;
         }
 
-        // Tier D: any other word in the unit
-        $picked = $combined->pluck('id');
-        $tierD = Word::with('audioTrack')
+        // Tier C: any other word in the unit (last-resort).
+        // Note: this is intentionally below same-category-no-image
+        // so we never bleed mismatched concepts into a category quiz
+        // unless absolutely no alternative exists.
+        $tierC = Word::with('audioTrack')
             ->where('unit_id', $unitId)
             ->where('id', '!=', $target->id)
-            ->whereNotIn('id', $picked)
             ->inRandomOrder()
-            ->take($n - $combined->count())
+            ->take($n * 3)
             ->get();
+        $picked = $picked->concat($applyFilter($tierC));
 
-        return $combined->concat($tierD);
+        return $picked;
     }
 
     private function audioTrackPayload(Lesson $lesson): ?array

@@ -36,12 +36,12 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
                 </p>
             </header>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mx-auto justify-items-center">
                 {cards.map((c, i) => (
                     <button
                         key={c.id}
                         onClick={() => onTap(c, i)}
-                        className={`group relative flex flex-col items-center gap-2 p-4 rounded-[1.25rem] border-4 bg-white/95 shadow-md transition-all ${
+                        className={`group relative flex flex-col items-center gap-2 p-3 rounded-[1.25rem] border-2 bg-white/95 shadow-md transition-all w-full ${
                             seen.has(i)
                                 ? "border-teal-300 bg-teal-50"
                                 : "border-white hover:border-teal-200 hover:-translate-y-0.5"
@@ -50,8 +50,8 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
                         <SmartImage
                             src={c.imagePath}
                             label={c.word}
-                            className="w-24 h-24"
-                            imgClassName="w-full h-full object-contain drop-shadow-md"
+                            className="w-full aspect-square"
+                            imgClassName="w-full h-full object-contain"
                         />
                         <span className="font-black text-sm text-[#1E293B] uppercase tracking-wide">
                             {c.word}

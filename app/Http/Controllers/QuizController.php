@@ -53,11 +53,30 @@ class QuizController extends Controller
 
             $options = collect([$correct]);
 
+            // Track lowercase words we've already added so we never
+            // produce two cards with identical text on the same
+            // question. Without this guard a malformed wrong_options
+            // array (or one accidentally rewritten by the AI ingest
+            // pipeline) could surface duplicate-looking decoys.
+            $targetKey = mb_strtolower(trim((string) $word->word));
+            $usedWords = [$targetKey => true];
+
             // Prefer author-seeded decoys
-            if (is_array($word->wrong_options) && count($word->wrong_options) >= 2) {
-                foreach (array_slice($word->wrong_options, 0, 2) as $index => $wrong) {
-                    $decoyWord = $wrong['word'] ?? 'Wrong';
-                    $row = $allUnitWords->get(mb_strtolower($decoyWord));
+            if (is_array($word->wrong_options) && count($word->wrong_options) >= 1) {
+                $shuffled = collect($word->wrong_options)->shuffle();
+                $added = 0;
+
+                foreach ($shuffled as $index => $wrong) {
+                    if ($added >= 2) break;
+
+                    $decoyWord = trim((string) ($wrong['word'] ?? 'Wrong'));
+                    if ($decoyWord === '') continue;
+
+                    $key = mb_strtolower($decoyWord);
+                    if (isset($usedWords[$key])) continue;
+                    $usedWords[$key] = true;
+
+                    $row = $allUnitWords->get($key);
 
                     // Resolve to the live row's URL when we found one
                     // (so the decoy gets the real image / SVG fallback).
@@ -79,30 +98,52 @@ class QuizController extends Controller
                         'isCorrect' => false,
                         'audioClip' => $row ? $row->audioClip() : null,
                     ]);
+                    $added++;
                 }
-            } else {
-                // Fallback: sibling words in same unit (preferring same category)
-                $q = Word::with('audioTrack')
-                    ->where('unit_id', $unit->id)
-                    ->where('id', '!=', $word->id);
+            }
+
+            // Top up to exactly 3 options total. Prefer same-category
+            // siblings (so a "Six" question never gets a "Boy" decoy)
+            // and only fall through to any-other-unit-word when the
+            // category is too small.
+            if ($options->count() < 3) {
+                $needed = 3 - $options->count();
+                $usedIds = $options->pluck('wordId')->filter()->all();
+
+                $catSiblings = collect();
                 if ($word->category) {
-                    $q->where('category', $word->category);
+                    $catSiblings = Word::with('audioTrack')
+                        ->where('unit_id', $unit->id)
+                        ->where('id', '!=', $word->id)
+                        ->where('category', $word->category)
+                        ->whereNotIn('id', $usedIds)
+                        ->inRandomOrder()
+                        ->take($needed * 3)
+                        ->get();
                 }
-                $siblings = $q->inRandomOrder()->take(2)->get();
-                if ($siblings->count() < 2) {
-                    $siblings = $siblings->concat(
-                        Word::with('audioTrack')
-                            ->where('unit_id', $unit->id)
-                            ->where('id', '!=', $word->id)
-                            ->whereNotIn('id', $siblings->pluck('id'))
-                            ->inRandomOrder()
-                            ->take(2 - $siblings->count())
-                            ->get()
-                    );
+
+                $anyUnit = collect();
+                if ($catSiblings->count() < $needed) {
+                    $anyUnit = Word::with('audioTrack')
+                        ->where('unit_id', $unit->id)
+                        ->where('id', '!=', $word->id)
+                        ->whereNotIn('id', $usedIds)
+                        ->when($word->category, fn ($q) => $q->where('category', '!=', $word->category))
+                        ->inRandomOrder()
+                        ->take($needed * 3)
+                        ->get();
                 }
-                foreach ($siblings as $i => $sib) {
+
+                $candidates = $catSiblings->concat($anyUnit);
+
+                foreach ($candidates as $sib) {
+                    if ($options->count() >= 3) break;
+                    $key = mb_strtolower(trim((string) $sib->word));
+                    if (isset($usedWords[$key])) continue;
+                    $usedWords[$key] = true;
+
                     $options->push([
-                        'id'        => 'wrong_' . $word->id . '_' . $i,
+                        'id'        => 'wrong_' . $word->id . '_db_' . $sib->id,
                         'wordId'    => $sib->id,
                         'word'      => $sib->word,
                         'imagePath' => $sib->imageUrl(),

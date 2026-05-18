@@ -206,6 +206,19 @@ class GamesArenaController extends Controller
             $style  = $styles[$i % count($styles)];
 
             $decoys = $this->pickDecoys($target, $byCategory, $byUnit, $words, 2);
+
+            // Final dedupe: never let the target's word text appear
+            // among the decoys, and never let two decoys share the
+            // same lowercase word — would otherwise produce two
+            // identical-looking cards on the same round.
+            $seenWords = [mb_strtolower(trim((string) $target->word)) => true];
+            $decoys = collect($decoys)->filter(function (Word $w) use (&$seenWords) {
+                $key = mb_strtolower(trim((string) $w->word));
+                if ($key === '' || isset($seenWords[$key])) return false;
+                $seenWords[$key] = true;
+                return true;
+            })->values()->all();
+
             $allOpts = collect([$target])->merge($decoys);
 
             $options = $allOpts->map(function (Word $w, int $j) use ($target) {
@@ -240,35 +253,53 @@ class GamesArenaController extends Controller
     /**
      * Choose `$count` decoy words for the given target. Tries:
      *   1. siblings in same category
-     *   2. siblings in same unit
-     *   3. random words from any unit
+     *   2. siblings in same unit  (last-resort: only when category
+     *      doesn't have enough peers — never bleeds across concepts
+     *      when the category is well populated)
+     *   3. random words from any unit (very last resort)
+     *
+     * Always dedupes by lowercase word so two siblings with the same
+     * spelling don't both end up on the card.
      */
     private function pickDecoys(Word $target, $byCategory, $byUnit, $allWords, int $count): array
     {
         $picks = collect();
         $cat   = mb_strtolower((string) $target->category);
+        $seen  = [mb_strtolower(trim((string) $target->word)) => true];
 
+        $accept = function (Word $w) use (&$seen, &$picks, $count) {
+            if ($picks->count() >= $count) return false;
+            $key = mb_strtolower(trim((string) $w->word));
+            if ($key === '' || isset($seen[$key])) return false;
+            $seen[$key] = true;
+            $picks->push($w);
+            return true;
+        };
+
+        // 1) same category siblings (strict — never mix categories
+        //    unless category pool is too small).
         if ($cat !== '' && $byCategory->has($cat)) {
-            $picks = $picks->merge($byCategory[$cat]
-                ->where('id', '!=', $target->id)
-                ->shuffle()
-                ->take($count));
+            foreach ($byCategory[$cat]->where('id', '!=', $target->id)->shuffle() as $w) {
+                if ($picks->count() >= $count) break;
+                $accept($w);
+            }
         }
+
+        // 2) other siblings in same unit, but EXPLICITLY exclude the
+        //    target's category to avoid duplicating the same concept.
         if ($picks->count() < $count && $byUnit->has($target->unit_id)) {
-            $extra = $byUnit[$target->unit_id]
-                ->where('id', '!=', $target->id)
-                ->whereNotIn('id', $picks->pluck('id'))
-                ->shuffle()
-                ->take($count - $picks->count());
-            $picks = $picks->merge($extra);
+            foreach ($byUnit[$target->unit_id]->where('id', '!=', $target->id)->shuffle() as $w) {
+                if ($picks->count() >= $count) break;
+                $accept($w);
+            }
         }
+
+        // 3) random words from any unit
         if ($picks->count() < $count) {
-            $extra = $allWords
-                ->where('id', '!=', $target->id)
-                ->whereNotIn('id', $picks->pluck('id'))
-                ->shuffle()
-                ->take($count - $picks->count());
-            $picks = $picks->merge($extra);
+            foreach ($allWords->where('id', '!=', $target->id)->shuffle() as $w) {
+                if ($picks->count() >= $count) break;
+                $accept($w);
+            }
         }
         return $picks->take($count)->values()->all();
     }

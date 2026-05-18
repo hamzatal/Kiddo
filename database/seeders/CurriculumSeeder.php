@@ -191,11 +191,20 @@ class CurriculumSeeder extends Seeder
             ['Mum', 'mum.png'],
             ['Sister', 'sister.png'],
         ];
+        // Pick TWO different sibling decoys per word, rotating the
+        // index so every word gets a distinct pair. Without this, we
+        // ended up with "Boy" and "Brother" as decoys for every
+        // single family word — kids notice that.
         foreach ($fam as $i => [$w, $img]) {
             $siblings = array_values(array_filter($fam, fn($x) => $x[0] !== $w));
+            $a = $siblings[$i % count($siblings)];
+            $b = $siblings[($i + 3) % count($siblings)];
+            if ($a[0] === $b[0]) {
+                $b = $siblings[($i + 5) % count($siblings)];
+            }
             $this->upsertWord($unitId, $folder, $w, 'family', $img, $p6, [
-                [$siblings[0][0], $siblings[0][1]],
-                [$siblings[1][0], $siblings[1][1]],
+                [$a[0], $a[1]],
+                [$b[0], $b[1]],
             ]);
         }
 
@@ -390,11 +399,18 @@ class CurriculumSeeder extends Seeder
             ['Pencil case', 'pencilcase.png'],
             ['Ruler', 'ruler.png'],
         ];
+        // Same rotation trick as Family — every word gets a distinct
+        // decoy pair instead of always "Bag, Book".
         foreach ($items as $i => [$w, $img]) {
             $sib = array_values(array_filter($items, fn($x) => $x[0] !== $w));
+            $a = $sib[$i % count($sib)];
+            $b = $sib[($i + 3) % count($sib)];
+            if ($a[0] === $b[0]) {
+                $b = $sib[($i + 5) % count($sib)];
+            }
             $this->upsertWord($unitId, $folder, $w, 'object', $img, $p14, [
-                [$sib[0][0], $sib[0][1]],
-                [$sib[1][0], $sib[1][1]],
+                [$a[0], $a[1]],
+                [$b[0], $b[1]],
             ]);
         }
 
@@ -575,36 +591,91 @@ class CurriculumSeeder extends Seeder
     // ═══════════════════════════════════════════════════════════════
     protected function upsertUnit(array $d): Unit
     {
-        return Unit::updateOrCreate(
-            ['code' => $d['code']],
-            [
-                'unit_number'   => $d['unit_number'],
-                'title'         => $d['title'],
-                'description'   => $d['description'],
-                'image_path'    => $d['image_path'],
-                'color_key'     => $d['color_key'],
-                'lessons_count' => 0,
-            ]
-        );
+        // Preserve admin-edited fields (image_path, color_key,
+        // map placement) — only set them when the unit is new.
+        $existing = Unit::where('code', $d['code'])->first();
+        $payload = [
+            'unit_number' => $d['unit_number'],
+            'title'       => $d['title'],
+            'description' => $d['description'],
+        ];
+        if (! $existing) {
+            $payload['image_path']    = $d['image_path'];
+            $payload['color_key']     = $d['color_key'];
+            $payload['lessons_count'] = 0;
+        } else {
+            // Don't blow away admin uploads on re-seed. Title/desc
+            // do refresh because those are content the curriculum
+            // editor controls.
+            if (! $existing->image_path) $payload['image_path'] = $d['image_path'];
+            if (! $existing->color_key)  $payload['color_key']  = $d['color_key'];
+        }
+        return Unit::updateOrCreate(['code' => $d['code']], $payload);
     }
 
     protected function upsertWord(int $unitId, string $folder, string $word, string $category, string $image, ?int $audioTrackId, array $wrong, string $type = 'vocab'): void
     {
+        // Build a deduped wrong_options list — never include the
+        // target word itself, and never include the same decoy
+        // twice. The seeder used to repeat the SAME pair across
+        // every word in a category (e.g. all phonics-Ss words got
+        // ["Dig","Doll"]) which made every quiz round look
+        // identical. We now shuffle the input and trim duplicates.
+        $seen = [mb_strtolower(trim($word)) => true];
+        $cleanWrong = [];
+        foreach ($wrong as $row) {
+            if (count($cleanWrong) >= 2) break;
+            $w = trim((string) ($row[0] ?? ''));
+            if ($w === '') continue;
+            $key = mb_strtolower($w);
+            if (isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $cleanWrong[] = [
+                'word'       => $w,
+                'image_path' => "assets/lessons/{$folder}/" . ($row[1] ?? ''),
+            ];
+        }
+        // Pad with placeholder if fewer than 2 (so the array always
+        // has a stable shape).
+        while (count($cleanWrong) < 2) {
+            $cleanWrong[] = ['word' => '', 'image_path' => null];
+        }
+
+        // Look up the existing row so we can preserve admin edits
+        // (image uploads, custom audio paths, segment timestamps).
+        $existing = Word::where('unit_id', $unitId)
+            ->where('word', $word)
+            ->first();
+
+        $payload = [
+            'type'             => $type,
+            'category'         => $category,
+            'wrong_options'    => $cleanWrong,
+        ];
+
+        // Only seed the curriculum default values when the admin
+        // hasn't already overridden them. This stops `db:seed` from
+        // wiping uploaded images/audio every time it runs.
+        if (! $existing || empty($existing->image_path)) {
+            $payload['image_path'] = "assets/lessons/{$folder}/{$image}";
+        }
+        if (! $existing || $existing->audio_track_id === null) {
+            $payload['audio_track_id'] = $audioTrackId;
+        }
+        if (! $existing || $existing->audio_path === null) {
+            // Don't reset audio_path if admin uploaded a TTS or
+            // custom mp3 — only set the seeder's default (null).
+            $payload['audio_path'] = $existing->audio_path ?? null;
+        }
+        if (! $existing) {
+            // First-time seed: also set the segment defaults.
+            $payload['segment_start_ms'] = null;
+            $payload['segment_end_ms']   = null;
+        }
+
         Word::updateOrCreate(
             ['unit_id' => $unitId, 'word' => $word],
-            [
-                'type'             => $type,
-                'category'         => $category,
-                'image_path'       => "assets/lessons/{$folder}/{$image}",
-                'audio_path'       => null,
-                'audio_track_id'   => $audioTrackId,
-                'segment_start_ms' => null,
-                'segment_end_ms'   => null,
-                'wrong_options'    => [
-                    ['word' => $wrong[0][0], 'image_path' => "assets/lessons/{$folder}/{$wrong[0][1]}"],
-                    ['word' => $wrong[1][0], 'image_path' => "assets/lessons/{$folder}/{$wrong[1][1]}"],
-                ],
-            ]
+            $payload
         );
     }
 
