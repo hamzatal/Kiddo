@@ -90,8 +90,14 @@ Route::middleware(['auth'])->group(function () {
         ->name('quiz.submit');
 
     // ─── Games Arena (mixed review across all unlocked units) ───
-    Route::get('/arena',         [GamesArenaController::class, 'show'])->name('arena');
-    Route::post('/arena/submit', [GamesArenaController::class, 'submit'])->name('arena.submit');
+    // /arena            → game picker (choose which mini-game)
+    // /arena/play/{key} → play the chosen mini-game
+    // /arena/submit     → POST results
+    Route::get('/arena',                [GamesArenaController::class, 'show'])->name('arena');
+    Route::get('/arena/play/{game}',    [GamesArenaController::class, 'play'])
+        ->where('game', '[a-z0-9-]+')
+        ->name('arena.play');
+    Route::post('/arena/submit',        [GamesArenaController::class, 'submit'])->name('arena.submit');
 
     Route::get('/progress', [ParentDashboardController::class, 'index'])
         ->name('progress');
