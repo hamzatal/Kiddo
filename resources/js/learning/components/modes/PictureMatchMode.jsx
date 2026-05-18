@@ -232,6 +232,14 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
         Flip two cards to find a matching pair!
       </p>
 
+      {/* Mode type badge */}
+      <div className="flex items-center justify-center">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pink-100 border border-pink-200 text-[10px] sm:text-xs font-black text-pink-700 uppercase tracking-wider">
+          <span>🎴</span>
+          <span>Picture Match</span>
+        </span>
+      </div>
+
       <style>{`
         @media (min-width: 400px) {
           .xs\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -68,7 +68,16 @@ function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onTo
     // send CORS headers. Going through /api/audio/{code} adds a 302
     // redirect that some browsers treat differently for `preload=auto`,
     // which was the reason segment playback was failing here.
-    const trackUrl = track ? track.url : null;
+    // Primary: use the linked track's remote URL.
+    // Fallback: if no track is linked but the word has a per-word
+    // audio file (e.g. after Generate Voice sets audio_path), use
+    // that file so the SegmentEditor still renders and the admin
+    // can play/preview the TTS clip.
+    const trackUrl = track
+        ? track.url
+        : row.audio_path
+            ? '/' + row.audio_path.replace(/^\//, '')
+            : null;
     // Keep proxy URL handy as a manual fallback if a future track
     // has only a `local_path` and no remote URL.
     const trackProxyUrl = track ? `/api/audio/${track.code}` : null;
@@ -114,6 +123,8 @@ function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onTo
         segBtnCls += "bg-emerald-100 text-emerald-700";
     } else if (trackUrl) {
         segBtnCls += "bg-amber-50 text-amber-700";
+    } else if (row.audio_path) {
+        segBtnCls += "bg-teal-50 text-teal-700";
     } else {
         segBtnCls += "bg-gray-100 text-gray-400";
     }
@@ -124,6 +135,8 @@ function WordRow({ w, tracks, onFocusRow, isFocused, onRemoved, isSelected, onTo
             "Segment " + row.segment_start_ms + "ms -> " + row.segment_end_ms + "ms";
     } else if (trackUrl) {
         segBtnLabel = "Set segment";
+    } else if (row.audio_path) {
+        segBtnLabel = "TTS clip (edit)";
     }
 
     // Signal to the parent page which row is currently "active" (editor

@@ -99,10 +99,14 @@ class TtsAudioService
         }
 
         $word->update([
-            'audio_path'        => $publicRel,
-            'audio_track_id'    => null,
-            'segment_start_ms'  => null,
-            'segment_end_ms'    => null,
+            'audio_path' => $publicRel,
+            // Intentionally do NOT clear audio_track_id or segment
+            // bounds here. The admin may want to keep both: the NCCD
+            // track segment for the lesson player AND the per-word
+            // TTS file as a standalone pronunciation clip. The lesson
+            // engine's audioClip() prioritises the segment when both
+            // are present, and the admin can manually clear the track
+            // from the row if they want the TTS to take over.
         ]);
         return $publicRel;
     }

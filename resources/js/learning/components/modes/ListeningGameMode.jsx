@@ -151,6 +151,14 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
           );
         })}
       </div>
+
+      {/* Mode type badge */}
+      <div className="mt-2 flex items-center justify-center">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 border border-blue-200 text-[10px] sm:text-xs font-black text-blue-700 uppercase tracking-wider">
+          <span>👂</span>
+          <span>Listening Game</span>
+        </span>
+      </div>
     </div>
   );
 };

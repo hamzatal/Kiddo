@@ -201,6 +201,14 @@ const QuizScreen = ({ quizData }) => {
                 );
               })}
             </div>
+
+            {/* Mode type badge below options */}
+            <div className="mt-2 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-200 text-[10px] sm:text-xs font-black text-amber-700 uppercase tracking-wider">
+                <span>🏆</span>
+                <span>Unit Quiz · {unitTitle}</span>
+              </span>
+            </div>
           </div>
         </main>
       ) : (
@@ -214,11 +222,16 @@ const QuizScreen = ({ quizData }) => {
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-gray-800 mb-2">
               {scorePercent >= 90 ? "Amazing!" : scorePercent >= 70 ? "Great Job!" : "Good Try!"}
             </h1>
-            <p className="text-sm sm:text-base lg:text-lg text-gray-500 font-bold mb-6">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-500 font-bold mb-4">
               You scored <span className="text-emerald-500 font-black">{correctCount}</span> out of <span className="font-black">{questions.length}</span>!
             </p>
 
-            <div className="flex items-center gap-2 sm:gap-3 mb-6">
+            {/* Unit name badge */}
+            <p className="text-[10px] sm:text-xs font-black text-gray-400 uppercase tracking-wider mb-4">
+              {unitTitle} · Unit Quiz
+            </p>
+
+            <div className="flex items-center gap-2 sm:gap-3 mb-5">
               {[1, 2, 3].map((s) => (
                 <span
                   key={s}
@@ -230,7 +243,7 @@ const QuizScreen = ({ quizData }) => {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 w-full mb-6">
+            <div className="grid grid-cols-2 gap-3 w-full mb-4">
               <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-center">
                 <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider mb-1">Correct</p>
                 <p className="text-xl sm:text-2xl font-black text-emerald-600">{correctCount}</p>
@@ -241,11 +254,33 @@ const QuizScreen = ({ quizData }) => {
               </div>
             </div>
 
+            {/* "Next" info — tells the student exactly where Continue takes them */}
+            <div className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-2xl px-4 py-3 mb-5 flex items-center gap-3 text-left">
+              <span className="text-2xl sm:text-3xl shrink-0">
+                {scorePercent >= 70 ? "🗺️" : "🔄"}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs font-black text-blue-500 uppercase tracking-wider">
+                  {scorePercent >= 70 ? "Coming up next" : "What happens now"}
+                </p>
+                <p className="text-sm sm:text-base font-black text-blue-900 truncate">
+                  {scorePercent >= 70
+                    ? "Next Unit unlocked!"
+                    : `Retry ${unitTitle} Quiz`}
+                </p>
+                <p className="text-[10px] sm:text-xs text-blue-500 font-semibold truncate">
+                  {scorePercent >= 70
+                    ? "You passed! A new adventure awaits on the map."
+                    : "You need 70% to pass. You got this!"}
+                </p>
+              </div>
+            </div>
+
             <button
               onClick={handleFinish}
               className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-8 py-3.5 sm:py-4 rounded-2xl font-black text-base sm:text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
             >
-              {scorePercent >= 70 ? "Continue Adventure! →" : "Try Again →"}
+              {scorePercent >= 70 ? "Go to Map! 🗺️" : "Try Again! 💪"}
             </button>
           </div>
         </main>

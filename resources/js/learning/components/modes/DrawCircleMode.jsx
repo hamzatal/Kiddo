@@ -234,6 +234,14 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
                     100% { transform: scale(1) translateX(0); }
                 }
             `}</style>
+
+            {/* Mode type badge */}
+            <div className="mt-2 flex items-center justify-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-100 border border-red-200 text-[10px] sm:text-xs font-black text-red-700 uppercase tracking-wider">
+                    <span>⭕</span>
+                    <span>Circle Game</span>
+                </span>
+            </div>
         </div>
     );
 };

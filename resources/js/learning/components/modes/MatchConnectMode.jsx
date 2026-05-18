@@ -425,6 +425,14 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
           : "👈 Tap a word on the left to start"}
       </p>
 
+      {/* Mode type badge */}
+      <div className="flex items-center justify-center">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-100 border border-purple-200 text-[10px] sm:text-xs font-black text-purple-700 uppercase tracking-wider">
+          <span>🔗</span>
+          <span>Match & Connect</span>
+        </span>
+      </div>
+
       <style>{`
         .mc-line-correct {
           stroke-dasharray: 600;
