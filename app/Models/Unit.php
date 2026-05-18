@@ -17,6 +17,15 @@ class Unit extends Model
         'image_path',
         'color_key',
         'lessons_count',
+        'map_x',
+        'map_y',
+        'map_size',
+        'map_image_path',
+    ];
+
+    protected $casts = [
+        'map_x' => 'float',
+        'map_y' => 'float',
     ];
 
     public function words()

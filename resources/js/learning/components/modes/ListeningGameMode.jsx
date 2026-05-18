@@ -118,7 +118,7 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
       </div>
 
       {/* Options - images only, no word shown */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto justify-items-center">
         {(round.options || []).map((opt) => {
           const isCorrect = correctId === opt.id;
           const isWrong = wrong.includes(opt.id);

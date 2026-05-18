@@ -2,51 +2,44 @@ import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 
 /* ══════════════════════════════════════════════════════════
-   ألوان اللوحات (Pills)
+   COLOUR PALETTE
+   We map a small number of admin-friendly colour keys to
+   solid Tailwind classes. The admin enters a key (purple,
+   blue, pink, amber, green, cyan, rose, indigo) in
+   `unit.color_key` and the map renders the matching pill.
 ══════════════════════════════════════════════════════════ */
-const PILL_COLORS = {
-    "bg-[#7C3AED]": "bg-[#7C3AED]",
-    "bg-[#2563EB]": "bg-[#2563EB]",
-    "bg-[#DB2777]": "bg-[#DB2777]",
-    "bg-[#D97706]": "bg-[#D97706]",
-    "bg-[#16A34A]": "bg-[#16A34A]",
+const COLOR_BY_KEY = {
+    purple: "bg-[#7C3AED]",
+    blue:   "bg-[#2563EB]",
+    pink:   "bg-[#DB2777]",
+    amber:  "bg-[#D97706]",
+    green:  "bg-[#16A34A]",
+    cyan:   "bg-[#0EA5E9]",
+    rose:   "bg-[#E11D48]",
+    indigo: "bg-[#4F46E5]",
+    teal:   "bg-[#0D9488]",
+    orange: "bg-[#EA580C]",
 };
 
-/* ══════════════════════════════════════════════════════════
-   VISUAL CONFIG
-══════════════════════════════════════════════════════════ */
-const VISUAL_CONFIG = {
-    1: {
-        imagePath: "/assets/lessons/welcome/hut.png",
-        color: "bg-[#7C3AED]",
-        pos: { left: "20.5%", top: "37%" },
-        customSize: "w-40 h-40 sm:w-48 sm:h-48 lg:w-52 lg:h-52",
-    },
-    2: {
-        imagePath: "/assets/lessons/family/treehouse.png",
-        color: "bg-[#2563EB]",
-        pos: { left: "51.2%", top: "33%" },
-        customSize: "w-40 h-40 sm:w-48 sm:h-48 lg:w-52 lg:h-52",
-    },
-    3: {
-        imagePath: "/assets/lessons/schoolbag/bag.png",
-        color: "bg-[#DB2777]",
-        pos: { left: "72%", top: "65%" },
-        customSize: "w-24 h-24 sm:w-32 sm:h-32",
-    },
-    4: {
-        imagePath: "/assets/lessons/classroom/desk.png",
-        color: "bg-[#D97706]",
-        pos: { left: "18%", top: "63%" },
-        customSize: "w-32 h-32 sm:w-40 sm:h-40 lg:w-44 lg:h-44",
-    },
-    5: {
-        imagePath: "/assets/lessons/toy/toy.png",
-        color: "bg-[#16A34A]",
-        pos: { left: "45%", top: "69%" },
-        customSize: "w-28 h-28 sm:w-36 sm:h-36 lg:w-40 lg:h-40",
-    },
-};
+const DEFAULT_SIZE = "w-32 h-32 sm:w-40 sm:h-40 lg:w-44 lg:h-44";
+
+/* Resolve a stored image path into a URL the browser can load.
+   Accepts: absolute http(s), or paths like "assets/lessons/..." */
+function resolveImage(path) {
+    if (!path) return "";
+    if (/^https?:\/\//i.test(path)) return path;
+    return "/" + String(path).replace(/^\//, "");
+}
+
+/* Auto-layout fallback used when admin hasn't placed a unit yet.
+   Distributes nodes along a curve so a brand-new unit lands
+   somewhere visible instead of stacking at (50,50). */
+function autoLayoutPos(index, total) {
+    const t = total <= 1 ? 0.5 : index / (total - 1);
+    const left = 15 + t * 70;
+    const top  = 35 + Math.sin(t * Math.PI) * 20;
+    return { left, top };
+}
 
 /* ══════════════════════════════════════════════════════════
    UnitNode
@@ -56,7 +49,10 @@ const UnitNode = ({ unit, onClick }) => {
     const isActive = unit.status === "active";
     const isLocked = unit.status === "locked";
 
-    const visual = VISUAL_CONFIG[unit.id] || VISUAL_CONFIG[1];
+    const colorClass = COLOR_BY_KEY[unit.color_key] || COLOR_BY_KEY.purple;
+    const sizeClass  = unit.map_size || DEFAULT_SIZE;
+    const imgSrc     = resolveImage(unit.map_image_path || unit.image_path);
+
     const subLessonsArray = Array.from({ length: unit.lessons_count || 1 }).map(
         (_, i) => i < (unit.current_lesson || 1) - 1,
     );
@@ -76,7 +72,7 @@ const UnitNode = ({ unit, onClick }) => {
                     </div>
                 )}
                 <div
-                    className={`${visual.color} text-white px-5 py-1.5 rounded-full font-black text-[12px] shadow-xl flex items-center gap-2 whitespace-nowrap pointer-events-auto border-2 border-white/40 backdrop-blur-md`}
+                    className={`${colorClass} text-white px-5 py-1.5 rounded-full font-black text-[12px] shadow-xl flex items-center gap-2 whitespace-nowrap pointer-events-auto border-2 border-white/40 backdrop-blur-md`}
                 >
                     <span className="bg-white/30 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-inner">
                         {unit.number}
@@ -86,16 +82,22 @@ const UnitNode = ({ unit, onClick }) => {
             </div>
 
             <div
-                className={`${visual.customSize} flex items-center justify-center relative transition-transform duration-500 ${isActive ? "scale-110 drop-shadow-[0_20px_30px_rgba(0,0,0,0.25)]" : "drop-shadow-xl group-hover:scale-105"}`}
+                className={`${sizeClass} flex items-center justify-center relative transition-transform duration-500 ${isActive ? "scale-110 drop-shadow-[0_20px_30px_rgba(0,0,0,0.25)]" : "drop-shadow-xl group-hover:scale-105"}`}
             >
-                <img
-                    src={visual.imagePath}
-                    alt={unit.title}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                        e.target.style.display = "none";
-                    }}
-                />
+                {imgSrc ? (
+                    <img
+                        src={imgSrc}
+                        alt={unit.title}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                            e.target.style.display = "none";
+                        }}
+                    />
+                ) : (
+                    <div className={`w-full h-full rounded-full ${colorClass} opacity-90 flex items-center justify-center text-3xl font-black text-white shadow-inner`}>
+                        {unit.number}
+                    </div>
+                )}
                 {isLocked && (
                     <div className="absolute inset-0 flex items-center justify-center z-10">
                         <div className="bg-black/50 backdrop-blur-md rounded-full w-14 h-14 flex items-center justify-center shadow-2xl border-2 border-white/20">
@@ -112,9 +114,7 @@ const UnitNode = ({ unit, onClick }) => {
                 {isDone && (() => {
                     // Compact star pill: cap at 3 actual stars; show
                     // "⭐ ×N" when the kid has earned more so the
-                    // pill never overflows the unit card or covers
-                    // adjacent map nodes (was a real problem with
-                    // 15-star units).
+                    // pill never overflows the unit card.
                     const total = Math.max(0, Number(unit.stars_earned ?? unit.stars) || 0);
                     if (total === 0) return null;
                     if (total <= 3) {
@@ -158,55 +158,65 @@ const UnitNode = ({ unit, onClick }) => {
 };
 
 /* ══════════════════════════════════════════════════════════
-   ArenaNode — mixed-review pin floating above the map
+   ArenaNode — mixed-review pin, positioned dynamically by
+   the server (left of Unit 2 by request, with toy.png).
    ══════════════════════════════════════════════════════════ */
-const ArenaNode = ({ unlocked }) => (
-    <div
-        className={`flex flex-col items-center gap-2 select-none transition-transform duration-300 ${
-            unlocked ? "cursor-pointer group" : "cursor-default"
-        }`}
-        style={{ filter: unlocked ? "none" : "grayscale(60%) opacity(0.65)" }}
-        onClick={unlocked ? () => router.visit("/arena") : undefined}
-    >
-        {/* Top label */}
-        <div className="absolute bottom-[90%] left-1/2 -translate-x-1/2 pb-2 flex flex-col items-center gap-1.5 w-max pointer-events-none z-30 transition-transform group-hover:-translate-y-2">
-            {unlocked && (
-                <div className="bg-gradient-to-r from-fuchsia-500 to-amber-400 text-white text-[10px] font-black px-4 py-1 rounded-full shadow-lg -rotate-2 animate-bounce whitespace-nowrap border-2 border-white pointer-events-auto">
-                    Mixed Practice!
-                </div>
-            )}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-5 py-1.5 rounded-full font-black text-[12px] shadow-xl flex items-center gap-2 whitespace-nowrap pointer-events-auto border-2 border-white/40 backdrop-blur-md">
-                <span className="text-base leading-none">🏆</span>
-                Games Arena
-            </div>
-        </div>
+const ArenaNode = ({ arena, unlocked }) => {
+    const sizeClass = arena?.size || "w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40";
+    const imgSrc    = resolveImage(arena?.image_path || "assets/lessons/toy/toy.png");
 
-        {/* The pin itself */}
-        <div className="w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 flex items-center justify-center relative drop-shadow-xl group-hover:scale-105 transition-transform">
-            <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-300 via-pink-300 to-amber-200 rounded-[2rem] rotate-3 shadow-2xl border-4 border-white/70" />
-            <div className="absolute inset-2 bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-500 rounded-[1.6rem] -rotate-2 flex items-center justify-center shadow-inner">
-                <span className="text-5xl sm:text-6xl drop-shadow-lg">🎮</span>
-            </div>
-            {!unlocked && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <div className="bg-black/55 backdrop-blur-md rounded-full w-14 h-14 flex items-center justify-center shadow-2xl border-2 border-white/20">
-                        <span className="text-3xl">🔒</span>
+    return (
+        <div
+            className={`flex flex-col items-center gap-2 select-none transition-transform duration-300 ${
+                unlocked ? "cursor-pointer group" : "cursor-default"
+            }`}
+            style={{ filter: unlocked ? "none" : "grayscale(60%) opacity(0.65)" }}
+            onClick={unlocked ? () => router.visit("/arena") : undefined}
+        >
+            {/* Top label */}
+            <div className="absolute bottom-[90%] left-1/2 -translate-x-1/2 pb-2 flex flex-col items-center gap-1.5 w-max pointer-events-none z-30 transition-transform group-hover:-translate-y-2">
+                {unlocked && (
+                    <div className="bg-gradient-to-r from-fuchsia-500 to-amber-400 text-white text-[10px] font-black px-4 py-1 rounded-full shadow-lg -rotate-2 animate-bounce whitespace-nowrap border-2 border-white pointer-events-auto">
+                        Mixed Practice!
                     </div>
+                )}
+                <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-5 py-1.5 rounded-full font-black text-[12px] shadow-xl flex items-center gap-2 whitespace-nowrap pointer-events-auto border-2 border-white/40 backdrop-blur-md">
+                    <span className="text-base leading-none">🧸</span>
+                    {arena?.title || "Games Arena"}
                 </div>
-            )}
-            {unlocked && (
-                <div className="absolute inset-0 rounded-[2rem] bg-white/20 animate-ping opacity-30 pointer-events-none" />
-            )}
-        </div>
+            </div>
 
-        {/* Bottom hint pill */}
-        <div className="absolute top-[90%] left-1/2 -translate-x-1/2 pt-2 flex flex-col items-center gap-2 w-max pointer-events-none z-20">
-            <div className="bg-white/95 backdrop-blur px-4 py-1.5 rounded-full shadow-lg border border-gray-100 text-[10px] font-black text-purple-600">
-                {unlocked ? "All units · all words" : "Finish a lesson to unlock"}
+            {/* The pin itself — uses the toy.png by request, with the
+                same drop-shadow + ping rings as the unit pins so it
+                feels native to the map. */}
+            <div className={`${sizeClass} flex items-center justify-center relative drop-shadow-xl group-hover:scale-105 transition-transform`}>
+                <img
+                    src={imgSrc}
+                    alt={arena?.title || "Games Arena"}
+                    className="w-full h-full object-contain"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+                {!unlocked && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                        <div className="bg-black/55 backdrop-blur-md rounded-full w-14 h-14 flex items-center justify-center shadow-2xl border-2 border-white/20">
+                            <span className="text-3xl">🔒</span>
+                        </div>
+                    </div>
+                )}
+                {unlocked && (
+                    <div className="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-30 pointer-events-none" />
+                )}
+            </div>
+
+            {/* Bottom hint pill */}
+            <div className="absolute top-[90%] left-1/2 -translate-x-1/2 pt-2 flex flex-col items-center gap-2 w-max pointer-events-none z-20">
+                <div className="bg-white/95 backdrop-blur px-4 py-1.5 rounded-full shadow-lg border border-gray-100 text-[10px] font-black text-purple-600">
+                    {unlocked ? "All units · all words" : "Finish a lesson to unlock"}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 /* ══════════════════════════════════════════════════════════
    MapScreen
@@ -227,14 +237,11 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
     useEffect(() => {
         if (quizResult?.passed) {
             setShowQuizResult(true);
-            // Import dynamically to avoid issues
             import("@/learning/utils/confetti").then(({ launchConfetti }) => launchConfetti(4000));
             import("@/learning/utils/soundEffects").then(({ playCheer }) => playCheer());
         }
     }, [quizResult]);
 
-    // FIX 11: compute total stars either from the backend (user.total_stars)
-    // or by summing per-unit earned stars on the frontend as a fallback.
     const totalStars =
         typeof user?.total_stars === "number"
             ? user.total_stars
@@ -257,9 +264,8 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
     }, []);
 
     return (
-        // الهيكلة الأساسية: الطول 100vh وممنوع السكرول الخارجي
         <div className="flex flex-col h-[100dvh] w-screen overflow-hidden bg-[#B8E4FF] font-sans">
-            {/* ── HEADER (ثابت لا يتأثر بالسكرول) ── */}
+            {/* ── HEADER ── */}
             <header className="h-[72px] shrink-0 bg-white/95 backdrop-blur-2xl border-b border-gray-100 shadow-sm flex items-center z-50">
                 <div className="w-full px-4 lg:px-8 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
@@ -299,9 +305,7 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         </div>
 
                         <div className="hidden sm:flex items-center gap-2 bg-amber-50 border border-amber-100 px-4 py-2 rounded-full shadow-sm max-w-[160px]">
-                            <span className="text-lg leading-none drop-shadow-sm shrink-0">
-                                ⭐
-                            </span>
+                            <span className="text-lg leading-none drop-shadow-sm shrink-0">⭐</span>
                             <span className="font-black text-amber-600 text-sm leading-none truncate">
                                 {totalStars}
                             </span>
@@ -336,7 +340,7 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                 </div>
             </header>
 
-            {/* ── MAIN BODY (الحاوية المرنة) ── */}
+            {/* ── MAIN BODY ── */}
             <div className="flex-1 flex min-h-0 relative">
                 {/* ── MAP AREA ── */}
                 <main className="flex-1 relative overflow-auto hide-scrollbar bg-[#90D4F5] flex items-center justify-center">
@@ -349,43 +353,47 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         <div className="absolute inset-0 bg-gradient-to-b from-sky-400/10 via-transparent to-blue-900/10 pointer-events-none z-[1]" />
 
                         <div className="absolute inset-0 z-10">
-                            {units.map((u) => {
-                                const pos = VISUAL_CONFIG[u.id]?.pos || {
-                                    left: "50%",
-                                    top: "50%",
-                                };
+                            {units.map((u, i) => {
+                                // Pull DB-driven position; auto-layout if
+                                // admin hasn't placed this unit yet.
+                                let left = u.map_x, top = u.map_y;
+                                if (left === null || left === undefined || top === null || top === undefined) {
+                                    const fallback = autoLayoutPos(i, units.length);
+                                    left = fallback.left;
+                                    top  = fallback.top;
+                                }
                                 return (
                                     <div
                                         key={u.id}
                                         className="absolute -translate-x-1/2 -translate-y-1/2"
-                                        style={{ left: pos.left, top: pos.top }}
+                                        style={{ left: `${left}%`, top: `${top}%` }}
                                     >
                                         <UnitNode
                                             unit={u}
                                             onClick={
                                                 u.status === "locked"
                                                     ? () => {}
-                                                    : () =>
-                                                          router.visit(
-                                                              `/lesson/${u.id}`,
-                                                          )
+                                                    : () => router.visit(`/lesson/${u.id}`)
                                             }
                                         />
                                     </div>
                                 );
                             })}
 
-                            {/* Games Arena pin — sits in the top-right of the
-                                map between U1 and U2 so it never overlaps a
-                                unit node. Hidden when nothing is unlocked
-                                yet, but the prop is still passed so the
-                                Inertia hydration is stable. */}
+                            {/* Games Arena pin — positioned by the
+                                server to sit immediately to the LEFT
+                                of Unit 2, with the toy.png image. The
+                                user can drag it elsewhere from the
+                                admin "Map" panel later. */}
                             {arena ? (
                                 <div
                                     className="absolute -translate-x-1/2 -translate-y-1/2"
-                                    style={{ left: "87%", top: "12%" }}
+                                    style={{
+                                        left: `${arena.map_x ?? 38}%`,
+                                        top:  `${arena.map_y ?? 50}%`,
+                                    }}
                                 >
-                                    <ArenaNode unlocked={!!arena.unlocked} />
+                                    <ArenaNode arena={arena} unlocked={!!arena.unlocked} />
                                 </div>
                             ) : null}
                         </div>
@@ -399,231 +407,94 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                     </button>
                 </main>
 
-                {/* ── SIDEBAR (إصلاح جذري لهيكلية السايد بار) ── */}
-                {/* تم التأكد من إعطائه h-full و overflow-y-auto ليعمل بشكل مستقل وبدون أي قص للبيانات */}
+                {/* ── SIDEBAR ── */}
                 <aside
-                    className={`${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"} absolute lg:static right-0 top-0 h-full w-[300px] xl:w-[340px] 2xl:w-[380px] shrink-0 bg-[#F8FAFC] lg:bg-white border-l border-gray-200 z-40 shadow-2xl lg:shadow-[-10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto custom-scrollbar flex flex-col gap-4 p-5 transition-transform duration-300 lg:transition-none`}
+                    className={`${sidebarOpen ? "translate-x-0" : "translate-x-full"} lg:translate-x-0 fixed lg:static top-[72px] right-0 bottom-0 lg:top-0 z-40 lg:z-auto w-[300px] lg:w-[320px] bg-white border-l border-gray-100 shadow-2xl lg:shadow-none transition-transform duration-300 flex flex-col`}
                 >
-                    {/* زر إغلاق للموبايل */}
-                    <div className="lg:hidden flex justify-end shrink-0">
-                        <button
-                            onClick={() => setSidebarOpen(false)}
-                            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-black"
-                        >
-                            ✕
-                        </button>
+                    <div className="p-5 border-b border-gray-100 bg-gradient-to-br from-purple-50 to-pink-50">
+                        <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1">Adventure</p>
+                        <h2 className="text-lg font-black text-[#1E293B]">Map index</h2>
+                        <p className="text-[11px] text-gray-500 font-semibold mt-1">
+                            {completedCount} of {unitsTotal} units complete
+                        </p>
                     </div>
 
-                    {/* Mission Card - تصميم بلوك متماسك يمنع القص */}
-                    <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-[1.25rem] p-4 border border-indigo-100 shadow-sm">
-                        <h3 className="font-black text-[#1E293B] text-[13px] flex items-center gap-2 mb-3">
-                            <span className="text-xl">🎯</span> Today's Mission
-                        </h3>
-                        <div className="flex items-center gap-3 mb-4 bg-white p-3 rounded-xl border border-white shadow-sm">
-                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-2xl shrink-0 shadow-inner">
-                                🚀
-                            </div>
-                            <div className="flex flex-col justify-center min-w-0">
-                                <p className="text-[13px] font-black text-[#1E293B] leading-tight break-words">
-                                    {activeUnit
-                                        ? activeUnit.title
-                                        : "All Units Done! 🎉"}
-                                </p>
-                                <p className="text-[10px] text-indigo-500 font-bold mt-1 uppercase tracking-widest">
-                                    {activeUnit
-                                        ? "Ready to play"
-                                        : "Amazing Job!"}
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() =>
-                                router.visit(
-                                    activeUnit
-                                        ? `/lesson/${activeUnit.id}`
-                                        : "/progress",
-                                )
-                            }
-                            className="w-full bg-[#10B981] text-white py-3 rounded-xl font-black text-[13px] shadow-[0_4px_0_#059669] hover:shadow-[0_2px_0_#059669] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2"
-                        >
-                            {activeUnit
-                                ? "START ADVENTURE ➔"
-                                : "VIEW REWARDS ➔"}
-                        </button>
-                    </div>
-
-                    {/* Progress Stats */}
-                    <div className="shrink-0 bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
-                        <h3 className="font-black text-[#1E293B] text-[13px] mb-3 flex items-center gap-2">
-                            <span>📊</span> My Progress
-                        </h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex flex-col items-center justify-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-slate-100">
-                                    <span className="text-base font-black text-[#1E293B]">
-                                        {completedCount}/{unitsTotal}
-                                    </span>
-                                </div>
-                                <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center">
-                                    Units Done
-                                </p>
-                            </div>
-                            <div className="flex flex-col items-center justify-center bg-amber-50 p-3 rounded-xl border border-amber-100">
-                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 border border-amber-100 text-xl font-black text-amber-600">
-                                    {totalStars > 0 ? totalStars : "⭐"}
-                                </div>
-                                <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest text-center break-words whitespace-normal leading-tight max-w-full">
-                                    Total Stars
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Map Index */}
-                    <div className="shrink-0 bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
-                        <h3 className="font-black text-[#1E293B] text-[13px] mb-3 flex items-center gap-2">
-                            <span>🗺️</span> Map Index
-                        </h3>
-                        <div className="flex flex-col gap-2">
-                            {units.map((u) => {
-                                const visual =
-                                    VISUAL_CONFIG[u.id] || VISUAL_CONFIG[1];
-                                return (
-                                    <div
-                                        key={u.id}
-                                        onClick={
-                                            u.status !== "locked"
-                                                ? () =>
-                                                      router.visit(
-                                                          `/lesson/${u.id}`,
-                                                      )
-                                                : undefined
-                                        }
-                                        className={`flex items-center gap-3 p-2.5 rounded-xl border transition-colors
-                                         ${
-                                             u.status === "active"
-                                                 ? "border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100"
-                                                 : u.status === "done"
-                                                   ? "border-green-200 bg-green-50 cursor-pointer hover:bg-green-100"
-                                                   : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
-                                         }`}
-                                    >
-                                        <div
-                                            className={`${visual.color} w-6 h-6 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm`}
-                                        >
-                                            {u.number}
-                                        </div>
-                                        <p className="text-[11px] font-black text-[#1E293B] flex-1 truncate">
-                                            {u.title}
-                                        </p>
-                                        <span className="text-sm bg-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
-                                            {u.status === "done"
-                                                ? "✅"
-                                                : u.status === "active"
-                                                  ? "📍"
-                                                  : "🔒"}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Games Arena entry — sits at the bottom of
-                                the Map Index so the kid recognises it as
-                                a separate "always-on" practice mode. */}
-                            {arena ? (
-                                <div
-                                    onClick={
-                                        arena.unlocked
-                                            ? () => router.visit("/arena")
-                                            : undefined
-                                    }
-                                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition-colors mt-1 ${
-                                        arena.unlocked
-                                            ? "border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-amber-50 cursor-pointer hover:from-fuchsia-100"
-                                            : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                        {units.map((u) => {
+                            const colorClass = COLOR_BY_KEY[u.color_key] || COLOR_BY_KEY.purple;
+                            const imgSrc = resolveImage(u.map_image_path || u.image_path);
+                            const locked = u.status === "locked";
+                            return (
+                                <button
+                                    key={u.id}
+                                    disabled={locked}
+                                    onClick={() => !locked && router.visit(`/lesson/${u.id}`)}
+                                    className={`w-full text-left p-3 rounded-2xl border flex items-center gap-3 transition-all ${
+                                        locked
+                                            ? "bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed"
+                                            : u.status === "active"
+                                            ? "bg-amber-50 border-amber-200 shadow-sm"
+                                            : "bg-white border-gray-100 hover:border-purple-200 hover:shadow-sm"
                                     }`}
                                 >
-                                    <div className="bg-gradient-to-br from-purple-500 to-pink-500 w-6 h-6 rounded-full flex items-center justify-center text-white font-black text-[10px] shrink-0 shadow-sm">
-                                        🏆
+                                    <div className={`w-12 h-12 rounded-2xl ${colorClass} flex items-center justify-center text-white shrink-0 shadow-inner overflow-hidden`}>
+                                        {imgSrc ? (
+                                            <img src={imgSrc} alt="" className="w-full h-full object-contain p-1" />
+                                        ) : (
+                                            <span className="font-black text-lg">{u.number}</span>
+                                        )}
                                     </div>
-                                    <p className="text-[11px] font-black text-[#1E293B] flex-1 truncate">
-                                        Games Arena
-                                    </p>
-                                    <span className="text-sm bg-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
-                                        {arena.unlocked ? "🎮" : "🔒"}
-                                    </span>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                                            Unit {u.number}
+                                        </p>
+                                        <p className="text-sm font-black text-[#1E293B] truncate">{u.title}</p>
+                                    </div>
+                                    {u.status === "done" && <span className="text-emerald-500 text-lg">✓</span>}
+                                    {u.status === "active" && <span className="text-amber-500 text-lg">▶</span>}
+                                    {locked && <span className="text-gray-400 text-lg">🔒</span>}
+                                </button>
+                            );
+                        })}
 
-                    {/* Mascot Tip */}
-                    <div className="shrink-0 mt-auto bg-[#7C3AED] rounded-[1.25rem] p-4 relative overflow-hidden shadow-lg border border-[#6D28D9]">
-                        <div className="absolute -top-10 -right-10 w-24 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-                        <div className="flex items-center gap-3 relative z-10">
-                            <img
-                                src="/assets/ui/mascot/fox-hint.png"
-                                alt="Fox Tip"
-                                className="w-12 h-12 object-contain drop-shadow-md"
-                                onError={(e) =>
-                                    (e.target.style.display = "none")
-                                }
-                            />
-                            <div>
-                                <p className="font-black text-white text-[11px] mb-0.5">
-                                    Parent's Tip:
-                                </p>
-                                <p className="text-[10px] text-purple-100 font-bold leading-tight">
-                                    Check the dashboard to view certificates!
-                                </p>
-                            </div>
-                        </div>
+                        {arena ? (
+                            <button
+                                disabled={!arena.unlocked}
+                                onClick={() => arena.unlocked && router.visit("/arena")}
+                                className={`w-full text-left p-3 rounded-2xl border flex items-center gap-3 transition-all ${
+                                    arena.unlocked
+                                        ? "bg-fuchsia-50 border-fuchsia-200 hover:shadow-sm"
+                                        : "bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed"
+                                }`}
+                            >
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-500 flex items-center justify-center shrink-0 overflow-hidden">
+                                    <img
+                                        src={resolveImage(arena.image_path || "assets/lessons/toy/toy.png")}
+                                        alt=""
+                                        className="w-full h-full object-contain p-1"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-fuchsia-600 uppercase tracking-wider">
+                                        Bonus
+                                    </p>
+                                    <p className="text-sm font-black text-[#1E293B] truncate">{arena.title || "Games Arena"}</p>
+                                </div>
+                                {arena.unlocked
+                                    ? <span className="text-fuchsia-500 text-lg">🧸</span>
+                                    : <span className="text-gray-400 text-lg">🔒</span>}
+                            </button>
+                        ) : null}
                     </div>
                 </aside>
             </div>
 
-            <style>{`
-                /* إخفاء السكرول بار للخريطة */
-                .hide-scrollbar::-webkit-scrollbar { display: none; }
-                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-                
-                /* سكرول بار أنيق للسايد بار */
-                .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 20px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94A3B8; }
-
-                @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-            `}</style>
-
-            {/* Quiz completion celebration overlay */}
-            {showQuizResult && quizResult && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setShowQuizResult(false)}>
-                    <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-sm w-full text-center shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-5xl block mb-3">{quizResult.passed ? '🎉' : '💪'}</span>
-                        <h2 className="text-2xl font-black text-gray-800 mb-2">
-                            {quizResult.passed ? 'Unit Complete!' : 'Almost There!'}
-                        </h2>
-                        <p className="text-sm text-gray-500 mb-4">
-                            {quizResult.passed 
-                              ? `You scored ${quizResult.percent}% and earned ${quizResult.stars} stars!`
-                              : `You scored ${quizResult.percent}%. Need 70% to pass. Try again!`
-                            }
-                        </p>
-                        <div className="flex items-center justify-center gap-2 mb-6">
-                            {[1, 2, 3].map((s) => (
-                                <span key={s} className={`text-3xl ${s <= (quizResult.stars || 0) ? '' : 'opacity-20 grayscale'}`}>⭐</span>
-                            ))}
-                        </div>
-                        <button
-                            onClick={() => setShowQuizResult(false)}
-                            className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-3 rounded-2xl font-black shadow-lg"
-                        >
-                            {quizResult.passed ? 'Continue Adventure! →' : 'Try Again →'}
-                        </button>
-                    </div>
-                </div>
+            {/* Click-outside overlay for the mobile sidebar */}
+            {sidebarOpen && (
+                <div
+                    onClick={() => setSidebarOpen(false)}
+                    className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+                />
             )}
         </div>
     );

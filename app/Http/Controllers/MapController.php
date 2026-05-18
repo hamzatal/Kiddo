@@ -66,6 +66,16 @@ class MapController extends Controller
                 'status'        => $status,
                 'stars'         => $progress->stars_earned ?? 0,
                 'stars_earned'  => $progress->stars_earned ?? 0,
+                // Map placement is now driven by the DB so the admin
+                // can move/resize a pin without code changes. Falls
+                // back to a sensible auto-layout if the columns are
+                // unset (e.g. brand-new unit before the admin saved).
+                'image_path'    => $unit->image_path,
+                'color_key'     => $unit->color_key,
+                'map_x'         => $unit->map_x,
+                'map_y'         => $unit->map_y,
+                'map_size'      => $unit->map_size,
+                'map_image_path' => $unit->map_image_path ?: $unit->image_path,
             ];
         });
 
@@ -99,6 +109,15 @@ class MapController extends Controller
                     $q->where('current_lesson', '>', 1)->orWhere('status', 'done');
                 })->exists();
 
+        // Position the Arena pin to the LEFT of Unit 2 (the user's
+        // explicit request). We compute "left of U2" dynamically by
+        // looking up U2's map_x in the units payload — if the admin
+        // moves U2 later, the Arena pin follows it. If U2 isn't
+        // placed yet, we default to a sensible spot near the centre.
+        $u2 = $units->firstWhere('number', 2);
+        $arenaX = $u2 && $u2['map_x'] !== null ? max(8, (float) $u2['map_x'] - 18) : 38;
+        $arenaY = $u2 && $u2['map_y'] !== null ? (float) $u2['map_y'] : 50;
+
         return Inertia::render('Map/MapScreen', [
             'user' => [
                 'id'          => $user->id,
@@ -111,9 +130,13 @@ class MapController extends Controller
             ],
             'units' => $units,
             'arena' => [
-                'unlocked' => $arenaUnlocked,
-                'title'    => 'Games Arena',
-                'subtitle' => 'Mixed practice across every unit',
+                'unlocked'   => $arenaUnlocked,
+                'title'      => 'Games Arena',
+                'subtitle'   => 'Mixed practice across every unit',
+                'map_x'      => $arenaX,
+                'map_y'      => $arenaY,
+                'image_path' => 'assets/lessons/toy/toy.png',
+                'size'       => 'w-32 h-32 sm:w-40 sm:h-40 lg:w-44 lg:h-44',
             ],
             'stats' => [
                 'completionPercentage' => $completionPercentage,

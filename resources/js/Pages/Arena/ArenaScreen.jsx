@@ -190,7 +190,7 @@ const ArenaScreen = ({ arena }) => {
                             disabled={correctId !== null}
                         />
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl px-1">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl px-1 mx-auto justify-items-center">
                             {(round?.options || []).map((opt) => {
                                 const isCorrectPick = correctId === opt.id;
                                 const isWrong       = wrong.includes(opt.id);

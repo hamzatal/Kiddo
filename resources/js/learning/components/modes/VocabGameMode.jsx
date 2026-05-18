@@ -126,7 +126,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto justify-items-center">
                 {(round.options || []).map((opt) => {
                     let state = "idle";
                     if (correctId === opt.id) state = "correct";

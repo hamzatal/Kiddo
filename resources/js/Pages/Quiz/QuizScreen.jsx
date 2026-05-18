@@ -177,8 +177,9 @@ const QuizScreen = ({ quizData }) => {
 
             {/* Options grid — uses OptionCard so every option has a
                 speaker button + matching SmartImage fallback, exactly
-                like the lesson modes. */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl px-1">
+                like the lesson modes. Centered with mx-auto so it
+                never drifts to the left on wide screens. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl px-1 mx-auto justify-items-center">
               {currentQ.options.map((opt) => {
                 const isWrong = wrongClicks.includes(opt.id);
                 const isCorrectPick = selectedCorrect === opt.id;

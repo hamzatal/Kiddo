@@ -62,6 +62,12 @@ class AdminController extends Controller
                 'description'   => $u->description,
                 'image_path'    => $u->image_path,
                 'color_key'     => $u->color_key,
+                // Map placement (so admin sees the live values and
+                // can edit them inline).
+                'map_x'         => $u->map_x,
+                'map_y'         => $u->map_y,
+                'map_size'      => $u->map_size,
+                'map_image_path'=> $u->map_image_path,
                 'lessons_count' => $u->lessons_count,
                 'real_count'    => $u->lessons_count,
             ]),
@@ -71,10 +77,16 @@ class AdminController extends Controller
     public function updateUnit(Request $request, Unit $unit)
     {
         $data = $request->validate([
-            'title'       => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'image_path'  => 'nullable|string|max:255',
-            'color_key'   => 'nullable|string|max:32',
+            'title'          => 'nullable|string|max:255',
+            'description'    => 'nullable|string|max:1000',
+            'image_path'     => 'nullable|string|max:255',
+            'color_key'      => 'nullable|string|max:32',
+            // Map placement (admin can drag-position pins from the
+            // dashboard now instead of editing React code).
+            'map_x'          => 'nullable|numeric|min:0|max:100',
+            'map_y'          => 'nullable|numeric|min:0|max:100',
+            'map_size'       => 'nullable|string|max:128',
+            'map_image_path' => 'nullable|string|max:255',
         ]);
         $unit->update($data);
         return response()->json(['ok' => true, 'unit' => $unit->fresh()]);

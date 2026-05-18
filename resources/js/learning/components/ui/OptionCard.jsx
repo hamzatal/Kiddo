@@ -29,11 +29,17 @@ const OptionCard = ({
 }) => {
     const [speaking, setSpeaking] = useState(false);
 
+    // The card now has a much lighter "frame" so the image fills
+    // the card from edge to edge — the user's request was: no big
+    // white box, the picture should look like a whole illustrated
+    // tile. We keep a thin border + soft shadow so the card still
+    // feels tappable, but lose the heavy padding and 3px border
+    // that used to letterbox the image.
     const base =
-        "group relative p-3 sm:p-4 lg:p-5 bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl border-2 sm:border-3 transition-all duration-300 shadow-sm flex flex-col items-center justify-center select-none";
+        "group relative bg-white/80 backdrop-blur rounded-xl sm:rounded-2xl border transition-all duration-300 shadow-sm flex flex-col items-center justify-end overflow-hidden select-none";
 
     const stateClass = {
-        idle:     "border-white hover:border-purple-300 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0",
+        idle:     "border-white/80 hover:border-purple-300 hover:shadow-2xl hover:-translate-y-1 active:translate-y-0",
         correct:  "border-green-500 bg-green-50 scale-105 z-10 shadow-2xl ring-4 ring-green-200 animate-[pop_0.4s_ease-out]",
         wrong:    "border-red-200 bg-red-50 opacity-40 grayscale scale-95 cursor-not-allowed",
         disabled: "border-gray-100 opacity-60 cursor-not-allowed",
@@ -75,17 +81,20 @@ const OptionCard = ({
             onClick={onClick}
             className={`${base} ${stateClass} aspect-square sm:aspect-auto sm:h-40 lg:h-44 xl:h-52 ${className}`}
         >
-            <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
+            {/* Image fills the card — no padding, no inner box. The
+                gradient label strip below sits ON TOP of the image so
+                the picture itself uses every pixel of the card. */}
+            <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                 <SmartImage
                     src={imagePath}
                     label={label}
                     className="w-full h-full"
-                    imgClassName="max-w-full max-h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+                    imgClassName="w-full h-full object-contain group-hover:scale-105 transition-transform"
                 />
             </div>
 
             {showLabel && label ? (
-                <span className="mt-2 text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-gray-800 truncate max-w-full">
+                <span className="relative z-10 w-full bg-gradient-to-t from-black/60 via-black/30 to-transparent text-white text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide truncate px-2 py-1.5 sm:py-2 text-center drop-shadow">
                     {label}
                 </span>
             ) : null}
