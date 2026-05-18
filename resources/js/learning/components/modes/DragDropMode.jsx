@@ -119,7 +119,7 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
   };
 
   return (
-    <div className="w-full max-w-3xl flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up">
+    <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up px-2 sm:px-4">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur px-5 py-3 rounded-2xl shadow-sm border border-white/50 text-center w-full max-w-md">
         <p className="text-[10px] font-black text-teal-500 uppercase tracking-wider mb-1">Match the Pairs!</p>
@@ -128,8 +128,10 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
         </p>
       </div>
 
-      {/* Images row */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 w-full">
+      {/* Images row — responsive grid:
+          phones: 3 cols (don't crowd to 5)
+          tablet+: scales up to 5 cols when there's room. */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl">
         {items.map((item) => {
           const isSelected = selectedImage === item.id;
           const isMatched = matched.has(item.id);
@@ -139,7 +141,7 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
               key={`img-${item.id}`}
               onClick={() => handleImageTap(item)}
               disabled={isMatched}
-              className={`aspect-square p-2 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 shadow-sm flex flex-col items-center justify-center ${
+              className={`relative aspect-square p-2 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 shadow-sm flex flex-col items-center justify-center ${
                 isMatched
                   ? 'bg-emerald-50 border-emerald-300 opacity-60 scale-90'
                   : isSelected
@@ -153,7 +155,7 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
                 className="w-full h-[80%]"
                 imgClassName="w-full h-full object-contain"
               />
-              {isMatched && <span className="absolute text-lg">✅</span>}
+              {isMatched && <span className="absolute top-1 right-1 text-base">✅</span>}
             </button>
           );
         })}
@@ -167,7 +169,7 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
       </div>
 
       {/* Words row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 w-full max-w-lg">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl">
         {shuffledWords.map((item) => {
           const isMatched = matched.has(item.id);
           const isWrong = wrongPair === item.id;

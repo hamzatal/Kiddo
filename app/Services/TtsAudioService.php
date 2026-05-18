@@ -30,8 +30,8 @@ class TtsAudioService
 
     public function __construct(
         private readonly ?string $apiKey = null,
-        private readonly string $voice = 'nova',
-        private readonly string $model = 'tts-1',
+        private readonly string $voice = 'shimmer',
+        private readonly string $model = 'tts-1-hd',
     ) {
     }
 
@@ -39,8 +39,8 @@ class TtsAudioService
     {
         return new self(
             config('services.openai.key'),
-            config('services.openai.voice', 'nova'),
-            config('services.openai.tts_model', 'tts-1'),
+            config('services.openai.voice', 'shimmer'),
+            config('services.openai.tts_model', 'tts-1-hd'),
         );
     }
 
@@ -82,9 +82,11 @@ class TtsAudioService
                 ->post(self::ENDPOINT, [
                     'model'  => $this->model,
                     'voice'  => $this->voice,
-                    'input'  => $text,
+                    'input'  => $this->makeChildFriendlyPrompt($text),
                     'format' => 'mp3',
-                    'speed'  => 0.9,
+                    // 0.85x is the sweet spot: clearly-articulated for
+                    // a 6-year-old without sounding sluggish to adults.
+                    'speed'  => 0.85,
                 ]);
             if (! $resp->successful() || strlen($resp->body()) < 512) {
                 Log::warning('TTS api returned non-audio', ['status' => $resp->status(), 'len' => strlen($resp->body())]);
@@ -125,9 +127,9 @@ class TtsAudioService
                 ->post(self::ENDPOINT, [
                     'model'  => $this->model,
                     'voice'  => $this->voice,
-                    'input'  => $text,
+                    'input'  => $this->makeChildFriendlyPrompt($text),
                     'format' => 'mp3',
-                    'speed'  => 0.9,
+                    'speed'  => 0.85,
                 ]);
             if (! $resp->successful() || strlen($resp->body()) < 512) {
                 Log::warning('TTS api returned non-audio for text', [
@@ -141,6 +143,28 @@ class TtsAudioService
             Log::warning('tts text exception: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Wrap the bare word/phrase in a tiny pause so the TTS doesn't
+     * clip the first phoneme, and so the cadence sounds like a
+     * teacher demonstrating a vocabulary card to a class. Adding a
+     * trailing period also helps OpenAI's prosody land softly
+     * instead of cutting off abruptly.
+     *
+     * For very short single words ("Mum", "Cat") we keep it bare;
+     * the SSML-like wrapping above is overkill and makes the clip
+     * feel formal. The trick is just the trailing period.
+     */
+    private function makeChildFriendlyPrompt(string $text): string
+    {
+        $clean = trim($text);
+        if ($clean === '') return $clean;
+        // Already has terminal punctuation? Leave it.
+        if (preg_match('/[.!?…]$/u', $clean)) return $clean;
+        // Single-word vocabulary card: "Mum." reads warmer than "Mum"
+        // because the tts model lengthens the vowel slightly.
+        return $clean . '.';
     }
 
     /**

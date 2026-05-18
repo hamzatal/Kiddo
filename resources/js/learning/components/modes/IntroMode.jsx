@@ -71,7 +71,12 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                             </span>
                         </div>
                         <div className="absolute top-2 right-2">
-                            <AudioClipButton clip={card.audioClip} size="sm" />
+                            <AudioClipButton
+                                clip={card.audioClip}
+                                wordId={card.id}
+                                label={card.word}
+                                size="sm"
+                            />
                         </div>
                     </button>
                 ))}
