@@ -91,9 +91,9 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
   };
 
   return (
-    <div className="w-full max-w-3xl flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up">
+    <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up px-2 sm:px-4">
       {/* Progress */}
-      <div className="flex items-center gap-2 w-full max-w-sm">
+      <div className="flex items-center gap-2 w-full max-w-sm sm:max-w-md">
         <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full transition-all duration-500" style={{ width: `${(idx / activeRounds.length) * 100}%` }} />
         </div>
@@ -101,12 +101,12 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
       </div>
 
       {/* Audio prompt - big listen button */}
-      <div className="bg-white/90 backdrop-blur px-6 sm:px-10 py-6 sm:py-8 rounded-2xl sm:rounded-3xl shadow-lg border border-white/50 flex flex-col items-center gap-3 w-full max-w-sm">
+      <div className="bg-white/90 backdrop-blur px-6 sm:px-10 py-6 sm:py-8 rounded-2xl sm:rounded-3xl shadow-lg border border-white/50 flex flex-col items-center gap-3 w-full max-w-sm sm:max-w-md">
         <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider">Listen & Choose!</p>
         <button
           onClick={handlePlayAgain}
           disabled={isPlaying}
-          className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-3xl sm:text-4xl text-white shadow-xl transition-all ${
+          className={`w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-full flex items-center justify-center text-3xl sm:text-4xl lg:text-5xl text-white shadow-xl transition-all ${
             isPlaying 
               ? 'bg-gradient-to-br from-amber-400 to-orange-500 animate-pulse scale-110' 
               : 'bg-gradient-to-br from-blue-500 to-cyan-600 hover:scale-110 active:scale-95'
@@ -118,7 +118,7 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
       </div>
 
       {/* Options - images only, no word shown */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4 w-full max-w-lg">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-lg sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
         {(round.options || []).map((opt) => {
           const isCorrect = correctId === opt.id;
           const isWrong = wrong.includes(opt.id);
@@ -133,7 +133,7 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
               key={opt.id}
               disabled={disabled}
               onClick={() => handlePick(opt)}
-              className={`aspect-square p-3 sm:p-4 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1 ${style}`}
+              className={`relative aspect-square p-3 sm:p-4 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex flex-col items-center justify-center gap-1 ${style}`}
             >
               {/* Image: SmartImage handles the imagePath including
                   fallback to /api/word-svg when the file is missing,
@@ -141,7 +141,7 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
               <SmartImage
                 src={opt.imagePath}
                 label={opt.word || ""}
-                className="w-full h-[75%]"
+                className="w-full h-[80%]"
                 imgClassName="w-full h-full object-contain"
               />
               {isCorrect && (

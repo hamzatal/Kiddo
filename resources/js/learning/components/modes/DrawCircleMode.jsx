@@ -123,7 +123,7 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
     }, [idx]);
 
     return (
-        <div className="w-full max-w-5xl lg:max-w-6xl flex flex-col items-center gap-6 animate-fade-in-up">
+        <div className="w-full max-w-5xl lg:max-w-6xl flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up px-2 sm:px-4">
             <div className="flex items-center gap-3">
                 <RoundProgress
                     total={rounds.length}
@@ -136,20 +136,26 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
             </div>
 
             {/* Target card */}
-            <div className="bg-white/90 backdrop-blur-md px-6 sm:px-10 py-5 rounded-[2rem] shadow-md border border-white flex flex-col items-center gap-3 w-full max-w-2xl">
-                <p className="text-[11px] font-black text-purple-500 uppercase tracking-widest">
+            <div className="bg-white/90 backdrop-blur-md px-4 sm:px-8 lg:px-10 py-3 sm:py-5 rounded-2xl sm:rounded-[2rem] shadow-md border border-white flex flex-col items-center gap-2 sm:gap-3 w-full max-w-2xl">
+                <p className="text-[10px] sm:text-[11px] font-black text-purple-500 uppercase tracking-widest">
                     {label}
                 </p>
-                <div className="flex items-center gap-3">
-                    <h2 className="text-4xl sm:text-5xl font-black uppercase text-[#1E293B] tracking-tight">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase text-[#1E293B] tracking-tight">
                         {prompt?.text || "?"}
                     </h2>
-                    <AudioClipButton clip={prompt?.audioClip} size="md" />
+                    <AudioClipButton
+                        clip={prompt?.audioClip}
+                        wordId={round?.wordId}
+                        label={prompt?.text}
+                        size="md"
+                    />
                 </div>
             </div>
 
-            {/* Option row */}
-            <div className="grid grid-cols-3 gap-4 lg:gap-6 w-full max-w-4xl">
+            {/* Option row — 3 cols always (it's a 3-choice game) but
+                tighter gaps and aspect tweak on phones. */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:gap-6 w-full max-w-md sm:max-w-3xl lg:max-w-4xl">
                 {(round.options || []).map((opt) => {
                     const isCorrect = correctId === opt.id;
                     const isWrong = wrong.includes(opt.id);
