@@ -156,7 +156,7 @@ const QuizScreen = ({ quizData }) => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
                             {currentQ.options.map((opt) => {
                                 const isWrong = wrongClicks.includes(opt.id);
                                 const isCorrectPick = selectedCorrect === opt.id;

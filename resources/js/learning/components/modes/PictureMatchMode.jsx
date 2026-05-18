@@ -131,7 +131,7 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
-            <div className={`grid ${colsClass} gap-2 sm:gap-3 w-full max-w-2xl`}>
+            <div className={`grid ${colsClass} gap-2 sm:gap-3 w-full max-w-2xl mx-auto justify-items-center`}>
                 {cards.map((card) => {
                     const isFlipped = flipped.includes(card.id) || matched.has(card.pairId);
                     const isMatched = matched.has(card.pairId);

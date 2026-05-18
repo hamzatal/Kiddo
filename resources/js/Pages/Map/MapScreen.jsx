@@ -42,8 +42,42 @@ const ARENA_VISUAL = {
     size: "w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36",
 };
 
-/** Resolve a unit's image with a graceful fallback. */
-const visualFor = (unit) => UNIT_VISUAL[unit?.id] || UNIT_VISUAL[unit?.number] || UNIT_VISUAL[1];
+/** Resolve a unit's image with a graceful fallback.
+ *
+ * The map is now DB-driven: when the admin sets `map_x`, `map_y`,
+ * `map_size`, `map_image_path` or `color_key` on a unit, those
+ * values win. The hardcoded `UNIT_VISUAL` table above is just a
+ * legacy fallback so existing units (and brand-new ones the admin
+ * hasn't placed yet) still land somewhere visible. */
+const resolveImageUrl = (path) => {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+    return "/" + String(path).replace(/^\//, "");
+};
+const COLOR_BY_KEY = {
+    purple: "#7C3AED", blue: "#2563EB", pink: "#DB2777", amber: "#D97706",
+    green:  "#16A34A", cyan: "#0EA5E9", rose: "#E11D48", indigo: "#4F46E5",
+    teal:   "#0D9488", orange: "#EA580C",
+};
+const visualFor = (unit) => {
+    const fallback = UNIT_VISUAL[unit?.id] || UNIT_VISUAL[unit?.number] || UNIT_VISUAL[1];
+    if (!unit) return fallback;
+
+    // Admin-set values from the new units columns take precedence.
+    const dbImage = resolveImageUrl(unit.map_image_path || unit.image_path);
+    const dbColor = COLOR_BY_KEY[unit.color_key] || null;
+    const dbPos   = (unit.map_x !== null && unit.map_x !== undefined &&
+                     unit.map_y !== null && unit.map_y !== undefined)
+        ? { left: `${Number(unit.map_x)}%`, top: `${Number(unit.map_y)}%` }
+        : null;
+
+    return {
+        image: dbImage || fallback.image,
+        color: dbColor || fallback.color,
+        pos:   dbPos   || fallback.pos,
+        size:  unit.map_size || fallback.size,
+    };
+};
 
 /* ─────────────────────────────────────────────────────────────
    UnitNode — one map pin (image + label + status badge)
@@ -132,8 +166,17 @@ const UnitNode = ({ unit, onClick }) => {
    ArenaNode — the Games Arena pin. Same visual language as
    UnitNode (image + pill + ping) so it feels native to the map.
    ───────────────────────────────────────────────────────────── */
-const ArenaNode = ({ unlocked }) => {
-    const v = ARENA_VISUAL;
+const ArenaNode = ({ unlocked, arena }) => {
+    // Allow admin to override the Arena image via `arena.image_path`
+    // and the size via `arena.size`. Otherwise fall back to the
+    // hardcoded ARENA_VISUAL defaults.
+    const v = {
+        image: arena?.image_path
+            ? (/^https?:\/\//i.test(arena.image_path) ? arena.image_path : "/" + String(arena.image_path).replace(/^\//, ""))
+            : ARENA_VISUAL.image,
+        color: ARENA_VISUAL.color,
+        size:  arena?.size || ARENA_VISUAL.size,
+    };
     return (
         <div
             className={`group flex flex-col items-center select-none ${unlocked ? "cursor-pointer" : "cursor-default"}`}
@@ -322,9 +365,12 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         {arena ? (
                             <div
                                 className="absolute -translate-x-1/2 -translate-y-1/2"
-                                style={{ left: ARENA_VISUAL.pos.left, top: ARENA_VISUAL.pos.top }}
+                                style={{
+                                    left: arena.map_x != null ? `${Number(arena.map_x)}%` : ARENA_VISUAL.pos.left,
+                                    top:  arena.map_y != null ? `${Number(arena.map_y)}%` : ARENA_VISUAL.pos.top,
+                                }}
                             >
-                                <ArenaNode unlocked={!!arena.unlocked} />
+                                <ArenaNode unlocked={!!arena.unlocked} arena={arena} />
                             </div>
                         ) : null}
                     </div>

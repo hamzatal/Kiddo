@@ -46,23 +46,23 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                 </div>
             ) : null}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mx-auto w-full justify-items-center">
                 {cards.map((card, idx) => (
                     <button
                         key={card.id}
                         onClick={() => handleCardTap(card, idx)}
-                        className={`relative aspect-square rounded-2xl border-2 sm:border-4 transition-all shadow-sm overflow-hidden group ${
+                        className={`relative aspect-square w-full rounded-2xl border-2 sm:border-4 transition-all shadow-sm overflow-hidden group ${
                             tapped.has(idx)
                                 ? "border-emerald-300 bg-emerald-50"
                                 : "border-white bg-white/95 hover:border-purple-300 hover:-translate-y-1"
                         }`}
                     >
-                        <div className="absolute inset-3 sm:inset-4">
+                        <div className="absolute inset-0">
                             <SmartImage
                                 src={card.imagePath}
                                 label={card.word}
                                 className="w-full h-full"
-                                imgClassName="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+                                imgClassName="w-full h-full object-contain group-hover:scale-105 transition-transform"
                             />
                         </div>
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">

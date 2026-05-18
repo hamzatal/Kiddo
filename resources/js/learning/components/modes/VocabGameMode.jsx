@@ -111,8 +111,10 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 </div>
             </div>
 
-            {/* Options grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl">
+            {/* Options grid — `mx-auto justify-items-center` keeps
+                 the grid horizontally centred on wide screens even
+                 when the round has fewer options than columns. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl mx-auto justify-items-center">
                 {(round.options || []).map((opt) => {
                     let state = "idle";
                     if (correctId === opt.id) state = "correct";
