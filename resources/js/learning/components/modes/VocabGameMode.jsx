@@ -149,6 +149,15 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                     );
                 })}
             </div>
+
+            {/* Mode type badge — always visible so the student knows
+                what kind of activity they're in */}
+            <div className="mt-2 flex items-center justify-center">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-100 border border-purple-200 text-[10px] sm:text-xs font-black text-purple-700 uppercase tracking-wider">
+                    <span>🎯</span>
+                    <span>{style === "image-to-word" ? "Word Game" : style === "audio-to-image" ? "Listening" : "Vocab Game"}</span>
+                </span>
+            </div>
         </div>
     );
 };

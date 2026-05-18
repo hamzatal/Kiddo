@@ -205,6 +205,14 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
         }
         .animate-shake { animation: shake 0.4s ease-in-out; }
       `}</style>
+
+      {/* Mode type badge */}
+      <div className="mt-2 flex items-center justify-center">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-100 border border-teal-200 text-[10px] sm:text-xs font-black text-teal-700 uppercase tracking-wider">
+          <span>🔗</span>
+          <span>Match Pairs</span>
+        </span>
+      </div>
     </div>
   );
 };

@@ -260,6 +260,14 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
         Tap a card, then tap another to find its match!
       </p>
 
+      {/* Mode type badge */}
+      <div className="flex items-center justify-center">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-[10px] sm:text-xs font-black text-orange-700 uppercase tracking-wider">
+          <span>🧠</span>
+          <span>Memory Game</span>
+        </span>
+      </div>
+
       <style>{`
         /* Custom 'xs' breakpoint at 400px so 4-up grids still work
            on slightly larger phones. */
