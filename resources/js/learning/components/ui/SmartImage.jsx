@@ -1,34 +1,41 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 /**
- * SmartImage - Image component with elegant child-friendly fallback.
+ * SmartImage — image with elegant child-friendly fallback.
  *
  * When `src` loads, shows the picture. When `src` is missing OR the
- * <img> fires an error, shows a colourful card with a meaningful emoji
- * (chosen from a curated word→emoji map) plus the word text. Each
- * label keeps a stable colour so the card looks the same every time.
+ * <img> fires an error, shows a colourful card with a meaningful
+ * emoji (chosen from a curated word→emoji map) plus the word text.
+ *
+ * v3 bugfix: previously, if a card flagged itself as "failed" in
+ * round N (because the image 404'd), and then in round N+1 the
+ * parent passed a NEW `src`, the `useState(!src)` initial value
+ * was stale and the fallback tile would persist. This meant a
+ * word like "two" — whose admin-provided image_path is correct —
+ * rendered as the literal "2️⃣" emoji of the PREVIOUS word, which
+ * the operator saw as "numbers leaking into the next question".
+ *
+ * The fix is a useEffect that resets `failed` whenever `src`
+ * changes, so each round starts fresh.
  */
 
 const COLORS = [
-    { bg: "from-purple-100 to-purple-300", text: "text-purple-800", border: "border-purple-200" },
-    { bg: "from-blue-100 to-blue-300", text: "text-blue-800", border: "border-blue-200" },
-    { bg: "from-emerald-100 to-emerald-300", text: "text-emerald-800", border: "border-emerald-200" },
-    { bg: "from-amber-100 to-amber-300", text: "text-amber-800", border: "border-amber-200" },
-    { bg: "from-pink-100 to-pink-300", text: "text-pink-800", border: "border-pink-200" },
-    { bg: "from-cyan-100 to-cyan-300", text: "text-cyan-800", border: "border-cyan-200" },
-    { bg: "from-rose-100 to-rose-300", text: "text-rose-800", border: "border-rose-200" },
-    { bg: "from-indigo-100 to-indigo-300", text: "text-indigo-800", border: "border-indigo-200" },
-    { bg: "from-teal-100 to-teal-300", text: "text-teal-800", border: "border-teal-200" },
-    { bg: "from-orange-100 to-orange-300", text: "text-orange-800", border: "border-orange-200" },
+    { bg: "from-purple-100 to-purple-300", text: "text-purple-800" },
+    { bg: "from-blue-100 to-blue-300", text: "text-blue-800" },
+    { bg: "from-emerald-100 to-emerald-300", text: "text-emerald-800" },
+    { bg: "from-amber-100 to-amber-300", text: "text-amber-800" },
+    { bg: "from-pink-100 to-pink-300", text: "text-pink-800" },
+    { bg: "from-cyan-100 to-cyan-300", text: "text-cyan-800" },
+    { bg: "from-rose-100 to-rose-300", text: "text-rose-800" },
+    { bg: "from-indigo-100 to-indigo-300", text: "text-indigo-800" },
+    { bg: "from-teal-100 to-teal-300", text: "text-teal-800" },
+    { bg: "from-orange-100 to-orange-300", text: "text-orange-800" },
 ];
 
 /**
- * Curated word → emoji map. Hand-picked so the fallback tile actually
- * looks like the word the child is learning. Covers the entire Team
- * Together 1A vocabulary plus the most common general nouns.
- *
- * Lookup is case-insensitive and tries the whole word first then
- * substrings, so "my mum" → 👩 still works.
+ * Curated word → emoji map. Hand-picked so the fallback tile
+ * looks like the word the child is learning. Covers the full
+ * Team Together 1A vocabulary plus common first-grade nouns.
  */
 const WORD_EMOJIS = {
     // Family
@@ -44,59 +51,53 @@ const WORD_EMOJIS = {
     "red": "🟥", "blue": "🟦", "green": "🟩", "yellow": "🟨",
     "orange": "🟧", "purple": "🟪", "pink": "🌸", "black": "⬛",
     "white": "⬜", "brown": "🟫",
-    // School / classroom
+    // School
     "book": "📖", "pen": "🖊️", "pencil": "✏️", "ruler": "📏", "crayon": "🖍️",
     "bag": "🎒", "schoolbag": "🎒", "backpack": "🎒",
     "rubber": "🩹", "eraser": "🩹", "sharpener": "✏️",
     "desk": "🪑", "chair": "🪑", "table": "🪑", "board": "📋",
     "school": "🏫", "classroom": "🏫", "teacher": "👩‍🏫",
     "notebook": "📓", "paper": "📄", "scissors": "✂️", "glue": "🧴",
-    // Toys & play
+    // Toys
     "toy": "🧸", "ball": "⚽", "doll": "🧸", "kite": "🪁",
     "robot": "🤖", "puzzle": "🧩", "car": "🚗", "train": "🚂", "bike": "🚲",
-    "teddy": "🧸", "bear": "🧸", "duck": "🦆", "kite ": "🪁",
+    "teddy": "🧸", "bear": "🧸", "duck": "🦆",
     "drum": "🥁", "guitar": "🎸", "piano": "🎹",
     // Animals
     "cat": "🐱", "dog": "🐶", "rabbit": "🐰", "fish": "🐠",
     "bird": "🐦", "horse": "🐴", "cow": "🐄", "sheep": "🐑",
     "pig": "🐷", "frog": "🐸", "lion": "🦁", "tiger": "🐯",
     "elephant": "🐘", "monkey": "🐒", "bee": "🐝", "fox": "🦊",
-    "panda": "🐼", "snake": "🐍", "mouse": "🐭",
     // Food
-    "apple": "🍎", "banana": "🍌", "orange ": "🍊", "grape": "🍇",
+    "apple": "🍎", "banana": "🍌", "grape": "🍇",
     "bread": "🍞", "cake": "🍰", "cookie": "🍪", "ice cream": "🍦",
     "milk": "🥛", "juice": "🧃", "water": "💧",
     "pizza": "🍕", "burger": "🍔", "egg": "🥚", "rice": "🍚",
-    "fruit": "🍎", "vegetable": "🥦",
     // Body
     "head": "🗣️", "eye": "👁️", "eyes": "👀", "ear": "👂", "ears": "👂",
     "nose": "👃", "mouth": "👄", "hand": "✋", "hands": "🙌",
     "foot": "🦶", "feet": "🦶", "leg": "🦵", "arm": "💪", "hair": "💇",
-    "smile": "😊", "tooth": "🦷", "teeth": "🦷",
-    // Greetings & general
+    "tooth": "🦷", "teeth": "🦷",
+    // Greetings
     "hello": "👋", "hi": "👋", "bye": "👋", "goodbye": "👋",
     "yes": "✅", "no": "❌", "please": "🙏", "thanks": "🙏", "thank you": "🙏",
     // Nature
     "sun": "☀️", "moon": "🌙", "star": "⭐", "cloud": "☁️", "rain": "🌧️",
     "tree": "🌳", "flower": "🌸", "grass": "🌱", "leaf": "🍃",
-    "river": "🏞️", "mountain": "⛰️", "sea": "🌊", "beach": "🏖️",
     // House
     "house": "🏠", "home": "🏠", "door": "🚪", "window": "🪟",
-    "bed": "🛏️", "lamp": "💡", "tv": "📺", "phone": "📞", "computer": "💻",
+    "bed": "🛏️", "lamp": "💡", "tv": "📺", "phone": "📞",
     // Clothes
     "shirt": "👕", "trousers": "👖", "shoes": "👟", "hat": "👒",
     "sock": "🧦", "dress": "👗", "skirt": "👗", "jacket": "🧥",
-    // Verbs / actions
+    // Verbs
     "play": "🎲", "run": "🏃", "jump": "🤸", "swim": "🏊", "read": "📖",
     "write": "✍️", "draw": "🎨", "paint": "🎨", "sing": "🎤", "dance": "💃",
     "eat": "🍽️", "drink": "🥤", "sleep": "😴", "walk": "🚶",
     "happy": "😊", "sad": "😢", "angry": "😠", "tired": "😴",
 };
 
-// Stand-bys when no word match is found. The hash function still
-// gives a stable choice per label so the same word always looks the
-// same.
-const FALLBACK_EMOJIS = ["🌟", "🎈", "🦋", "🌈", "🎨", "🎵", "🌸", "✨", "🎁", "🦄", "🌻", "🍭"];
+const FALLBACK_EMOJIS = ["🌟", "🎈", "🦋", "🌈", "🎨", "🎵", "🌸", "✨", "🎁", "🦄"];
 
 function hashCode(str) {
     let h = 0;
@@ -107,16 +108,10 @@ function hashCode(str) {
     return Math.abs(h);
 }
 
-/**
- * Pick the best emoji for `label`. Tries the exact lowercase match,
- * then any single word in the label, then a stable fallback.
- */
 function pickEmoji(label) {
     if (!label) return FALLBACK_EMOJIS[0];
     const key = String(label).trim().toLowerCase();
     if (WORD_EMOJIS[key]) return WORD_EMOJIS[key];
-
-    // Try each whitespace-separated token (e.g. "my dad" → "dad")
     for (const part of key.split(/\s+/)) {
         if (WORD_EMOJIS[part]) return WORD_EMOJIS[part];
     }
@@ -132,18 +127,29 @@ const SmartImage = ({
     alt,
     onError,
 }) => {
-    const [failed, setFailed] = useState(!src);
+    // Normalise to a stable string so undefined / "" both look like
+    // "no image" and won't trigger a re-render storm.
+    const cleanSrc = src ? String(src) : "";
+    const [failed, setFailed] = useState(!cleanSrc);
+
+    // CRITICAL: reset the failed flag whenever the src prop changes.
+    // Without this, a card that 404'd in round N (e.g. an admin
+    // reordered images) keeps the fallback in round N+1 even though
+    // the new round legitimately has a real picture. Symptom: "the
+    // number from the previous question keeps showing up".
+    useEffect(() => {
+        setFailed(!cleanSrc);
+    }, [cleanSrc]);
 
     const hash = hashCode(label);
-    const colorIdx = hash % COLORS.length;
-    const colors = COLORS[colorIdx];
+    const colors = COLORS[hash % COLORS.length];
     const emoji = pickEmoji(label);
     const displayLabel = (label || "?").length > 12 ? label.slice(0, 10) + "…" : label;
 
-    if (failed || !src) {
+    if (failed || !cleanSrc) {
         return (
             <div
-                className={`bg-gradient-to-br ${colors.bg} rounded-2xl flex flex-col items-center justify-center gap-1 font-black ${colors.text} border ${colors.border} shadow-inner p-2 ${className} ${fallbackClassName}`}
+                className={`bg-gradient-to-br ${colors.bg} flex flex-col items-center justify-center gap-1 font-black ${colors.text} shadow-inner p-2 ${className} ${fallbackClassName}`}
                 title={label}
             >
                 <span className="text-[min(2.5rem,40%)] leading-none drop-shadow-sm select-none">
@@ -158,9 +164,15 @@ const SmartImage = ({
 
     return (
         <img
-            src={src}
+            // Bumping the key with cleanSrc forces a brand-new <img>
+            // element when the URL changes. Without this React reuses
+            // the same DOM node and (rarely) skips emitting the new
+            // src causing a previous picture to "stick".
+            key={cleanSrc}
+            src={cleanSrc}
             alt={alt || label}
             className={`${className} ${imgClassName}`}
+            draggable={false}
             onError={(e) => {
                 setFailed(true);
                 onError?.(e);

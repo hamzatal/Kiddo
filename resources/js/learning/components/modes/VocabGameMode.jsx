@@ -119,19 +119,27 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                     else if (wrong.includes(opt.id)) state = "wrong";
                     else if (correctId !== null) state = "disabled";
 
-                    const useText = style === "image-to-word";
-                    return (
-                        <OptionCard
-                            key={opt.id}
-                            imagePath={useText ? null : opt.imagePath}
-                            label={opt.word}
-                            audioClip={opt.audioClip}
-                            wordId={opt.wordId}
-                            showLabel={useText || style !== "audio-to-image"}
-                            state={state}
-                            onClick={() => handlePick(opt)}
-                        />
-                    );
+                                const useText = style === "image-to-word";
+                                // Show the word label only for the image-to-word
+                                // round (where the option IS a word). Every other
+                                // style hides the label so the child can't read
+                                // their way to the answer — they have to look at
+                                // the picture or listen to the audio. This matters
+                                // because rounds are picture-based and the goal is
+                                // visual / aural recognition, not reading.
+                                const showLabel = useText;
+                                return (
+                                    <OptionCard
+                                        key={opt.id}
+                                        imagePath={useText ? null : opt.imagePath}
+                                        label={opt.word}
+                                        audioClip={opt.audioClip}
+                                        wordId={opt.wordId}
+                                        showLabel={showLabel}
+                                        state={state}
+                                        onClick={() => handlePick(opt)}
+                                    />
+                                );
                 })}
             </div>
         </div>

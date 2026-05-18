@@ -138,13 +138,13 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
                             key={opt.id}
                             disabled={disabled}
                             onClick={() => handlePick(opt)}
-                            className={`relative aspect-square p-2 sm:p-3 bg-white/90 backdrop-blur rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex items-center justify-center ${cls}`}
+                            className={`relative aspect-square rounded-xl sm:rounded-2xl border-2 transition-all duration-300 shadow-sm flex items-center justify-center overflow-hidden bg-white ${cls}`}
                         >
                             <SmartImage
                                 src={opt.imagePath}
                                 label={opt.word || ""}
-                                className="w-full h-full"
-                                imgClassName="w-full h-full object-contain drop-shadow"
+                                className="absolute inset-0 w-full h-full"
+                                imgClassName="w-full h-full object-contain p-2 drop-shadow"
                             />
                             {isCorrect && (
                                 <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow animate-bounce">✓</div>

@@ -208,24 +208,30 @@ const LessonScreen = (props) => {
                 onBack={goToMap}
             />
 
-            {/* Play surface — fills remaining viewport, scrolls only
-                if the chosen mode genuinely needs more vertical room
-                (e.g. picture dict on a tiny phone). Most modes are
-                designed to fit. */}
-            <main className="flex-1 min-h-0 relative z-10 flex items-stretch justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
-                <div className="w-full h-full flex items-center justify-center overflow-y-auto">
-                    {stage === LESSON_STAGES.PLAY && renderMode()}
-                    {stage === LESSON_STAGES.REWARD && (
-                        <CelebrationStage
-                            stars={starsEarned}
-                            accuracy={accuracy}
-                            nextStep={nextStep}
-                            unitTitle={safeUnit.title}
-                            lessonNumber={currentLesson}
-                            totalLessons={totalLessons}
-                            onContinue={continueAfterReward}
-                        />
-                    )}
+            {/* Play surface — fills remaining viewport. Uses an inner
+                wrapper that fits the content and centers itself
+                horizontally; the outer `overflow-y-auto` only kicks
+                in when a mode genuinely needs more room (very tall
+                phones in landscape, picture-dict on tiny screens).
+                Without this the inner flex centering broke when a
+                tall mode forced the wrapper to be taller than
+                viewport — children stuck to the top-left corner. */}
+            <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
+                <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
+                    <div className="w-full flex items-center justify-center">
+                        {stage === LESSON_STAGES.PLAY && renderMode()}
+                        {stage === LESSON_STAGES.REWARD && (
+                            <CelebrationStage
+                                stars={starsEarned}
+                                accuracy={accuracy}
+                                nextStep={nextStep}
+                                unitTitle={safeUnit.title}
+                                lessonNumber={currentLesson}
+                                totalLessons={totalLessons}
+                                onContinue={continueAfterReward}
+                            />
+                        )}
+                    </div>
                 </div>
             </main>
 

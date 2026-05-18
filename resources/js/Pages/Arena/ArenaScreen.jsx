@@ -173,8 +173,9 @@ const ArenaScreen = ({ arena }) => {
             />
 
             {!finished ? (
-                <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-2 sm:p-3 lg:p-4 relative z-10 overflow-y-auto">
-                    <div key={idx} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-arena-slide">
+                <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
+                    <div className="min-h-full w-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
+                        <div key={idx} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-arena-slide">
                         <UnitChip title={round?.unitTitle} colorKey={round?.unitColor} />
 
                         <Prompt style={style} round={round} disabled={correctId !== null} />
@@ -189,7 +190,11 @@ const ArenaScreen = ({ arena }) => {
                                 else if (correctId !== null) cardState = "disabled";
 
                                 const useText = style === "image-to-word" || style === "listen-then-spell";
-                                const wantLabel = useText || style !== "audio-to-image";
+                                // Hide the word label for ALL listening / word-to-image
+                                // styles so the child has to use the picture or the
+                                // audio. Only image-to-word & listen-then-spell ever
+                                // show the word, because the word IS the answer.
+                                const wantLabel = useText;
 
                                 return (
                                     <OptionCard
@@ -205,10 +210,11 @@ const ArenaScreen = ({ arena }) => {
                                 );
                             })}
                         </div>
+                        </div>
                     </div>
                 </main>
             ) : (
-                <main className="flex-1 flex items-center justify-center p-3 sm:p-4 relative z-10 overflow-y-auto">
+                <main className="flex-1 min-h-0 flex items-center justify-center p-3 sm:p-4 relative z-10 overflow-y-auto">
                     <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-arena-pop">
                         <div className="w-20 h-20 sm:w-28 sm:h-28 bg-gradient-to-br from-purple-100 to-pink-200 rounded-full flex items-center justify-center shadow-inner border-4 border-white -mt-12 sm:-mt-16 mb-3">
                             <span className="text-4xl sm:text-6xl">🏆</span>

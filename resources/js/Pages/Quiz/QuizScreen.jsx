@@ -140,8 +140,9 @@ const QuizScreen = ({ quizData }) => {
             />
 
             {!isFinished ? (
-                <main className="flex-1 min-h-0 flex flex-col items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 relative z-10 overflow-y-auto">
-                    <div key={currentIndex} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-slideIn">
+                <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
+                    <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3">
+                        <div key={currentIndex} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-slideIn">
                         {/* Compact prompt */}
                         <div className="bg-white/90 backdrop-blur px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-lg border border-white/60 flex items-center gap-2 sm:gap-3 w-full max-w-md">
                             <button
@@ -178,10 +179,11 @@ const QuizScreen = ({ quizData }) => {
                                 );
                             })}
                         </div>
+                        </div>
                     </div>
                 </main>
             ) : (
-                <main className="flex-1 flex items-center justify-center p-3 sm:p-4 relative z-10">
+                <main className="flex-1 min-h-0 flex items-center justify-center p-3 sm:p-4 relative z-10 overflow-y-auto">
                     <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-celebrationPop">
                         <div className="w-20 h-20 sm:w-28 sm:h-28 bg-gradient-to-br from-amber-100 to-yellow-200 rounded-full flex items-center justify-center shadow-inner border-4 border-white -mt-12 sm:-mt-16 mb-3">
                             <span className="text-4xl sm:text-6xl">🏆</span>

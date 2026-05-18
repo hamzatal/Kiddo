@@ -30,12 +30,15 @@ const UNIT_VISUAL = {
 };
 
 // The Games Arena uses the toy image (operator's request). Sits
-// below-left of Family & Friends so kids see it as a separate
-// island they can fast-travel to once they've unlocked any unit.
+// to the LEFT of Family & Friends (U2) at roughly the same
+// vertical level so it reads as a sibling adventure, not stuck
+// somewhere off the map.
+//   U2 (Family) is at 52% / 32% — we drop the arena at 36% / 33%
+//   so the two pins sit on the same line with breathing room.
 const ARENA_VISUAL = {
     image: "/assets/lessons/toy/toy.png",
     color: "#9333EA",
-    pos: { left: "38%", top: "52%" },
+    pos: { left: "36%", top: "33%" },
     size: "w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36",
 };
 
