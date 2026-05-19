@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageHead from "@/learning/components/ui/PageHead";
+import DailyQuestCard from "@/learning/components/ui/DailyQuestCard";
+import StreakBadge from "@/learning/components/ui/StreakBadge";
+import StreakCelebration from "@/learning/components/ui/StreakCelebration";
  *
  * Hard layout rules this rewrite enforces:
  *   1. The whole page fits inside one viewport (h:100dvh) — no
@@ -300,6 +303,15 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             <span className="font-black text-amber-600 text-[11px] sm:text-xs">{totalStars}</span>
                         </div>
 
+                        {/* Daily streak — sits between stars and user pill so
+                            it reads "⭐ stars · 🔥 streak · 👤 user". The badge
+                            is itself a Link that points at /progress for the
+                            full streak history view. Hidden on the very
+                            narrowest phones to keep the header from wrapping. */}
+                        <div className="hidden md:flex">
+                            <StreakBadge size="sm" />
+                        </div>
+
                         {/* User chip */}
                         <button
                             onClick={() => router.visit("/progress")}
@@ -444,6 +456,10 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                 @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fade-in 0.25s ease-out forwards; }
             `}</style>
+
+            {/* Streak celebration toast — fires once per session when
+                today's lesson bumps the streak counter. */}
+            <StreakCelebration />
         </div>
     );
 };
@@ -558,6 +574,11 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
     };
     return (
         <div className="flex-1 min-h-0 flex flex-col gap-3 p-3 overflow-y-auto custom-scroll">
+            {/* Daily Quest — first card so it's always visible, even
+                without scrolling. The card itself returns null when
+                the user is signed out. */}
+            <DailyQuestCard />
+
             {/* Today's mission */}
             <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-3 border border-indigo-100 shadow-sm">
                 <h3 className="font-black text-[#1E293B] text-xs flex items-center gap-1.5 mb-2">

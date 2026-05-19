@@ -38,3 +38,43 @@ export function useFlashMessages() {
     const { flash } = usePage().props;
     return flash ?? {};
 }
+
+/**
+ * Streak summary shared by `App\Services\StreakService::summary()`.
+ * Returns `null` when the user is signed out.
+ *
+ * Shape:
+ *   {
+ *     current: number,
+ *     longest: number,
+ *     active_today: boolean,
+ *     last_activity: string|null,
+ *     status: 'fresh' | 'in-grace' | 'broken',
+ *     freezes_available: number,
+ *   }
+ */
+export function useStreak() {
+    const { streak } = usePage().props;
+    return streak ?? null;
+}
+
+/**
+ * Today's daily-quest payload shared by `DailyQuestService::today()`.
+ * Returns `null` when the user is signed out.
+ *
+ * Shape:
+ *   {
+ *     date: string,
+ *     completed_count: number,
+ *     total: number,
+ *     all_complete: boolean,
+ *     quests: Array<{
+ *       id: string, icon: string, title: string, description: string,
+ *       goal: number, progress: number, percent: number, completed: boolean
+ *     }>
+ *   }
+ */
+export function useDailyQuest() {
+    const { dailyQuest } = usePage().props;
+    return dailyQuest ?? null;
+}

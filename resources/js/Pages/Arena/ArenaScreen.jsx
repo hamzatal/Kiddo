@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageHead from "@/learning/components/ui/PageHead";
+import StreakCelebration from "@/learning/components/ui/StreakCelebration";
 import OptionCard from "@/learning/components/ui/OptionCard";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
@@ -276,6 +277,10 @@ const ArenaScreen = ({ arena }) => {
                 @keyframes arena-star { 0% { transform: scale(0); } 60% { transform: scale(1.3); } 100% { transform: scale(1.1); } }
                 .animate-arena-star { animation: arena-star .4s cubic-bezier(.34,1.56,.64,1) forwards; }
             `}</style>
+
+            {/* Streak celebration toast — fires once per session whenever
+                an arena round bumps today's streak counter. */}
+            <StreakCelebration />
         </div>
     );
 };
