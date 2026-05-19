@@ -4,23 +4,6 @@ import PageHead from "@/learning/components/ui/PageHead";
 import DailyQuestCard from "@/learning/components/ui/DailyQuestCard";
 import StreakBadge from "@/learning/components/ui/StreakBadge";
 import StreakCelebration from "@/learning/components/ui/StreakCelebration";
- *
- * Hard layout rules this rewrite enforces:
- *   1. The whole page fits inside one viewport (h:100dvh) — no
- *      horizontal scroll, no vertical scroll on tablet+.
- *   2. The map area is fluid: scales the background image to fit
- *      using percentage-positioned pins. No min-width tricks.
- *   3. Sidebar is responsive across three sizes:
- *        • desktop (≥xl)  —  280 px expanded panel
- *        • tablet (lg-md) —  72 px icon-only rail
- *        • phone (<md)    —  off-canvas drawer triggered by ☰
- *      In every state the map keeps the rest of the room.
- *   4. The "Need Help?" button is bottom-centre of the map area.
- *   5. The Games Arena pin uses `/assets/lessons/toy/toy.png` —
- *      the same image asset used by Unit 5 — so it visually fits
- *      the map style. Placed below-left of "Family & Friends"
- *      so it doesn't collide with any unit node.
- */
 
 const UNIT_VISUAL = {
     1: { image: "/assets/lessons/welcome/hut.png",         color: "#7C3AED", pos: { left: "21%", top: "38%" }, size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44" },
