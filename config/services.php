@@ -44,18 +44,26 @@ return [
         // newer model isn't available — same API, no instructions.
         //
         // Voice presets:
-        //   nova    — bright, expressive, child-friendly (default)
+        //   alloy   — neutral, very clear articulation (default)
+        //   nova    — bright, expressive
         //   shimmer — soft, warm, lullaby-like (alt for Welcome unit)
-        //   alloy   — neutral, clear (good for older learners)
         //   coral   — playful (good for stories/songs)
         //   sage    — calm narrator (good for instructions)
+        //
+        // Default flipped to `alloy` per teacher feedback: it has
+        // the cleanest articulation of every preset, which matters
+        // most when a six-year-old is hearing the word for the very
+        // first time and trying to copy the phonemes. The other
+        // voices stay one click away inside the AudioPanel "AI voice"
+        // tab so anyone who prefers a warmer or more expressive
+        // delivery can switch on a per-word basis.
         //
         // Speed 1 keeps natural prosody — slowing the audio is now
         // handled inside the prompt's `instructions` so single-word
         // vocabulary cards still sound expressive instead of slurred.
         'tts_model'        => env('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts'),
         'tts_fallback_model' => env('OPENAI_TTS_FALLBACK_MODEL', 'tts-1-hd'),
-        'voice'            => env('OPENAI_TTS_VOICE', 'nova'),
+        'voice'            => env('OPENAI_TTS_VOICE', 'alloy'),
         'tts_speed'        => env('OPENAI_TTS_SPEED', 1.0),
         // Default voice instructions used when no per-call override is
         // provided. The wording is tuned for first-grade English

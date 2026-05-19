@@ -6,8 +6,10 @@ import { speakWord, stopAllAudio } from "@/learning/utils/playAudio";
  *
  * Uses the smart speakWord() helper, which tries (in order):
  *   1. The pre-built audioClip (NCCD segment, per-word file, etc.)
- *   2. Server-side OpenAI TTS (cached after first call) — the warm,
- *      child-friendly "shimmer" voice.
+ *   2. Server-side OpenAI TTS (cached after first call) — defaults
+ *      to the configured voice (currently `alloy` for its crystal-
+ *      clear articulation), with per-word voice overrides
+ *      available from the admin AudioPanel.
  *   3. Browser SpeechSynthesis as a final fallback.
  *
  * That means EVERY card in the curriculum has audio, even when the
