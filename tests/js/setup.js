@@ -15,7 +15,7 @@ afterEach(() => {
     cleanup();
 });
 
-// matchMedia: jsdom doesn't ship it. Some Tailwind + framer-motion
+// matchMedia: jsdom doesn't ship it. Some Tailwind / animation
 // internals call it; without this stub they throw at mount time.
 if (!window.matchMedia) {
     window.matchMedia = (query) => ({

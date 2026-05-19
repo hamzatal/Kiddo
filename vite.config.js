@@ -11,9 +11,13 @@ import path from "node:path";
  *    expose `@/...` as `resources/js/...`. That works at runtime
  *    but trips up TypeScript LSPs, ESLint, and Vitest. Declaring
  *    the alias here makes every tool agree on what `@/` means.
- *  - We split React + Inertia + framer-motion into vendor chunks
- *    so the main bundle stays under ~200 KB gzip and pages cache
- *    independently of vendor updates.
+ *  - We co-locate React + ReactDOM + Inertia in one vendor chunk.
+ *    Splitting them into separate chunks (the previous setup) is a
+ *    classic foot-gun: `@inertiajs/react` evaluates `React.createContext(...)`
+ *    at module-load time, so if the inertia chunk loads before the
+ *    react chunk you get the cryptic
+ *      "Cannot read properties of null (reading 'createProvider')"
+ *    runtime error. Keeping them in one chunk eliminates the race.
  *  - `build.target = es2020` lets us ship modern syntax (no
  *    polyfills) while still working on every browser shipped in
  *    the last ~5 years — well above the "kids on a school tablet"
@@ -33,6 +37,17 @@ export default defineConfig(({ mode }) => ({
             "@": path.resolve(__dirname, "resources/js"),
             "@css": path.resolve(__dirname, "resources/css"),
         },
+        // Force a single React copy across the whole graph. Some
+        // sub-deps still ship their own React peer reference; without
+        // this, Vite can resolve two copies and `useContext` returns
+        // null — same root-cause family as the createProvider error.
+        dedupe: ["react", "react-dom", "@inertiajs/react"],
+    },
+
+    // Pre-bundle React + Inertia together so the dev server serves
+    // them as a single ESM module — keeps dev parity with prod.
+    optimizeDeps: {
+        include: ["react", "react-dom", "react-dom/client", "@inertiajs/react"],
     },
 
     build: {
@@ -47,9 +62,14 @@ export default defineConfig(({ mode }) => ({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    "react-vendor": ["react", "react-dom"],
-                    "inertia-vendor": ["@inertiajs/react"],
-                    "motion-vendor": ["framer-motion"],
+                    // Single chunk for React + Inertia. See header
+                    // comment for why these can NOT be split.
+                    "react-vendor": [
+                        "react",
+                        "react-dom",
+                        "react-dom/client",
+                        "@inertiajs/react",
+                    ],
                 },
             },
         },
