@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
+import PageHead from "@/learning/components/ui/PageHead";
 import ParentAIInsight from "@/learning/components/ai/ParentAIInsight";
 
 const ProgressScreen = ({ user, stats, unitsList, achievements = [], errorAnalysis = [] }) => {
@@ -18,6 +19,10 @@ const ProgressScreen = ({ user, stats, unitsList, achievements = [], errorAnalys
 
     return (
         <div className="h-[100dvh] w-screen bg-[#F4F8FB] font-sans flex overflow-hidden relative">
+            <PageHead
+                title="Parent Dashboard"
+                description="See your child's Kiddo progress, achievements, and weak words to practise at home."
+            />
             {/* خلفية ديناميكية */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
                 <div className="absolute top-[-10%] left-[-10%] w-[30rem] h-[30rem] bg-purple-200 rounded-full mix-blend-multiply filter blur-[80px] opacity-50 animate-blob" />

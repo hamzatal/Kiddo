@@ -1,36 +1,141 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+/* ─────────────────────────────────────────────────────────────
+ * Kiddo — global stylesheet
+ *
+ * NOTE: The Nunito font is now loaded ONCE from app.blade.php with
+ * proper preconnect, so we no longer @import it here (that caused
+ * a duplicate ~120 KB download on every page load).
+ *
+ * The previous version of this file forced `* { font-family !important }`
+ * which broke icon libraries (lucide, FontAwesome) and any
+ * `font-mono` / `font-serif` Tailwind utility. Replaced with a
+ * single `@layer base` rule so user-supplied utilities still win.
+ * ───────────────────────────────────────────────────────────── */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* {
-    font-family: 'Nunito', sans-serif !important;
+/* Design tokens — single source of truth for colours that need to
+ * stay in sync across the brand (used by some hand-written gradients
+ * + svg overlays). Tailwind tokens cover most everyday use. */
+:root {
+    --kiddo-primary: 124 58 237;        /* purple-600  */
+    --kiddo-primary-dark: 91 15 153;
+    --kiddo-secondary: 16 185 129;      /* emerald-500 */
+    --kiddo-accent: 245 158 11;         /* amber-500   */
+    --kiddo-danger: 239 68 68;          /* red-500     */
+    --kiddo-bg: 240 244 255;            /* #F0F4FF     */
+    --kiddo-surface: 255 255 255;
+    --kiddo-text: 30 41 59;             /* slate-800   */
+    --kiddo-muted: 100 116 139;         /* slate-500   */
+    --kiddo-ring: 124 58 237;
 }
 
-body {
-    background-color: #F8FBFF;
-    overflow-x: hidden;
+.dark {
+    --kiddo-bg: 15 23 42;               /* slate-900   */
+    --kiddo-surface: 30 41 59;          /* slate-800   */
+    --kiddo-text: 226 232 240;          /* slate-200   */
+    --kiddo-muted: 148 163 184;         /* slate-400   */
 }
 
+@layer base {
+    /* Root font: applied at <body> so Tailwind utilities like
+     * `font-mono` / `font-serif` continue to work for code blocks
+     * and special headlines. */
+    html {
+        scroll-behavior: smooth;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-tap-highlight-color: transparent;
+    }
 
-/* Celebration animations */
+    body {
+        font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system,
+            'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: rgb(var(--kiddo-bg));
+        color: rgb(var(--kiddo-text));
+    }
+
+    /* Visible focus ring for keyboard users — required by WCAG 2.1.
+     * Mouse clicks still suppress it via `:focus-visible`. */
+    :focus-visible {
+        outline: 3px solid rgb(var(--kiddo-ring) / 0.65);
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+
+    button, [role="button"] {
+        cursor: pointer;
+    }
+
+    button:disabled, [aria-disabled="true"] {
+        cursor: not-allowed;
+    }
+
+    /* Stop horizontal overflow from rotated decorative elements
+     * (the home hero rotates a few badges by ±2deg). */
+    html { overflow-x: hidden; }
+
+    img { max-width: 100%; }
+
+    /* Honour user motion preferences — children with vestibular
+     * issues should not be forced into our spring animations. */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
+}
+
+/* ── Celebration animations (used by RewardStage / quiz overlay) ── */
 @keyframes celebPop {
-  0% { opacity: 0; transform: scale(0.8) translateY(20px); }
-  60% { transform: scale(1.03) translateY(-5px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+    0%   { opacity: 0; transform: scale(0.8) translateY(20px); }
+    60%  { transform: scale(1.03) translateY(-5px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 .animate-celebPop { animation: celebPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
 @keyframes bounceIn {
-  0% { transform: scale(0); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+    0%   { transform: scale(0); }
+    50%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
 }
 .animate-bounceIn { animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
-/* Better scrollbar for all pages */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-fadeInScale { animation: fadeInScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.25s ease-out forwards; }
+
+/* ── Better scrollbar for all pages ───────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 20px; }
-::-webkit-scrollbar-thumb:hover { background-color: #94A3B8; }
+::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgb(148 163 184); }
+
+.dark ::-webkit-scrollbar-thumb { background-color: rgb(71 85 105); }
+.dark ::-webkit-scrollbar-thumb:hover { background-color: rgb(100 116 139); }
+
+/* Custom scroll utility — small subtle scrollbar inside cards */
+.custom-scroll::-webkit-scrollbar { width: 6px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: rgb(203 213 225); border-radius: 3px; }
+
+/* Print styles — used by the future certificate page (Phase 2). */
+@media print {
+    body { background: white !important; }
+    .no-print, nav, footer { display: none !important; }
+}

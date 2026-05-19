@@ -1,61 +1,98 @@
-import React, { useState, useEffect, useRef } from "react";
-import { router, usePage } from "@inertiajs/react";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, router } from "@inertiajs/react";
+import {
+    Home,
+    Map as MapIcon,
+    HelpCircle,
+    BarChart3,
+    Wrench,
+    LogOut,
+    Menu,
+    X,
+    ChevronDown,
+} from "lucide-react";
+
+import { useAuthUser } from "@/lib/usePageProps";
+import { cn } from "@/lib/cn";
+import PolicyModal, {
+    PrivacyPolicyContent,
+    TermsOfUseContent,
+} from "@/learning/components/ui/PolicyModal";
 import MascotBuddy from "@/learning/components/ai/MascotBuddy";
 
 /**
  * Global top-bar / footer shell for the student-facing site.
  *
- * Auth UX contract (FIX 4):
- *   - Not signed in -> show a single green "Login / Register" pill.
- *   - Signed in    -> hide the green pill entirely; show a user pill
- *                     (avatar + truncated name + chevron) that opens a
- *                     dropdown with Admin panel (if admin), My progress,
- *                     Continue learning, and Logout.
- *   - Mobile menu mirrors the same behaviour.
- *
- * Mascot (FIX 8): the fox MascotBuddy mounts here, after the footer, only
- * when a user is signed in. It uses z-40 so the lesson-page FoxHelper
- * (higher z) always sits on top.
+ * Rewrite highlights vs the previous version:
+ *   1. Inertia <Link> everywhere instead of router.visit() — gives us
+ *      prefetch on hover, scroll preservation, and zero-effort
+ *      keyboard navigation (Tab + Enter just works).
+ *   2. lucide-react icons replace OS-rendered emoji so navigation
+ *      doesn't shift width when a font is missing.
+ *   3. A useRef ('scrollContainerRef') replaces the previous
+ *      `document.getElementById("app-scroll")` lookup — the ref-based
+ *      version is the React-idiomatic approach and survives strict
+ *      mode double mounts.
+ *   4. The footer's Privacy / Terms buttons NOW open the shared
+ *      PolicyModal. They were previously dead links (no onClick).
+ *   5. `showMascot` and `noChrome` props let lesson / quiz screens
+ *      opt out of the global fox + nav.
+ *   6. Mobile hamburger button has full ARIA semantics
+ *      (aria-expanded, aria-controls).
+ *   7. The user dropdown closes on Escape (a11y) in addition to
+ *      outside-click.
  */
-const AppLayout = ({ children, active = "home" }) => {
-    const { user, auth } = usePage().props;
-    const currentUser = user || auth?.user;
+export default function AppLayout({
+    children,
+    active = "home",
+    showMascot = true,
+    noChrome = false,
+}) {
+    const currentUser = useAuthUser();
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const userMenuRef = useRef(null);
+    const [policy, setPolicy] = useState(null); // 'privacy' | 'terms' | null
 
-    // Close the user dropdown when the user clicks anywhere outside.
+    const userMenuRef = useRef(null);
+    const scrollContainerRef = useRef(null);
+
+    // Close the user dropdown on outside-click + ESC.
     useEffect(() => {
         if (!userMenuOpen) return;
-        const handler = (e) => {
-            if (
-                userMenuRef.current &&
-                !userMenuRef.current.contains(e.target)
-            ) {
+        const onClick = (e) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
                 setUserMenuOpen(false);
             }
         };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
+        const onKey = (e) => {
+            if (e.key === "Escape") setUserMenuOpen(false);
+        };
+        document.addEventListener("mousedown", onClick);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onClick);
+            document.removeEventListener("keydown", onKey);
+        };
     }, [userMenuOpen]);
 
+    // Track scroll on our own container so the navbar can compress.
     useEffect(() => {
-        const el = document.getElementById("app-scroll");
+        const el = scrollContainerRef.current;
         if (!el) return;
-        const handler = () => setScrolled(el.scrollTop > 24);
-        el.addEventListener("scroll", handler, { passive: true });
-        return () => el.removeEventListener("scroll", handler);
+        const onScroll = () => setScrolled(el.scrollTop > 24);
+        el.addEventListener("scroll", onScroll, { passive: true });
+        return () => el.removeEventListener("scroll", onScroll);
     }, []);
 
     const navLinks = [
-        { key: "home", icon: "🏠", label: "Home", path: "/" },
-        { key: "lessons", icon: "📖", label: "Lessons", path: "/map" },
-        { key: "help", icon: "❓", label: "Help", path: "/help" },
-        { key: "progress", icon: "📊", label: "Progress", path: "/progress" },
+        { key: "home", icon: Home, label: "Home", path: "/" },
+        { key: "lessons", icon: MapIcon, label: "Lessons", path: "/map" },
+        { key: "help", icon: HelpCircle, label: "Help", path: "/help" },
+        { key: "progress", icon: BarChart3, label: "Progress", path: "/progress" },
         ...(currentUser?.isAdmin
-            ? [{ key: "admin", icon: "🛠️", label: "Admin", path: "/admin" }]
+            ? [{ key: "admin", icon: Wrench, label: "Admin", path: "/admin" }]
             : []),
     ];
 
@@ -64,125 +101,152 @@ const AppLayout = ({ children, active = "home" }) => {
         return n.length > 12 ? n.slice(0, 12) + "…" : n;
     })();
 
-    const handleLogout = () => {
+    const closeAllMenus = () => {
         setUserMenuOpen(false);
         setMenuOpen(false);
+    };
+
+    const handleLogout = () => {
+        closeAllMenus();
         router.post("/logout");
     };
 
-    const goTo = (path) => {
-        setUserMenuOpen(false);
-        setMenuOpen(false);
-        router.visit(path);
-    };
+    // Lesson/quiz screens render full-bleed and don't want the chrome.
+    if (noChrome) {
+        return <>{children}</>;
+    }
 
     return (
         <div
-            id="app-scroll"
+            ref={scrollContainerRef}
             className="h-screen w-screen overflow-y-auto overflow-x-hidden font-sans"
         >
-            {/* NAVBAR */}
+            {/* ═══════════════════════ NAVBAR ═══════════════════════ */}
             <nav
-                className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-                    scrolled
-                        ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 py-2"
-                        : "bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100 py-3"
-                }`}
+                className={cn(
+                    "fixed left-0 top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-md transition-all duration-300",
+                    scrolled ? "py-2 shadow-sm" : "py-3 shadow-sm",
+                )}
             >
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
                     {/* Logo */}
-                    <div
-                        className="flex items-center cursor-pointer"
-                        onClick={() => router.visit("/")}
+                    <Link
+                        href="/"
+                        className="flex items-center"
+                        aria-label="Kiddo home"
                     >
                         <img
                             src="/assets/ui/hero/title-logo.png"
                             alt="Kiddo"
-                            className="h-8 sm:h-9 object-contain drop-shadow-sm"
+                            className="h-8 object-contain drop-shadow-sm sm:h-9"
                             onError={(e) => {
                                 e.currentTarget.style.display = "none";
+                                const span = document.createElement("span");
+                                span.className =
+                                    "font-extrabold text-2xl bg-gradient-to-r from-purple-600 to-sky-500 bg-clip-text text-transparent";
+                                span.textContent = "Kiddo";
+                                e.currentTarget.parentElement?.appendChild(span);
                             }}
                         />
-                    </div>
+                    </Link>
 
                     {/* Desktop nav */}
-                    <ul className="hidden lg:flex items-center gap-7 font-black text-[14px] text-[#475569]">
-                        {navLinks.map((item) => (
-                            <li
-                                key={item.key}
-                                onClick={() => router.visit(item.path)}
-                                className={`flex items-center gap-1.5 cursor-pointer pb-1 border-b-2 transition-colors ${
-                                    active === item.key
-                                        ? "text-[#9333EA] border-[#9333EA]"
-                                        : "border-transparent hover:text-[#9333EA] hover:border-[#9333EA]"
-                                }`}
-                            >
-                                <span className="text-base">{item.icon}</span>
-                                {item.label}
-                            </li>
-                        ))}
+                    <ul className="hidden items-center gap-7 text-[14px] font-black text-slate-600 lg:flex">
+                        {navLinks.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = active === item.key;
+                            return (
+                                <li key={item.key}>
+                                    <Link
+                                        href={item.path}
+                                        className={cn(
+                                            "flex items-center gap-1.5 border-b-2 pb-1 transition-colors",
+                                            isActive
+                                                ? "border-purple-600 text-purple-700"
+                                                : "border-transparent hover:border-purple-600 hover:text-purple-700",
+                                        )}
+                                        aria-current={isActive ? "page" : undefined}
+                                    >
+                                        <Icon className="h-4 w-4" aria-hidden="true" />
+                                        {item.label}
+                                    </Link>
+                                </li>
+                            );
+                        })}
                     </ul>
 
                     {/* Desktop auth actions */}
-                    <div className="hidden sm:flex items-center gap-3">
+                    <div className="hidden items-center gap-3 sm:flex">
                         {!currentUser ? (
-                            <button
-                                onClick={() => router.visit("/login")}
-                                className="relative inline-flex items-center justify-center gap-2 font-black select-none cursor-pointer px-5 py-2.5 text-sm text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px] shadow-none border-none"
+                            <Link
+                                href="/login"
+                                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/70"
                             >
                                 Login / Register
-                            </button>
+                            </Link>
                         ) : (
                             <div className="relative" ref={userMenuRef}>
                                 <button
-                                    onClick={() =>
-                                        setUserMenuOpen((v) => !v)
-                                    }
-                                    className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors shadow-sm"
+                                    type="button"
+                                    onClick={() => setUserMenuOpen((v) => !v)}
+                                    className="flex items-center gap-2 rounded-full border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
                                     aria-haspopup="menu"
                                     aria-expanded={userMenuOpen}
                                 >
-                                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center text-lg">
-                                        {currentUser.avatar || "👦🏻"}
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-200 to-pink-200 text-lg">
+                                        {currentUser.avatar || "🦊"}
                                     </span>
-                                    <span className="font-black text-[#1E293B] text-sm">
+                                    <span className="text-sm font-black text-slate-900">
                                         {truncatedName}
                                     </span>
-                                    <span className="text-gray-400 text-xs">
-                                        ▾
-                                    </span>
+                                    <ChevronDown
+                                        className={cn(
+                                            "h-3.5 w-3.5 text-gray-400 transition",
+                                            userMenuOpen && "rotate-180",
+                                        )}
+                                        aria-hidden="true"
+                                    />
                                 </button>
+
                                 {userMenuOpen && (
                                     <div
                                         role="menu"
-                                        className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50"
+                                        className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-gray-100 bg-white py-2 shadow-xl"
                                     >
                                         {currentUser.isAdmin && (
-                                            <button
-                                                onClick={() => goTo("/admin")}
-                                                className="w-full text-left px-4 py-2 text-sm font-black text-[#1E293B] hover:bg-purple-50 hover:text-[#7C3AED] flex items-center gap-2"
+                                            <UserMenuItem
+                                                href="/admin"
+                                                icon={Wrench}
+                                                onClose={closeAllMenus}
                                             >
-                                                <span>🛠️</span> Admin panel
-                                            </button>
+                                                Admin panel
+                                            </UserMenuItem>
                                         )}
-                                        <button
-                                            onClick={() => goTo("/progress")}
-                                            className="w-full text-left px-4 py-2 text-sm font-black text-[#1E293B] hover:bg-purple-50 hover:text-[#7C3AED] flex items-center gap-2"
+                                        <UserMenuItem
+                                            href="/progress"
+                                            icon={BarChart3}
+                                            onClose={closeAllMenus}
                                         >
-                                            <span>📊</span> My progress
-                                        </button>
-                                        <button
-                                            onClick={() => goTo("/map")}
-                                            className="w-full text-left px-4 py-2 text-sm font-black text-[#1E293B] hover:bg-purple-50 hover:text-[#7C3AED] flex items-center gap-2"
+                                            My progress
+                                        </UserMenuItem>
+                                        <UserMenuItem
+                                            href="/map"
+                                            icon={MapIcon}
+                                            onClose={closeAllMenus}
                                         >
-                                            <span>📖</span> Continue learning
-                                        </button>
+                                            Continue learning
+                                        </UserMenuItem>
                                         <div className="my-1 border-t border-gray-100" />
                                         <button
+                                            type="button"
                                             onClick={handleLogout}
-                                            className="w-full text-left px-4 py-2 text-sm font-black text-red-500 hover:bg-red-50 flex items-center gap-2"
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-black text-rose-600 hover:bg-rose-50"
                                         >
-                                            <span>🚪</span> Logout
+                                            <LogOut
+                                                className="h-4 w-4"
+                                                aria-hidden="true"
+                                            />
+                                            Logout
                                         </button>
                                     </div>
                                 )}
@@ -190,90 +254,95 @@ const AppLayout = ({ children, active = "home" }) => {
                         )}
                     </div>
 
-                    {/* Mobile menu button */}
+                    {/* Mobile hamburger */}
                     <button
-                        className="sm:hidden w-9 h-9 flex flex-col justify-center items-center gap-1.5 rounded-xl bg-white/80 border border-gray-200 shadow-sm"
-                        onClick={() => setMenuOpen(!menuOpen)}
+                        type="button"
+                        onClick={() => setMenuOpen((v) => !v)}
+                        aria-label="Toggle navigation menu"
+                        aria-expanded={menuOpen}
+                        aria-controls="mobile-nav"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white/80 shadow-sm sm:hidden"
                     >
-                        <span
-                            className={`block w-5 h-0.5 bg-[#1E293B] rounded-full transition-all duration-200 ${
-                                menuOpen ? "rotate-45 translate-y-[8px]" : ""
-                            }`}
-                        />
-                        <span
-                            className={`block w-5 h-0.5 bg-[#1E293B] rounded-full transition-all duration-200 ${
-                                menuOpen ? "opacity-0" : ""
-                            }`}
-                        />
-                        <span
-                            className={`block w-5 h-0.5 bg-[#1E293B] rounded-full transition-all duration-200 ${
-                                menuOpen ? "-rotate-45 -translate-y-[8px]" : ""
-                            }`}
-                        />
+                        {menuOpen ? (
+                            <X className="h-5 w-5 text-slate-700" aria-hidden="true" />
+                        ) : (
+                            <Menu className="h-5 w-5 text-slate-700" aria-hidden="true" />
+                        )}
                     </button>
                 </div>
 
-                {/* Mobile nav */}
+                {/* Mobile nav drawer */}
                 {menuOpen && (
-                    <div className="sm:hidden absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-lg px-5 py-4 flex flex-col gap-3">
-                        {navLinks.map((item) => (
-                            <button
-                                key={item.key}
-                                onClick={() => {
-                                    router.visit(item.path);
-                                    setMenuOpen(false);
-                                }}
-                                className="text-left font-black text-[#1E293B] text-base border-b border-gray-50 pb-2 hover:text-[#9333EA]"
-                            >
-                                {item.icon} {item.label}
-                            </button>
-                        ))}
-                        <div className="pt-2 flex flex-col gap-2">
+                    <div
+                        id="mobile-nav"
+                        className="absolute left-0 top-full flex w-full flex-col gap-3 border-b border-gray-100 bg-white px-5 py-4 shadow-lg sm:hidden"
+                    >
+                        {navLinks.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <Link
+                                    key={item.key}
+                                    href={item.path}
+                                    onClick={closeAllMenus}
+                                    className="flex items-center gap-2 border-b border-gray-50 pb-2 text-base font-black text-slate-900 hover:text-purple-700"
+                                >
+                                    <Icon
+                                        className="h-4 w-4 text-slate-500"
+                                        aria-hidden="true"
+                                    />
+                                    {item.label}
+                                </Link>
+                            );
+                        })}
+
+                        <div className="flex flex-col gap-2 pt-2">
                             {!currentUser ? (
-                                <button
-                                    onClick={() => {
-                                        router.visit("/login");
-                                        setMenuOpen(false);
-                                    }}
-                                    className="w-full justify-center relative inline-flex items-center gap-2 font-black select-none cursor-pointer px-5 py-2.5 text-sm text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px]"
+                                <Link
+                                    href="/login"
+                                    onClick={closeAllMenus}
+                                    className="w-full rounded-xl bg-emerald-600 px-5 py-2.5 text-center text-sm font-black text-white"
                                 >
                                     Login / Register
-                                </button>
+                                </Link>
                             ) : (
                                 <>
                                     <div className="flex items-center gap-3 px-1">
-                                        <span className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center text-xl">
-                                            {currentUser.avatar || "👦🏻"}
+                                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-200 to-pink-200 text-xl">
+                                            {currentUser.avatar || "🦊"}
                                         </span>
-                                        <span className="font-black text-[#1E293B] text-sm truncate">
+                                        <span className="truncate text-sm font-black text-slate-900">
                                             {currentUser.name}
                                         </span>
                                     </div>
                                     {currentUser.isAdmin && (
-                                        <button
-                                            onClick={() => goTo("/admin")}
-                                            className="w-full text-left px-4 py-2 rounded-xl bg-purple-50 text-[#7C3AED] font-black text-sm"
+                                        <Link
+                                            href="/admin"
+                                            onClick={closeAllMenus}
+                                            className="rounded-xl bg-purple-50 px-4 py-2 text-left text-sm font-black text-purple-700"
                                         >
-                                            🛠️ Admin panel
-                                        </button>
+                                            Admin panel
+                                        </Link>
                                     )}
-                                    <button
-                                        onClick={() => goTo("/progress")}
-                                        className="w-full text-left px-4 py-2 rounded-xl bg-gray-50 text-[#1E293B] font-black text-sm"
+                                    <Link
+                                        href="/progress"
+                                        onClick={closeAllMenus}
+                                        className="rounded-xl bg-gray-50 px-4 py-2 text-left text-sm font-black text-slate-900"
                                     >
-                                        📊 My progress
-                                    </button>
-                                    <button
-                                        onClick={() => goTo("/map")}
-                                        className="w-full text-left px-4 py-2 rounded-xl bg-gray-50 text-[#1E293B] font-black text-sm"
+                                        My progress
+                                    </Link>
+                                    <Link
+                                        href="/map"
+                                        onClick={closeAllMenus}
+                                        className="rounded-xl bg-gray-50 px-4 py-2 text-left text-sm font-black text-slate-900"
                                     >
-                                        📖 Continue learning
-                                    </button>
+                                        Continue learning
+                                    </Link>
                                     <button
+                                        type="button"
                                         onClick={handleLogout}
-                                        className="w-full text-left px-4 py-2 rounded-xl bg-red-50 text-red-500 font-black text-sm"
+                                        className="rounded-xl bg-rose-50 px-4 py-2 text-left text-sm font-black text-rose-600"
                                     >
-                                        🚪 Logout
+                                        Logout
                                     </button>
                                 </>
                             )}
@@ -282,91 +351,128 @@ const AppLayout = ({ children, active = "home" }) => {
                 )}
             </nav>
 
-            {/* MAIN CONTENT + BACKGROUND */}
-            <div
-                className="pt-16 min-h-screen"
-                style={{
-                    background:
-                        "linear-gradient(160deg,#BAE6FD 0%,#F0F4FF 40%,#FFF9E0 100%)",
-                }}
-            >
+            {/* ═══════════════════════ MAIN ═══════════════════════ */}
+            <main className="min-h-screen bg-gradient-to-b from-sky-100 via-[#F0F4FF] to-amber-50 pt-16">
                 {children}
-            </div>
+            </main>
 
-                           {/* ══════════════════════ FOOTER ══════════════════════ */}
-                           <footer className="w-full bg-[#F8FAFF] border-t border-blue-50 pt-8 pb-5 relative overflow-hidden">
-                               <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-purple-100/40 blur-3xl pointer-events-none" />
-                               <div className="absolute top-0 left-0 w-24 h-24 rounded-full bg-blue-100/40 blur-2xl pointer-events-none" />
-           
-                               <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                                   <div className="flex flex-col md:flex-row justify-between items-center gap-6 pb-6 border-b border-blue-100/60">
-                                       <div className="flex items-center gap-3">
-                                           <img
-                                               src="/assets/ui/hero/title-logo.png"
-                                               alt="Kiddo"
-                                               className="h-7 sm:h-8 object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                                               onClick={() => router.visit("/")}
-                                           />
-                                           <div className="border-l border-gray-200 pl-3">
-                                               <p className="text-xs font-black text-[#334155] leading-none">
-                                                   Learn. Play. Grow.
-                                               </p>
-                                               <p className="text-[10px] text-[#94A3B8] font-semibold mt-0.5">
-                                                   English for kids aged 6–7
-                                               </p>
-                                           </div>
-                                       </div>
-           
-                                       <div className="flex flex-col items-center gap-1 select-none">
-                                           <img
-                                               src="/assets/ui/mascot/fox-hint.png"
-                                               alt="Kiddo Safe"
-                                               className="w-14 h-14 object-contain drop-shadow-md"
-                                               onError={(e) =>
-                                                   (e.currentTarget.style.display = "none")
-                                               }
-                                           />
-                                           <p className="text-[9px] font-black text-[#CBD5E1] uppercase tracking-widest">
-                                               Safe &amp; Free
-                                           </p>
-                                       </div>
-           
-                                       <div className="flex items-center gap-5 sm:gap-7 text-[11px] font-bold text-[#94A3B8]">
-                                           {[
-                                               "Privacy Policy",
-                                               "Terms of Use",
-                                               "Help Center",
-                                           ].map((link) => (
-                                               <button
-                                                   key={link}
-                                                   onClick={() => {
-                                                       if (link === "Help Center") {
-                                                           router.visit("/contact");
-                                                       }
-                                                   }}
-                                                   className="hover:text-[#9333EA] transition-colors duration-150 focus:outline-none"
-                                               >
-                                                   {link}
-                                               </button>
-                                           ))}
-                                       </div>
-                                   </div>
-           
-                                   <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4">
-                                       <p className="text-[11px] font-bold text-[#CBD5E1]">
-                                           © 2026 Kiddo. Made with ❤️ for curious kids.
-                                       </p>
-                                       <p className="text-[11px] text-[#CBD5E1] font-semibold">
-                                           🌍 Available worldwide · Free forever
-                                       </p>
-                                   </div>
-                               </div>
-                           </footer>
+            {/* ═══════════════════════ FOOTER ═══════════════════════ */}
+            <footer className="relative w-full overflow-hidden border-t border-blue-50 bg-[#F8FAFF] pb-5 pt-8">
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 right-0 h-40 w-40 rounded-full bg-purple-100/40 blur-3xl"
+                />
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0 top-0 h-24 w-24 rounded-full bg-blue-100/40 blur-2xl"
+                />
 
-            {/* Global fox mascot buddy (FIX 8) — only for signed-in users. */}
-            {currentUser ? <MascotBuddy /> : null}
+                <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col items-center justify-between gap-6 border-b border-blue-100/60 pb-6 md:flex-row">
+                        <Link
+                            href="/"
+                            className="flex items-center gap-3 transition hover:opacity-80"
+                        >
+                            <img
+                                src="/assets/ui/hero/title-logo.png"
+                                alt="Kiddo"
+                                className="h-7 object-contain opacity-60 grayscale transition-all hover:opacity-100 hover:grayscale-0 sm:h-8"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                }}
+                            />
+                            <div className="border-l border-gray-200 pl-3">
+                                <p className="text-xs font-black leading-none text-slate-700">
+                                    Learn. Play. Grow.
+                                </p>
+                                <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+                                    English for kids aged 6–7
+                                </p>
+                            </div>
+                        </Link>
+
+                        <div className="flex select-none flex-col items-center gap-1">
+                            <img
+                                src="/assets/ui/mascot/fox-hint.png"
+                                alt=""
+                                aria-hidden="true"
+                                className="h-14 w-14 object-contain drop-shadow-md"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                }}
+                            />
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">
+                                Safe &amp; Free
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-5 text-[11px] font-bold text-slate-400 sm:gap-7">
+                            <button
+                                type="button"
+                                onClick={() => setPolicy("privacy")}
+                                className="rounded transition-colors duration-150 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+                            >
+                                Privacy Policy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPolicy("terms")}
+                                className="rounded transition-colors duration-150 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+                            >
+                                Terms of Use
+                            </button>
+                            <Link
+                                href="/help"
+                                className="rounded transition-colors duration-150 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+                            >
+                                Help Center
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-between gap-2 pt-4 sm:flex-row">
+                        <p className="text-[11px] font-bold text-slate-300">
+                            © {new Date().getFullYear()} Kiddo. Made with ❤️ for curious kids.
+                        </p>
+                        <p className="text-[11px] font-semibold text-slate-300">
+                            🌍 Available worldwide · Free forever
+                        </p>
+                    </div>
+                </div>
+            </footer>
+
+            {/* Global mascot — only when signed in and not suppressed. */}
+            {currentUser && showMascot ? <MascotBuddy /> : null}
+
+            {/* Privacy / Terms modals */}
+            <PolicyModal
+                open={policy === "privacy"}
+                onClose={() => setPolicy(null)}
+                title="Privacy Policy"
+            >
+                <PrivacyPolicyContent />
+            </PolicyModal>
+            <PolicyModal
+                open={policy === "terms"}
+                onClose={() => setPolicy(null)}
+                title="Terms of Use"
+            >
+                <TermsOfUseContent />
+            </PolicyModal>
         </div>
     );
-};
+}
 
-export default AppLayout;
+/** Local helper that renders a standard dropdown row. */
+function UserMenuItem({ href, icon: Icon, onClose, children }) {
+    return (
+        <Link
+            href={href}
+            onClick={onClose}
+            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-black text-slate-900 hover:bg-purple-50 hover:text-purple-700"
+        >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {children}
+        </Link>
+    );
+}

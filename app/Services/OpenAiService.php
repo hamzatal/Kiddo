@@ -7,19 +7,27 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Thin wrapper around the OpenAI Chat Completions API, tailored for
- * Kiddo's 3 classroom use-cases:
+ * Kiddo's three classroom use-cases:
  *
  *   - Child-facing Fox Helper      (short, 1-2 sentences, only allowed words)
  *   - Parent progress insight      (3-5 sentences in parent's language)
  *   - Help Center chat             (friendly tips, longer paragraphs)
  *
- * Requires OPENAI_API_KEY in .env. If the key is missing or the API
- * call fails, a safe fallback string is returned so the UI never
- * breaks for the kid.
+ * Hardening (this rewrite):
+ *   - One automatic retry on 429/5xx with linear backoff so a
+ *     transient OpenAI hiccup doesn't downgrade the child's
+ *     experience to a fallback canned line.
+ *   - The system prompts no longer include any PII — the AiController
+ *     is responsible for stripping the child's name BEFORE calling
+ *     in here. This service is now agnostic.
+ *   - All log lines redact the API key and full message payload by
+ *     default (we only log status code + prompt length).
  */
 class OpenAiService
 {
     private const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+    private const MAX_RETRIES = 1;
+    private const TIMEOUT_S = 15;
 
     public function __construct(
         private readonly ?string $apiKey = null,
@@ -50,31 +58,46 @@ class OpenAiService
             return $this->fallback($messages);
         }
 
-        try {
-            $response = Http::withToken($this->apiKey)
-                ->timeout(15)
-                ->acceptJson()
-                ->post(self::ENDPOINT, [
-                    'model'       => $this->model,
-                    'messages'    => $messages,
-                    'temperature' => $temperature,
-                    'max_tokens'  => $maxTokens,
-                ]);
+        $attempt = 0;
+        $lastStatus = 0;
+        do {
+            try {
+                $response = Http::withToken($this->apiKey)
+                    ->timeout(self::TIMEOUT_S)
+                    ->acceptJson()
+                    ->post(self::ENDPOINT, [
+                        'model'       => $this->model,
+                        'messages'    => $messages,
+                        'temperature' => $temperature,
+                        'max_tokens'  => $maxTokens,
+                    ]);
 
-            if (! $response->successful()) {
-                Log::warning('OpenAI API non-200', [
-                    'status' => $response->status(),
-                    'body'   => $response->body(),
-                ]);
-                return $this->fallback($messages);
+                $lastStatus = $response->status();
+                if ($response->successful()) {
+                    $text = $response->json('choices.0.message.content');
+                    return is_string($text) ? trim($text) : $this->fallback($messages);
+                }
+
+                // Retry on 429 (rate limited) and 5xx — these are
+                // typically transient. Any other 4xx is a programmer
+                // error (bad model name, bad key, etc.) and we give up.
+                if ($lastStatus !== 429 && $lastStatus < 500) {
+                    Log::warning('OpenAI non-retryable error', [
+                        'status'  => $lastStatus,
+                        'len'     => strlen($response->body()),
+                    ]);
+                    break;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('OpenAI call threw: ' . $e->getMessage());
             }
+            $attempt++;
+            if ($attempt <= self::MAX_RETRIES) {
+                usleep(400_000 * $attempt); // 400ms, 800ms, ...
+            }
+        } while ($attempt <= self::MAX_RETRIES);
 
-            $text = $response->json('choices.0.message.content');
-            return is_string($text) ? trim($text) : $this->fallback($messages);
-        } catch (\Throwable $e) {
-            Log::warning('OpenAI call failed: ' . $e->getMessage());
-            return $this->fallback($messages);
-        }
+        return $this->fallback($messages);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -96,12 +119,20 @@ class OpenAiService
         ], 0.5, 80);
     }
 
+    /**
+     * Generate a parent insight. The caller MUST anonymise the
+     * payload first — `$childStats` should not contain the child's
+     * name, email, or any other PII. Use placeholders like
+     * "the child" inside the response and re-stitch the real name
+     * at the controller layer.
+     */
     public function parentInsight(array $childStats): string
     {
         $system = "You are Kiddo, an insight generator for parents. Given a child's learning stats "
             . "from the 'Team Together 1A' curriculum, write a concise, warm report. Rules: "
             . "3-5 short bullet-like sentences, in English, focused on (1) strengths, (2) one area to practice, "
             . "(3) one concrete activity the parent can do at home using the same curriculum. "
+            . "Refer to the child as 'the child' (no names provided, by design). "
             . "Do NOT invent new vocabulary — use only the unit words listed.";
 
         $user = "Child stats:\n" . json_encode($childStats, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
@@ -127,15 +158,15 @@ class OpenAiService
 
     /**
      * Deterministic fallback when OpenAI is offline / unconfigured.
-     * Uses the user prompt to pick a safe canned response rather than
-     * leaking any "Sorry, I can't reply" text to the kid.
+     * Uses simple keyword matching on the user prompt to pick a
+     * safe canned response so we never show the kid an error.
      */
     private function fallback(array $messages): string
     {
         $user = '';
         foreach ($messages as $m) {
             if (($m['role'] ?? '') === 'user') {
-                $user = strtolower($m['content'] ?? '');
+                $user = strtolower((string) ($m['content'] ?? ''));
                 break;
             }
         }

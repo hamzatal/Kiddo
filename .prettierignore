@@ -1,0 +1,12 @@
+node_modules
+vendor
+public/build
+public/hot
+storage
+bootstrap/cache
+package-lock.json
+composer.lock
+*.min.js
+*.min.css
+public/assets
+resources/js/learning/utils/localProgress.js

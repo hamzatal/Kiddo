@@ -1,8 +1,8 @@
 {
-    "name": "laravel/laravel",
+    "name": "kiddo/kiddo",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Kiddo — playful English-learning adventure for first graders.",
+    "keywords": ["laravel", "inertia", "react", "education", "kiddo"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
@@ -46,6 +46,18 @@
             "@php artisan key:generate --ansi",
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --ansi"
+        ],
+        "lint": [
+            "vendor/bin/pint --test"
+        ],
+        "lint:fix": [
+            "vendor/bin/pint"
+        ],
+        "test": [
+            "@php -d memory_limit=512M vendor/bin/phpunit"
+        ],
+        "test:coverage": [
+            "@php -d memory_limit=512M -d xdebug.mode=coverage vendor/bin/phpunit --coverage-text"
         ]
     },
     "extra": {

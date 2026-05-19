@@ -1,349 +1,34 @@
-import React, { useState, useEffect } from "react";
-import { router, usePage } from "@inertiajs/react";
+import React from "react";
+import { Link, router } from "@inertiajs/react";
+import { Sparkles, Rocket, Headphones, Gamepad2, Trophy, Puzzle } from "lucide-react";
+
 import AppLayout from "@/Layouts/AppLayout";
+import PageHead from "@/learning/components/ui/PageHead";
+import JuicyButton from "@/learning/components/ui/JuicyButton";
+import HeroMascot from "@/learning/components/ui/HeroMascot";
 import HomeAISection from "@/learning/components/ai/HomeAISection";
+import { useAuthUser } from "@/lib/usePageProps";
+import { cn } from "@/lib/cn";
 
-/* ═══════════════════════════════════════════════════════════════
-   PolicyModal
-═══════════════════════════════════════════════════════════════ */
-const POLICY_CONTENT = {
-    "Privacy Policy": {
-        icon: "🔒",
-        color: "#9333EA",
-        items: [
-            "We do not collect any personal data from children under 13 without parental consent.",
-            "No microphone, camera, or location access is required or requested.",
-            "Progress data is stored locally on your device only.",
-            "We do not share any user information with third parties.",
-            "Cookies are used solely for session management and improving performance.",
-            "You may contact us at any time to request data deletion.",
-        ],
-    },
-    "Terms of Use": {
-        icon: "📋",
-        color: "#0284C7",
-        items: [
-            "Kiddo is designed exclusively for children aged 6–7 under parental supervision.",
-            "All content, images, audio, and games are protected by copyright.",
-            "You may not reproduce or redistribute any part of this platform.",
-            "The platform is provided free of charge for personal, non-commercial use.",
-            "We reserve the right to update these terms at any time with prior notice.",
-            "Continued use of the platform constitutes acceptance of the current terms.",
-        ],
-    },
-};
-
-const PolicyModal = ({ type, onClose }) => {
-    const content = POLICY_CONTENT[type];
-    if (!content) return null;
-
-    return (
-        <div
-            className="fixed inset-0 z-[999] flex items-center justify-center px-4"
-            onClick={onClose}
-        >
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <div
-                className="relative z-10 bg-white rounded-3xl shadow-2xl w-full max-w-md p-7 flex flex-col gap-5 animate-fadeInScale"
-                onClick={(e) => e.stopPropagation()}
-                style={{ border: `2px solid ${content.color}22` }}
-            >
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <span
-                            className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-sm"
-                            style={{ background: `${content.color}15` }}
-                        >
-                            {content.icon}
-                        </span>
-                        <h2 className="font-black text-[#0F172A] text-lg leading-tight">
-                            {type}
-                        </h2>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="w-8 h-8 rounded-full bg-gray-100 hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-gray-400 font-black text-base transition-colors"
-                    >
-                        ✕
-                    </button>
-                </div>
-                <div
-                    className="h-0.5 rounded-full"
-                    style={{ background: `${content.color}22` }}
-                />
-                <ul className="flex flex-col gap-3">
-                    {content.items.map((item, i) => (
-                        <li key={i} className="flex items-start gap-3">
-                            <span
-                                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black shrink-0 mt-0.5 shadow-sm"
-                                style={{ background: content.color }}
-                            >
-                                {i + 1}
-                            </span>
-                            <p className="text-[12px] text-[#475569] font-semibold leading-relaxed">
-                                {item}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
-                <p className="text-[10px] text-[#94A3B8] font-semibold text-center border-t border-gray-100 pt-4">
-                    © 2026 Kiddo · Last updated May 2026
-                </p>
-            </div>
-        </div>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   JuicyButton
-═══════════════════════════════════════════════════════════════ */
-const JuicyButton = ({
-    variant = "purple",
-    icon,
-    children,
-    onClick,
-    className = "",
-    size = "md",
-}) => {
-    const base =
-        "relative inline-flex items-center justify-center gap-2 font-black select-none cursor-pointer transition-all duration-100 focus:outline-none";
-    const sizes = {
-        sm: "px-4 py-2 text-xs",
-        md: "px-5 py-2.5 text-sm",
-        lg: "px-7 py-3.5 text-base",
-    };
-    const variants = {
-        purple: "text-white bg-[linear-gradient(180deg,_#C84BFF_0%,_#8B2FCF_100%)] rounded-full shadow-[0_5px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:shadow-[0_3px_0_0_#5B0F99,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:translate-y-[2px] active:shadow-[0_1px_0_0_#5B0F99] active:translate-y-[4px]",
-        green: "text-white bg-[linear-gradient(180deg,_#4ADE80_0%,_#16A34A_100%)] rounded-full shadow-[0_5px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:shadow-[0_3px_0_0_#0E6B2C,_inset_0_1px_0_0_rgba(255,255,255,0.40)] hover:translate-y-[2px] active:shadow-[0_1px_0_0_#0E6B2C] active:translate-y-[4px]",
-        white: "text-[#7C3AED] bg-white rounded-full shadow-[0_5px_0_0_rgba(0,0,0,0.18)] hover:translate-y-[2px] active:translate-y-[4px]",
-        flatAuth:
-            "text-white bg-[#16A34A] hover:bg-[#15803D] rounded-[12px] shadow-none border-none",
-    };
-
-    return (
-        <button
-            onClick={onClick}
-            className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
-        >
-            {variant !== "flatAuth" && variant !== "white" && (
-                <span
-                    className="pointer-events-none absolute inset-x-3 top-0.5 h-[42%] rounded-full opacity-30"
-                    style={{
-                        background:
-                            "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 100%)",
-                    }}
-                />
-            )}
-            {icon && (
-                <span className="relative z-10 text-[1.1em] leading-none">
-                    {icon}
-                </span>
-            )}
-            <span className="relative z-10">{children}</span>
-        </button>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   LessonCard
-═══════════════════════════════════════════════════════════════ */
-const CARD_COLORS = {
-    purple: {
-        bg: "bg-[#F3E8FF]",
-        badge: "bg-[#9333EA]",
-        ring: "hover:ring-[#C084FC]",
-        star: "text-[#9333EA]",
-    },
-    green: {
-        bg: "bg-[#DCFCE7]",
-        badge: "bg-[#16A34A]",
-        ring: "hover:ring-[#4ADE80]",
-        star: "text-[#16A34A]",
-    },
-    blue: {
-        bg: "bg-[#E0F2FE]",
-        badge: "bg-[#0284C7]",
-        ring: "hover:ring-[#38BDF8]",
-        star: "text-[#0284C7]",
-    },
-    pink: {
-        bg: "bg-[#FFE4E6]",
-        badge: "bg-[#E11D48]",
-        ring: "hover:ring-[#FB7185]",
-        star: "text-[#E11D48]",
-    },
-    amber: {
-        bg: "bg-[#FEF3C7]",
-        badge: "bg-[#D97706]",
-        ring: "hover:ring-[#FCD34D]",
-        star: "text-[#D97706]",
-    },
-};
-
-const LessonCard = ({
-    number,
-    title,
-    imagePath,
-    colorKey = "purple",
-    isLocked = false,
-    onClick,
-}) => {
-    const c = CARD_COLORS[colorKey] ?? CARD_COLORS.purple;
-
-    return (
-        <div
-            onClick={!isLocked ? onClick : undefined}
-            className={`group relative flex flex-col rounded-3xl border-2 border-white overflow-hidden h-full transition-all duration-250 ease-out ${
-                isLocked
-                    ? "opacity-60 cursor-not-allowed grayscale-[40%]"
-                    : `cursor-pointer hover:-translate-y-1.5 hover:shadow-xl ring-2 ring-transparent ${c.ring}`
-            } ${c.bg} shadow-[0_2px_8px_rgba(0,0,0,0.08)]`}
-        >
-            <div
-                className={`absolute top-3 left-3 z-20 w-7 h-7 rounded-full ${c.badge} text-white font-black text-[13px] flex items-center justify-center shadow-md`}
-            >
-                {number}
-            </div>
-
-            {isLocked && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center">
-                    <div className="bg-white/70 backdrop-blur-[2px] rounded-full w-12 h-12 flex items-center justify-center shadow-sm">
-                        <span className="text-2xl">🔒</span>
-                    </div>
-                </div>
-            )}
-
-            <div className="flex-1 flex items-center justify-center p-3 pt-10 overflow-hidden">
-                <img
-                    src={imagePath}
-                    alt={title}
-                    loading="lazy"
-                    className="w-full h-full object-contain drop-shadow-md"
-                    style={{ maxHeight: "8rem" }}
-                    onError={(e) => {
-                        e.target.style.opacity = "0.3";
-                    }}
-                />
-            </div>
-
-            <div className="px-3 pb-3 text-center">
-                <p className="font-black text-[#1E293B] text-[11px] sm:text-xs leading-tight line-clamp-2">
-                    {title}
-                </p>
-            </div>
-
-            {!isLocked && (
-                <span
-                    className={`absolute bottom-2 right-2.5 ${c.star} text-[11px] opacity-0 group-hover:opacity-100 transition-opacity`}
-                >
-                    ⭐
-                </span>
-            )}
-        </div>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   FeatureCard
-═══════════════════════════════════════════════════════════════ */
-const FEATURE_COLORS = {
-    purple: { wrap: "bg-[#F3E8FF]", icon: "bg-[#9333EA]/10 text-[#9333EA]" },
-    green: { wrap: "bg-[#DCFCE7]", icon: "bg-[#16A34A]/10 text-[#16A34A]" },
-    amber: { wrap: "bg-[#FEF9C3]", icon: "bg-[#D97706]/10 text-[#D97706]" },
-    pink: { wrap: "bg-[#FFE4E6]", icon: "bg-[#E11D48]/10 text-[#E11D48]" },
-};
-
-const FeatureCard = ({ colorKey = "purple", emoji, title, desc }) => {
-    const c = FEATURE_COLORS[colorKey];
-
-    return (
-        <div
-            className={`${c.wrap} rounded-3xl p-5 flex items-start gap-4 border border-white/60 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200`}
-        >
-            <div
-                className={`w-12 h-12 rounded-2xl ${c.icon} flex items-center justify-center text-2xl shrink-0 shadow-sm`}
-            >
-                {emoji}
-            </div>
-            <div className="min-w-0">
-                <h3 className="font-black text-[#1E293B] text-sm mb-1 leading-tight">
-                    {title}
-                </h3>
-                <p className="text-[11px] text-[#64748B] font-semibold leading-relaxed">
-                    {desc}
-                </p>
-            </div>
-        </div>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   MascotSection
-═══════════════════════════════════════════════════════════════ */
-const MascotSection = ({ goToApp }) => {
-    return (
-        <>
-            <style>{`
-        .mascot-wrap { position: relative; width: 100%; display: flex; justify-content: center; align-items: flex-end; min-height: 280px; }
-        @media (min-width: 640px) { .mascot-wrap { min-height: 360px; } }
-        @media (min-width: 1024px) { .mascot-wrap { min-height: 460px; } }
-
-        .abc-blocks { position: absolute; z-index: 0; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15)); left: -15px; bottom: 10px; width: 140px; }
-        @media (min-width: 480px) { .abc-blocks { left: -10px; width: 160px; bottom: 15px; } }
-        @media (min-width: 640px) { .abc-blocks { left: 0px; bottom: 20px; width: 180px; } }
-        @media (min-width: 768px) { .abc-blocks { left: 0px; width: 200px; bottom: 20px; } }
-        @media (min-width: 1024px) { .abc-blocks { left: -20px; bottom: 20px; width: 220px; } }
-        @media (min-width: 1280px) { .abc-blocks { left: -30px; bottom: 25px; width: 240px; } }
-
-        .fox-mascot { position: relative; z-index: 10; object-fit: contain; filter: drop-shadow(0 16px 32px rgba(0,0,0,0.18)); width: 190px; max-height: 50vh; transform: translateX(40px) translateY(-5px); }
-        @media (min-width: 480px) { .fox-mascot { width: 220px; transform: translateX(50px) translateY(-5px); } }
-        @media (min-width: 640px) { .fox-mascot { width: 260px; max-height: 52vh; transform: translateX(60px) translateY(-10px); } }
-        @media (min-width: 768px) { .fox-mascot { width: 300px; transform: translateX(70px) translateY(-10px); } }
-        @media (min-width: 1024px) { .fox-mascot { width: 340px; max-height: 56vh; transform: translateX(80px) translateY(-15px); } }
-        @media (min-width: 1280px) { .fox-mascot { width: 380px; max-height: 58vh; transform: translateX(100px) translateY(-15px); } }
-        @media (min-width: 1536px) { .fox-mascot { width: 420px; transform: translateX(110px) translateY(-20px); } }
-
-        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        .animate-fadeInScale { animation: fadeInScale 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-      `}</style>
-
-            <div className="mascot-wrap">
-                <img
-                    src="/assets/ui/hero/abc-blocks.png"
-                    alt="ABC Blocks"
-                    className="abc-blocks"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-                <img
-                    src="/assets/ui/mascot/fox-main.png"
-                    alt="Kiddo Mascot"
-                    className="fox-mascot"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-            </div>
-        </>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   HomeScreen
-═══════════════════════════════════════════════════════════════ */
-const HomeScreen = ({ units }) => {
-    const [activeModal, setActiveModal] = useState(null);
-
-    const { auth, user: propUser } = usePage().props;
-    const user = auth?.user || propUser;
-
-    useEffect(() => {
-        if (activeModal) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
-        }
-        return () => {
-            document.body.style.overflow = "";
-        };
-    }, [activeModal]);
+/**
+ * HomeScreen / landing page.
+ *
+ * Rewrite highlights vs the previous version:
+ *   - The inline PolicyModal + JuicyButton + ABC-mascot CSS got
+ *     extracted to shared components in learning/components/ui.
+ *     HomeScreen is now ~250 lines instead of ~700, and the legal
+ *     modal is the same one the AppLayout footer opens (single
+ *     source of truth for the copy).
+ *   - <PageHead> emits a real title + description for SEO.
+ *   - Inertia <Link> replaces router.visit() for inter-page links so
+ *     the 'Continue learning' click is instant + prefetched.
+ *   - Hardcoded hex shades replaced with Tailwind palette tokens.
+ *   - LessonCard + FeatureCard remain local because they're tightly
+ *     coupled to this page's marketing visuals; they aren't reused
+ *     elsewhere yet.
+ */
+export default function HomeScreen({ units }) {
+    const user = useAuthUser();
 
     const defaultLessons = [
         {
@@ -376,7 +61,7 @@ const HomeScreen = ({ units }) => {
         units && units.length > 0
             ? units.map((u) => ({
                   id: u.id,
-                  number: u.unit_number || u.id,
+                  number: u.unit_number ?? u.id,
                   title: u.title,
                   imagePath: u.image_path || u.imagePath,
                   colorKey: u.color_key || u.colorKey || "purple",
@@ -387,235 +72,327 @@ const HomeScreen = ({ units }) => {
     const features = [
         {
             colorKey: "purple",
-            emoji: "🎧",
+            Icon: Headphones,
             title: "Audio Learning",
             desc: "Clear native English audio by professional speakers.",
         },
         {
             colorKey: "green",
-            emoji: "🎮",
+            Icon: Gamepad2,
             title: "Fun Games",
             desc: "Interactive mini-games that make every lesson exciting.",
         },
         {
             colorKey: "amber",
-            emoji: "🏆",
+            Icon: Trophy,
             title: "Rewards & Badges",
             desc: "Earn stars, badges and certificates along the way.",
         },
         {
             colorKey: "pink",
-            emoji: "🧩",
+            Icon: Puzzle,
             title: "Interactive Activities",
             desc: "Hands-on exercises to reinforce every new word without microphones.",
         },
     ];
 
-    const goToApp = () => router.visit(user ? "/map" : "/login");
+    const goToLesson = (lessonId) => {
+        // We use router.visit() (instead of <Link>) here because the
+        // exact destination depends on whether the user is signed in.
+        router.visit(user ? `/lesson/${lessonId}` : "/login");
+    };
 
     return (
-        <>
-            {activeModal && (
-                <PolicyModal
-                    type={activeModal}
-                    onClose={() => setActiveModal(null)}
+        <AppLayout active="home">
+            <PageHead
+                title="Home"
+                description="Kiddo — playful English-learning adventure for kids aged 6–7. Curriculum-aligned, audio-first, and free."
+            />
+
+            {/* ═══════════════════════ HERO ═══════════════════════ */}
+            <section
+                id="hero"
+                className="relative -mt-16 flex w-full flex-col overflow-hidden bg-gradient-to-br from-sky-200 via-sky-100 to-amber-50"
+                style={{ minHeight: "100svh" }}
+            >
+                <img
+                    src="/assets/ui/hero/clouds.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-top opacity-55"
+                    onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                    }}
                 />
-            )}
-
-            <AppLayout active="home">
                 <div
-                    id="home-scroll"
-                    className="min-h-screen w-full font-sans scroll-smooth"
-                    style={{ scrollBehavior: "smooth" }}
-                >
-                    {/* HERO */}
-                    <section
-                        id="hero"
-                        className="relative w-full overflow-hidden flex flex-col"
-                        style={{
-                            background:
-                                "linear-gradient(155deg, #BAE6FD 0%, #C7F0FF 25%, #D9F0FF 50%, #EFF9FF 75%, #FFF9E0 100%)",
-                            minHeight: "100svh",
-                        }}
-                    >
-                        <img
-                            src="/assets/ui/hero/clouds.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 w-full h-full object-cover object-top pointer-events-none select-none"
-                            style={{ opacity: 0.55 }}
-                        />
-                        <div
-                            className="absolute inset-0 pointer-events-none"
-                            style={{
-                                background:
-                                    "radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255,255,255,0.38) 0%, transparent 70%)",
-                            }}
-                        />
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                        background:
+                            "radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255,255,255,0.38) 0%, transparent 70%)",
+                    }}
+                />
 
-                        <div className="relative z-10 flex-1 flex items-center pt-16">
-                            <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-                                <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-6 lg:gap-8">
-                                    <div className="w-full lg:w-[54%] flex flex-col items-center lg:items-start text-center lg:text-left">
-                                        <h1
-                                            className="font-black text-[#0F172A] leading-[1.1] tracking-tight mt-6"
-                                            style={{
-                                                fontSize:
-                                                    "clamp(2.2rem, 5vw, 4rem)",
-                                            }}
-                                        >
-                                            Learn English <br /> with{" "}
-                                            <span className="inline-block -rotate-2 bg-[#FF4B63] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#cc0019]">
-                                                Fun
-                                            </span>
-                                            ,{" "}
-                                            <span className="inline-block rotate-2 bg-[#10B981] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#059669] mx-1">
-                                                Games
-                                            </span>
-                                            , <br /> and{" "}
-                                            <span className="inline-block -rotate-1 bg-[#8B5CF6] text-white px-3 py-1 rounded-xl shadow-[0_4px_0_#6D28D9] mt-2">
-                                                Sounds
-                                            </span>
-                                            !
-                                        </h1>
-                                        <p
-                                            className="text-[#475569] font-semibold mt-6 max-w-[400px] leading-relaxed"
-                                            style={{
-                                                fontSize:
-                                                    "clamp(0.9rem, 1.5vw, 1.1rem)",
-                                            }}
-                                        >
-                                            Kiddo is a playful learning
-                                            adventure for kids aged 6–7. Play,
-                                            listen, and grow with every lesson!
-                                        </p>
-                                        <div className="mt-8 flex flex-col items-center lg:items-start gap-3">
-                                            <JuicyButton
-                                                variant="purple"
-                                                icon="🚀"
-                                                onClick={goToApp}
-                                                size="lg"
-                                            >
-                                                {user
-                                                    ? "Continue Journey ➔"
-                                                    : "Start Learning Now! ➔"}
-                                            </JuicyButton>
-                                            <p className="flex items-center gap-2 text-xs text-[#64748B] font-semibold mt-2">
-                                                <span
-                                                    className="w-5 h-5 rounded-full bg-[#10B981] text-white flex items-center justify-center text-[9px] shrink-0 font-black"
-                                                    style={{
-                                                        boxShadow:
-                                                            "0 2px 0 #059669",
-                                                    }}
-                                                >
-                                                    ✔
-                                                </span>
-                                                No sign-up required · Free to
-                                                start
-                                            </p>
-                                        </div>
-                                    </div>
+                <div className="relative z-10 flex flex-1 items-center pt-16">
+                    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:max-w-[1400px] 2xl:max-w-[1600px]">
+                        <div className="flex flex-col-reverse items-center justify-between gap-6 lg:flex-row lg:gap-8">
+                            <div className="flex w-full flex-col items-center text-center lg:w-[54%] lg:items-start lg:text-left">
+                                <h1
+                                    className="mt-6 font-black leading-[1.1] tracking-tight text-slate-900"
+                                    style={{ fontSize: "clamp(2.2rem, 5vw, 4rem)" }}
+                                >
+                                    Learn English <br /> with{" "}
+                                    <span className="inline-block -rotate-2 rounded-xl bg-rose-500 px-3 py-1 text-white shadow-[0_4px_0_#cc0019]">
+                                        Fun
+                                    </span>
+                                    ,{" "}
+                                    <span className="mx-1 inline-block rotate-2 rounded-xl bg-emerald-500 px-3 py-1 text-white shadow-[0_4px_0_#059669]">
+                                        Games
+                                    </span>
+                                    , <br /> and{" "}
+                                    <span className="mt-2 inline-block -rotate-1 rounded-xl bg-purple-500 px-3 py-1 text-white shadow-[0_4px_0_#6D28D9]">
+                                        Sounds
+                                    </span>
+                                    !
+                                </h1>
 
-                                    <div className="w-full lg:w-[46%]">
-                                        <MascotSection goToApp={goToApp} />
-                                    </div>
+                                <p
+                                    className="mt-6 max-w-[400px] font-semibold leading-relaxed text-slate-600"
+                                    style={{ fontSize: "clamp(0.9rem, 1.5vw, 1.1rem)" }}
+                                >
+                                    Kiddo is a playful learning adventure for kids
+                                    aged 6–7. Play, listen, and grow with every lesson!
+                                </p>
+
+                                <div className="mt-8 flex flex-col items-center gap-3 lg:items-start">
+                                    <JuicyButton
+                                        as="link"
+                                        href={user ? "/map" : "/register"}
+                                        variant="purple"
+                                        size="lg"
+                                        leftIcon={<Rocket className="h-5 w-5" aria-hidden="true" />}
+                                    >
+                                        {user ? "Continue Journey" : "Start Learning Now!"}
+                                    </JuicyButton>
+
+                                    <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                                        <span
+                                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-white"
+                                            style={{ boxShadow: "0 2px 0 #059669" }}
+                                            aria-hidden="true"
+                                        >
+                                            ✔
+                                        </span>
+                                        No microphone or camera needed · Free forever
+                                    </p>
                                 </div>
                             </div>
-                        </div>
 
-                        <div
-                            className="relative z-20 mt-auto"
-                            style={{ lineHeight: 0, marginBottom: "-2px" }}
-                        >
-                            <svg
-                                viewBox="0 0 1440 80"
-                                preserveAspectRatio="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                                aria-hidden="true"
-                                className="w-full block"
-                                style={{ height: "clamp(44px, 6vw, 80px)" }}
-                            >
-                                <path
-                                    d="M0,35 C120,65 240,10 360,40 C480,70 600,8 720,38 C840,68 960,12 1080,42 C1200,72 1320,18 1440,45 L1440,80 L0,80 Z"
-                                    fill="white"
-                                />
-                            </svg>
-                        </div>
-                    </section>
-
-                    {/* LESSONS */}
-                    <section className="w-full bg-white py-10 sm:py-14">
-                        <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="text-center mb-7 sm:mb-8">
-                                <p className="text-[11px] sm:text-xs font-black text-[#9333EA] uppercase tracking-[0.15em] mb-2">
-                                    📚 Curriculum
-                                </p>
-                                <h2
-                                    className="font-black text-[#0F172A] inline-flex items-center gap-2 flex-wrap justify-center"
-                                    style={{
-                                        fontSize: "clamp(1.4rem, 3vw, 2rem)",
-                                    }}
-                                >
-                                    <span className="text-yellow-400">⭐</span>{" "}
-                                    Our Learning Units{" "}
-                                    <span className="text-yellow-400">⭐</span>
-                                </h2>
-                            </div>
-                            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 lg:gap-6 max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto">
-                                {displayLessons.map((l, index) => (
-                                    <div
-                                        key={index}
-                                        className="w-[calc(50%-0.75rem)] sm:w-[200px] lg:w-[240px] xl:w-[260px]"
-                                        style={{
-                                            height: "clamp(150px, 18vw, 260px)",
-                                        }}
-                                    >
-                                        <LessonCard
-                                            {...l}
-                                            onClick={() =>
-                                                router.visit(
-                                                    user
-                                                        ? `/lesson/${l.id}`
-                                                        : "/login",
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                ))}
+                            <div className="w-full lg:w-[46%]">
+                                <HeroMascot />
                             </div>
                         </div>
-                    </section>
-
-                    {/* AI marketing block — sits below the units grid */}
-                    <HomeAISection />
-
-                    {/* FEATURES */}
-                    <section className="w-full py-10 sm:py-14 bg-gradient-to-b from-[#F8FAFF] to-[#F0F4FF]">
-                        <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="text-center mb-7 sm:mb-8">
-                                <p className="text-[11px] sm:text-xs font-black text-[#16A34A] uppercase tracking-[0.15em] mb-2">
-                                    ✨ Why Kiddo?
-                                </p>
-                                <h2
-                                    className="font-black text-[#0F172A]"
-                                    style={{
-                                        fontSize: "clamp(1.4rem, 3vw, 2rem)",
-                                    }}
-                                >
-                                    Why Kids Love Kiddo
-                                </h2>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {features.map((f) => (
-                                    <FeatureCard key={f.title} {...f} />
-                                ))}
-                            </div>
-                        </div>
-                    </section>
+                    </div>
                 </div>
-            </AppLayout>
-        </>
+
+                {/* Wave separator */}
+                <div className="relative z-20 mt-auto" style={{ lineHeight: 0, marginBottom: "-2px" }}>
+                    <svg
+                        viewBox="0 0 1440 80"
+                        preserveAspectRatio="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                        className="block w-full"
+                        style={{ height: "clamp(44px, 6vw, 80px)" }}
+                    >
+                        <path
+                            d="M0,35 C120,65 240,10 360,40 C480,70 600,8 720,38 C840,68 960,12 1080,42 C1200,72 1320,18 1440,45 L1440,80 L0,80 Z"
+                            fill="white"
+                        />
+                    </svg>
+                </div>
+            </section>
+
+            {/* ═══════════════════════ LESSONS ═══════════════════════ */}
+            <section className="w-full bg-white py-10 sm:py-14">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:max-w-[1400px] 2xl:max-w-[1600px]">
+                    <div className="mb-7 text-center sm:mb-8">
+                        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.15em] text-purple-700 sm:text-xs">
+                            <Sparkles className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                            Curriculum
+                        </p>
+                        <h2
+                            className="inline-flex flex-wrap items-center justify-center gap-2 font-black text-slate-900"
+                            style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
+                        >
+                            <span className="text-amber-400" aria-hidden="true">⭐</span>
+                            Our Learning Units
+                            <span className="text-amber-400" aria-hidden="true">⭐</span>
+                        </h2>
+                    </div>
+
+                    <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-3 sm:gap-4 lg:gap-6 xl:max-w-4xl 2xl:max-w-5xl">
+                        {displayLessons.map((l) => (
+                            <div
+                                key={l.id}
+                                className="w-[calc(50%-0.75rem)] sm:w-[200px] lg:w-[240px] xl:w-[260px]"
+                                style={{ height: "clamp(150px, 18vw, 260px)" }}
+                            >
+                                <LessonCard {...l} onClick={() => goToLesson(l.id)} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* AI marketing strip */}
+            <HomeAISection />
+
+            {/* ═══════════════════════ FEATURES ═══════════════════════ */}
+            <section className="w-full bg-gradient-to-b from-[#F8FAFF] to-[#F0F4FF] py-10 sm:py-14">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:max-w-[1400px] 2xl:max-w-[1600px]">
+                    <div className="mb-7 text-center sm:mb-8">
+                        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 sm:text-xs">
+                            <Sparkles className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                            Why Kiddo?
+                        </p>
+                        <h2
+                            className="font-black text-slate-900"
+                            style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)" }}
+                        >
+                            Why Kids Love Kiddo
+                        </h2>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {features.map((f) => (
+                            <FeatureCard key={f.title} {...f} />
+                        ))}
+                    </div>
+                </div>
+            </section>
+        </AppLayout>
     );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Local LessonCard — a marketing-only card. The real "play this
+   lesson" cards on /map use a richer component (LessonHero).
+═══════════════════════════════════════════════════════════════ */
+
+const LESSON_TINT = {
+    purple: { bg: "bg-purple-100", badge: "bg-purple-700", ring: "hover:ring-purple-300", star: "text-purple-700" },
+    green:  { bg: "bg-emerald-100", badge: "bg-emerald-600", ring: "hover:ring-emerald-300", star: "text-emerald-600" },
+    blue:   { bg: "bg-sky-100",     badge: "bg-sky-600",     ring: "hover:ring-sky-300",     star: "text-sky-600" },
+    pink:   { bg: "bg-rose-100",    badge: "bg-rose-600",    ring: "hover:ring-rose-300",    star: "text-rose-600" },
+    amber:  { bg: "bg-amber-100",   badge: "bg-amber-600",   ring: "hover:ring-amber-300",   star: "text-amber-600" },
 };
 
-export default HomeScreen;
+function LessonCard({ number, title, imagePath, colorKey = "purple", isLocked = false, onClick }) {
+    const tint = LESSON_TINT[colorKey] ?? LESSON_TINT.purple;
+
+    return (
+        <button
+            type="button"
+            onClick={!isLocked ? onClick : undefined}
+            aria-disabled={isLocked}
+            className={cn(
+                "group relative flex h-full w-full flex-col overflow-hidden rounded-3xl border-2 border-white text-left shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 ease-out",
+                tint.bg,
+                isLocked
+                    ? "cursor-not-allowed opacity-60 grayscale-[40%]"
+                    : `cursor-pointer ring-2 ring-transparent hover:-translate-y-1.5 hover:shadow-xl ${tint.ring}`,
+            )}
+        >
+            <span
+                className={cn(
+                    "absolute left-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-black text-white shadow-md",
+                    tint.badge,
+                )}
+                aria-hidden="true"
+            >
+                {number}
+            </span>
+
+            {isLocked && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/70 shadow-sm backdrop-blur-[2px]">
+                        <span aria-label="Locked" className="text-2xl">
+                            🔒
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-1 items-center justify-center overflow-hidden p-3 pt-10">
+                <img
+                    src={imagePath}
+                    alt={title}
+                    loading="lazy"
+                    className="h-full w-full object-contain drop-shadow-md"
+                    style={{ maxHeight: "8rem" }}
+                    onError={(e) => {
+                        e.currentTarget.style.opacity = "0.3";
+                    }}
+                />
+            </div>
+
+            <div className="px-3 pb-3 text-center">
+                <p className="line-clamp-2 text-[11px] font-black leading-tight text-slate-900 sm:text-xs">
+                    {title}
+                </p>
+            </div>
+
+            {!isLocked && (
+                <span
+                    className={cn(
+                        "absolute bottom-2 right-2.5 text-[11px] opacity-0 transition-opacity group-hover:opacity-100",
+                        tint.star,
+                    )}
+                    aria-hidden="true"
+                >
+                    ⭐
+                </span>
+            )}
+        </button>
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Local FeatureCard
+═══════════════════════════════════════════════════════════════ */
+
+const FEATURE_TINT = {
+    purple: { wrap: "bg-purple-100", icon: "bg-purple-700/10 text-purple-700" },
+    green:  { wrap: "bg-emerald-100", icon: "bg-emerald-600/10 text-emerald-600" },
+    amber:  { wrap: "bg-amber-100", icon: "bg-amber-600/10 text-amber-700" },
+    pink:   { wrap: "bg-rose-100", icon: "bg-rose-600/10 text-rose-700" },
+};
+
+function FeatureCard({ colorKey = "purple", Icon, title, desc }) {
+    const tint = FEATURE_TINT[colorKey] ?? FEATURE_TINT.purple;
+    return (
+        <div
+            className={cn(
+                "flex items-start gap-4 rounded-3xl border border-white/60 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md",
+                tint.wrap,
+            )}
+        >
+            <div
+                className={cn(
+                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm",
+                    tint.icon,
+                )}
+            >
+                <Icon className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+                <h3 className="mb-1 text-sm font-black leading-tight text-slate-900">
+                    {title}
+                </h3>
+                <p className="text-[11px] font-semibold leading-relaxed text-slate-500">
+                    {desc}
+                </p>
+            </div>
+        </div>
+    );
+}

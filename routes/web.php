@@ -13,20 +13,35 @@ use App\Http\Controllers\HelpCenterController;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GamesArenaController;
+
+// ─────────────────────────────────────────────────────────────
 // Public routes
+// ─────────────────────────────────────────────────────────────
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// Streams an NCCD audio track by its stable code (e.g. AB6, PB12).
+Route::get('/about', fn () => Inertia::render('AboutScreen'))->name('about');
+
+// Help Center is open to everyone (sign-in optional).
+Route::get('/help', [HelpCenterController::class, 'index'])->name('help');
+
+// `/contact` was the v1 link; keep the redirect so any printed
+// stickers / emails out in the wild still resolve.
+Route::redirect('/contact', '/help');
+
+// ─────────────────────────────────────────────────────────────
+// Audio + media APIs
+// ─────────────────────────────────────────────────────────────
+//
+// 302-streams an NCCD audio track by its stable code (e.g. AB6, PB12).
 // The browser issues HTTP Range requests so only the bytes needed for
-// the current clip are downloaded; no local copy is required.
+// the current clip are downloaded — no local copy required.
 Route::get('/api/audio/{code}', AudioStreamController::class)
     ->whereAlphaNumeric('code')
     ->name('audio.stream');
 
-// Dynamic SVG word image — used as the universal fallback when a
-// Word's image_path doesn't exist on disk. Returns a curated emoji
-// + the word label inside a coloured gradient card. Cached for a
-// year (the SVG is deterministic per word).
+// Dynamic SVG word images — universal fallback when a Word's
+// image_path doesn't exist on disk. Cached for a year because
+// the SVG output is deterministic per word.
 Route::get('/api/word-svg/{word}.svg', [\App\Http\Controllers\WordImageController::class, 'show'])
     ->whereNumber('word')
     ->name('word.svg');
@@ -36,8 +51,7 @@ Route::get('/api/word-svg-by-text/{text}.svg', [\App\Http\Controllers\WordImageC
 
 // On-demand TTS — generates (or returns the cached) child-friendly
 // OpenAI nova-voice mp3 clip for any word that doesn't have NCCD
-// audio. Throttled per IP to keep the OpenAI bill bounded.
-// Auth is REQUIRED (only logged-in learners can request synthesis).
+// audio. Auth + per-IP throttling keep the OpenAI bill bounded.
 Route::middleware(['auth', 'throttle:30,1'])->group(function () {
     Route::post('/api/words/{word}/tts', [\App\Http\Controllers\TtsController::class, 'generateForWord'])
         ->whereNumber('word')
@@ -46,26 +60,33 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
         ->name('api.tts.by-text');
 });
 
-Route::get('/about', function () {
-    return Inertia::render('AboutScreen');
-})->name('about');
+// ─────────────────────────────────────────────────────────────
+// Auth (FIX: throttled to prevent brute-force + bot signups)
+// ─────────────────────────────────────────────────────────────
+//
+// Rationale for the throttle keys:
+//   - login/register share a 5-attempts-per-minute budget, scoped
+//     by the throttle middleware (per-IP by default in Laravel 11).
+//   - Logout has no throttle so the user can always sign out.
+Route::middleware('guest')->group(function () {
+    Route::get('/login',     [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login',    [AuthController::class, 'login'])
+        ->middleware('throttle:8,1')
+        ->name('login.post');
 
-// Help Center عام للجميع
-Route::get('/help', [HelpCenterController::class, 'index'])->name('help');
+    Route::get('/register',  [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register'])
+        ->middleware('throttle:5,1')
+        ->name('register.post');
+});
 
-// شِل contact أو خلّيه يوجّه لـ help لو بدك احتياطي:
-Route::redirect('/contact', '/help');
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
 
-// Auth pages (مرة واحدة فقط)
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-
-Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register'])->name('register.post');
-
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
-// Protected routes
+// ─────────────────────────────────────────────────────────────
+// Authenticated learner routes
+// ─────────────────────────────────────────────────────────────
 Route::middleware(['auth'])->group(function () {
     Route::get('/map', [MapController::class, 'index'])->name('map');
 
@@ -80,6 +101,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/lesson/{unit}/{lesson}/result', [LessonController::class, 'submitResult'])
         ->whereNumber('unit')
         ->whereNumber('lesson')
+        ->middleware('throttle:60,1') // FIX: cap result floods on a stuck client
         ->name('lesson.result');
 
     Route::get('/quiz/{unit}', [QuizController::class, 'show'])
@@ -87,22 +109,32 @@ Route::middleware(['auth'])->group(function () {
         ->name('quiz.show');
 
     Route::post('/quiz/submit', [QuizController::class, 'submit'])
+        ->middleware('throttle:30,1')
         ->name('quiz.submit');
 
     // ─── Games Arena (mixed review across all unlocked units) ───
     Route::get('/arena',         [GamesArenaController::class, 'show'])->name('arena');
-    Route::post('/arena/submit', [GamesArenaController::class, 'submit'])->name('arena.submit');
+    Route::post('/arena/submit', [GamesArenaController::class, 'submit'])
+        ->middleware('throttle:30,1')
+        ->name('arena.submit');
 
     Route::get('/progress', [ParentDashboardController::class, 'index'])
         ->name('progress');
 
-    // AI endpoints
-    Route::post('/ai/lesson-helper', [AiController::class, 'lessonHelper'])
-        ->name('ai.lesson-helper');
-    Route::post('/ai/parent-report', [AiController::class, 'parentReport'])
-        ->name('ai.parent-report');
-    Route::post('/ai/help-center', [AiController::class, 'helpCenter'])
-        ->name('ai.help-center');
+    // ─── AI endpoints (FIX: per-user throttling) ───
+    //
+    // We use a TIGHT per-user throttle on these because every call
+    // costs us OpenAI credits. The previous version was wide open
+    // — a bored kid mashing the Fox helper button could rack up
+    // dozens of dollars of API spend in seconds.
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::post('/ai/lesson-helper', [AiController::class, 'lessonHelper'])
+            ->name('ai.lesson-helper');
+        Route::post('/ai/parent-report', [AiController::class, 'parentReport'])
+            ->name('ai.parent-report');
+        Route::post('/ai/help-center', [AiController::class, 'helpCenter'])
+            ->name('ai.help-center');
+    });
 
     // ═══════════════════════════════════════════════════════════
     // Admin panel — full curriculum + audio control
@@ -139,13 +171,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/words/{word}/image',   [AdminController::class, 'uploadWordImage']);
         Route::post('/words/{word}/audio',         [AdminController::class, 'uploadWordAudio']);
         Route::post('/words/{word}/clear-audio',   [AdminController::class, 'clearWordAudio']);
-        Route::post('/words/{word}/auto-segment', [AdminController::class, 'autoSegmentWord']);
-        Route::post('/words/{word}/tts',          [AdminController::class, 'generateTtsForWord']);
-        Route::post('/words/auto-segment-all',    [AdminController::class, 'autoSegmentAll']);
-        Route::get('/words/duplicates',           [AdminController::class, 'findDuplicateWords']);
-        Route::get('/audio/check',                [AdminController::class, 'checkAudioUrls']);
-        Route::get('/audio/library',              [AdminController::class, 'audioLibrary']);
-        Route::post('/audio/discover',            [AdminController::class, 'discoverNccdAudio']);
-        Route::post('/audio/auto-map',            [AdminController::class, 'autoMapCurriculum']);
+        Route::post('/words/{word}/auto-segment',  [AdminController::class, 'autoSegmentWord']);
+        Route::post('/words/{word}/tts',           [AdminController::class, 'generateTtsForWord']);
+        Route::post('/words/auto-segment-all',     [AdminController::class, 'autoSegmentAll']);
+        Route::get('/words/duplicates',            [AdminController::class, 'findDuplicateWords']);
+        Route::get('/audio/check',                 [AdminController::class, 'checkAudioUrls']);
+        Route::get('/audio/library',               [AdminController::class, 'audioLibrary']);
+        Route::post('/audio/discover',             [AdminController::class, 'discoverNccdAudio']);
+        Route::post('/audio/auto-map',             [AdminController::class, 'autoMapCurriculum']);
     });
 });

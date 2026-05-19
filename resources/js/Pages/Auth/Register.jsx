@@ -1,149 +1,315 @@
-import React, { useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+import React, { useMemo, useState } from "react";
+import { Link, useForm } from "@inertiajs/react";
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from "lucide-react";
 
-const Register = () => {
-    const { errors } = usePage().props;
-    const [values, setValues] = useState({
+import PageHead from "@/learning/components/ui/PageHead";
+import Logo from "@/learning/components/ui/Logo";
+import { cn } from "@/lib/cn";
+
+/**
+ * Register page.
+ *
+ * Highlights vs the previous version:
+ *   - Inertia `useForm` (processing flag, auto error sync).
+ *   - Real-time password strength meter (length + variety).
+ *   - Show/hide password toggle.
+ *   - Required parental-consent checkbox (COPPA hygiene). Kiddo
+ *     targets first graders so we make the parent confirm they're
+ *     creating the account on the child's behalf.
+ *   - Passwords now require min 8 chars + at least 1 letter + 1 digit
+ *     (matches the new server-side rule).
+ */
+export default function Register({ next }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
         name: "",
         email: "",
         password: "",
         password_confirmation: "",
+        terms_accepted: false,
     });
 
-    const handleChange = (e) =>
-        setValues({ ...values, [e.target.id]: e.target.value });
+    const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = (e) => {
+    // Lightweight password strength scoring. Not a substitute for
+    // server-side rules — purely for UX feedback.
+    const strength = useMemo(() => {
+        const pwd = data.password ?? "";
+        let score = 0;
+        if (pwd.length >= 8) score++;
+        if (/[A-Z]/.test(pwd)) score++;
+        if (/[a-z]/.test(pwd)) score++;
+        if (/\d/.test(pwd)) score++;
+        if (/[^A-Za-z0-9]/.test(pwd)) score++;
+        return score; // 0..5
+    }, [data.password]);
+
+    const strengthLabel = ["Too short", "Weak", "Okay", "Good", "Strong", "Excellent"][strength];
+    const strengthColor = [
+        "bg-slate-200",
+        "bg-rose-400",
+        "bg-amber-400",
+        "bg-yellow-400",
+        "bg-emerald-400",
+        "bg-emerald-600",
+    ][strength];
+
+    const submit = (e) => {
         e.preventDefault();
-        router.post("/register", values);
+        post("/register", {
+            preserveScroll: true,
+            onError: () => reset("password", "password_confirmation"),
+        });
     };
 
     return (
-        <div className="min-h-screen bg-[#F0F4FF] relative flex items-center justify-center p-4">
-            {/* ── زر الرجوع الأخضر ── */}
-            <button
-                onClick={() => router.visit("/")}
-                className="absolute top-4 left-4 sm:top-6 sm:left-6 px-5 py-2 sm:px-6 sm:py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-black rounded-xl shadow-[0_4px_0_#059669] active:translate-y-[4px] active:shadow-none transition-all text-xs sm:text-sm z-50"
+        <main className="relative flex min-h-screen items-center justify-center bg-[#F0F4FF] p-4">
+            <PageHead
+                title="Create your account"
+                description="Join Kiddo and start a friendly English-learning adventure with your child."
+            />
+
+            <Link
+                href="/"
+                className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2 text-xs font-black text-white shadow-juicy transition active:translate-y-0.5 active:shadow-juicy-press sm:left-6 sm:top-6 sm:px-6 sm:py-2.5 sm:text-sm"
             >
-                ← Back to Home
-            </button>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back to Home
+            </Link>
 
-            {/* ── الفورم (مضغوط ومرتب) ── */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-xl border-2 border-white mt-12 sm:mt-0">
-                <div className="text-center mb-5">
-                    <span
-                        className="font-black text-2xl sm:text-3xl cursor-pointer select-none"
-                        onClick={() => router.visit("/")}
-                    >
-                        <span className="text-[#0EA5E9]">Kid</span>
-                        <span className="text-[#FF4B63]">d</span>
-                        <span className="text-[#F59E0B]">o</span>
-                    </span>
-                    <h2 className="text-xl sm:text-2xl font-black text-[#1E293B] mt-2">
-                        Join Kiddo! 🚀
-                    </h2>
-                    <p className="text-xs sm:text-sm font-bold text-gray-500 mt-1">
-                        Start the learning adventure
+            <div className="mt-12 w-full max-w-md rounded-3xl border-2 border-white bg-white p-6 shadow-xl sm:mt-0 sm:p-7">
+                <header className="mb-5 text-center">
+                    <Logo size="md" showMascot className="justify-center" />
+                    <h1 className="mt-2 text-xl font-black text-slate-900 sm:text-2xl">
+                        Join Kiddo!
+                    </h1>
+                    <p className="mt-1 text-xs font-bold text-slate-500 sm:text-sm">
+                        Start the learning adventure together.
                     </p>
-                </div>
+                </header>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                    <div>
-                        <label className="block text-[10px] sm:text-xs font-black text-gray-500 uppercase tracking-widest mb-1 ml-1">
-                            Child's Name
-                        </label>
-                        <input
-                            id="name"
-                            type="text"
-                            value={values.name}
-                            onChange={handleChange}
-                            className="w-full bg-[#F8FAFC] border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#1E293B] outline-none focus:border-[#7C3AED] focus:bg-white transition-colors"
-                            placeholder="e.g. Alex"
-                            required
-                        />
-                        {errors.name && (
-                            <div className="text-red-500 text-[10px] font-bold mt-1 ml-1">
-                                {errors.name}
-                            </div>
-                        )}
-                    </div>
+                <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
+                    <Field
+                        id="name"
+                        label="Child's name"
+                        type="text"
+                        autoComplete="given-name"
+                        value={data.name}
+                        onChange={(v) => setData("name", v)}
+                        placeholder="e.g. Alex"
+                        icon={<User className="h-4 w-4" aria-hidden="true" />}
+                        error={errors.name}
+                        required
+                    />
 
-                    <div>
-                        <label className="block text-[10px] sm:text-xs font-black text-gray-500 uppercase tracking-widest mb-1 ml-1">
-                            Parent Email
-                        </label>
-                        <input
-                            id="email"
-                            type="email"
-                            value={values.email}
-                            onChange={handleChange}
-                            className="w-full bg-[#F8FAFC] border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#1E293B] outline-none focus:border-[#7C3AED] focus:bg-white transition-colors"
-                            placeholder="parent@kiddo.com"
-                            required
-                        />
-                        {errors.email && (
-                            <div className="text-red-500 text-[10px] font-bold mt-1 ml-1">
-                                {errors.email}
-                            </div>
-                        )}
-                    </div>
+                    <Field
+                        id="email"
+                        label="Parent email"
+                        type="email"
+                        autoComplete="email"
+                        value={data.email}
+                        onChange={(v) => setData("email", v)}
+                        placeholder="parent@kiddo.app"
+                        icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+                        error={errors.email}
+                        required
+                    />
 
                     <div>
-                        <label className="block text-[10px] sm:text-xs font-black text-gray-500 uppercase tracking-widest mb-1 ml-1">
-                            Password
-                        </label>
-                        <input
+                        <Field
                             id="password"
-                            type="password"
-                            value={values.password}
-                            onChange={handleChange}
-                            className="w-full bg-[#F8FAFC] border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#1E293B] outline-none focus:border-[#7C3AED] focus:bg-white transition-colors"
-                            placeholder="••••••••"
+                            label="Password"
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="new-password"
+                            value={data.password}
+                            onChange={(v) => setData("password", v)}
+                            placeholder="At least 8 characters"
+                            icon={<Lock className="h-4 w-4" aria-hidden="true" />}
+                            rightAdornment={
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((s) => !s)}
+                                    className="text-slate-400 transition hover:text-slate-600"
+                                    aria-label={
+                                        showPassword ? "Hide password" : "Show password"
+                                    }
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? (
+                                        <EyeOff className="h-4 w-4" aria-hidden="true" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" aria-hidden="true" />
+                                    )}
+                                </button>
+                            }
+                            error={errors.password}
                             required
                         />
-                        {errors.password && (
-                            <div className="text-red-500 text-[10px] font-bold mt-1 ml-1">
-                                {errors.password}
+
+                        {/* Strength meter */}
+                        {data.password.length > 0 && (
+                            <div className="ml-1 mt-1.5">
+                                <div
+                                    className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+                                    role="progressbar"
+                                    aria-valuemin={0}
+                                    aria-valuemax={5}
+                                    aria-valuenow={strength}
+                                >
+                                    <div
+                                        className={cn(
+                                            "h-full transition-all duration-200",
+                                            strengthColor,
+                                        )}
+                                        style={{ width: `${(strength / 5) * 100}%` }}
+                                    />
+                                </div>
+                                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                                    Password strength: {strengthLabel}
+                                </p>
                             </div>
                         )}
                     </div>
 
-                    <div>
-                        <label className="block text-[10px] sm:text-xs font-black text-gray-500 uppercase tracking-widest mb-1 ml-1">
-                            Confirm Password
-                        </label>
+                    <Field
+                        id="password_confirmation"
+                        label="Confirm password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={data.password_confirmation}
+                        onChange={(v) => setData("password_confirmation", v)}
+                        placeholder="Type your password again"
+                        icon={<Lock className="h-4 w-4" aria-hidden="true" />}
+                        error={errors.password_confirmation}
+                        required
+                    />
+
+                    {/* Parental consent — required by validation. */}
+                    <label className="mt-1 flex cursor-pointer items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700">
                         <input
-                            id="password_confirmation"
-                            type="password"
-                            value={values.password_confirmation}
-                            onChange={handleChange}
-                            className="w-full bg-[#F8FAFC] border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold text-[#1E293B] outline-none focus:border-[#7C3AED] focus:bg-white transition-colors"
-                            placeholder="••••••••"
+                            type="checkbox"
+                            checked={data.terms_accepted}
+                            onChange={(e) => setData("terms_accepted", e.target.checked)}
+                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                             required
                         />
-                    </div>
+                        <span>
+                            I'm a parent or legal guardian and I accept the{" "}
+                            <Link
+                                href="/help#terms"
+                                className="text-purple-700 underline hover:no-underline"
+                            >
+                                Terms
+                            </Link>{" "}
+                            and{" "}
+                            <Link
+                                href="/help#privacy"
+                                className="text-purple-700 underline hover:no-underline"
+                            >
+                                Privacy Policy
+                            </Link>
+                            .
+                        </span>
+                    </label>
+                    {errors.terms_accepted && (
+                        <p
+                            role="alert"
+                            className="ml-1 -mt-2 text-[10px] font-bold text-rose-600"
+                        >
+                            {errors.terms_accepted}
+                        </p>
+                    )}
+
+                    {next && <input type="hidden" name="next" value={next} />}
 
                     <button
                         type="submit"
-                        className="mt-2 w-full bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-black rounded-xl py-3 shadow-[0_4px_0_#5B21B6] active:translate-y-[4px] active:shadow-none transition-all text-sm"
+                        disabled={processing}
+                        className={cn(
+                            "mt-2 w-full rounded-xl bg-purple-700 py-3 text-sm font-black text-white shadow-juicy transition",
+                            "hover:bg-purple-800 active:translate-y-0.5 active:shadow-juicy-press",
+                            "disabled:cursor-not-allowed disabled:opacity-70",
+                            "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-300/70",
+                        )}
                     >
-                        Create Account
+                        {processing ? "Creating account…" : "Create account"}
                     </button>
                 </form>
 
-                <p className="text-center mt-5 text-xs sm:text-sm font-bold text-gray-500">
+                <p className="mt-5 text-center text-xs font-bold text-slate-500 sm:text-sm">
                     Already have an account?{" "}
-                    <button
-                        type="button"
-                        onClick={() => router.visit("/login")}
-                        className="text-[#10B981] font-black hover:underline"
+                    <Link
+                        href="/login"
+                        className="font-black text-emerald-600 hover:underline"
                     >
                         Log in here
-                    </button>
+                    </Link>
                 </p>
             </div>
+        </main>
+    );
+}
+
+function Field({
+    id,
+    label,
+    type,
+    value,
+    onChange,
+    placeholder,
+    icon,
+    rightAdornment,
+    error,
+    autoComplete,
+    required,
+}) {
+    return (
+        <div>
+            <label
+                htmlFor={id}
+                className="ml-1 mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500 sm:text-xs"
+            >
+                {label}
+            </label>
+            <div className="relative">
+                {icon && (
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        {icon}
+                    </span>
+                )}
+                <input
+                    id={id}
+                    name={id}
+                    type={type}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    autoComplete={autoComplete}
+                    placeholder={placeholder}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? `${id}-error` : undefined}
+                    required={required}
+                    className={cn(
+                        "w-full rounded-xl border-2 border-slate-100 bg-slate-50 py-2.5 text-sm font-bold text-slate-900 outline-none transition-colors",
+                        "focus:border-purple-600 focus:bg-white",
+                        icon ? "pl-10" : "pl-4",
+                        rightAdornment ? "pr-10" : "pr-4",
+                        error && "border-rose-300 bg-rose-50",
+                    )}
+                />
+                {rightAdornment && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {rightAdornment}
+                    </span>
+                )}
+            </div>
+            {error && (
+                <p
+                    id={`${id}-error`}
+                    role="alert"
+                    className="ml-1 mt-1 text-[10px] font-bold text-rose-600"
+                >
+                    {error}
+                </p>
+            )}
         </div>
     );
-};
-
-export default Register;
+}

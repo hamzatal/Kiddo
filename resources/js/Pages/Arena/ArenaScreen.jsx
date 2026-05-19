@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
+import PageHead from "@/learning/components/ui/PageHead";
 import OptionCard from "@/learning/components/ui/OptionCard";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
@@ -153,6 +154,10 @@ const ArenaScreen = ({ arena }) => {
     return (
         <div ref={containerRef}
             className="h-[100dvh] w-screen font-sans flex flex-col overflow-hidden relative bg-gradient-to-br from-purple-50 via-white to-amber-50">
+            <PageHead
+                title="Games Arena"
+                description="Mixed-review games drawn from every Kiddo unit you've unlocked."
+            />
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
                 <div className="absolute top-[-5%] left-[-5%] w-72 h-72 bg-purple-200/40 rounded-full blur-3xl" />
                 <div className="absolute bottom-[-5%] right-[-5%] w-64 h-64 bg-amber-200/40 rounded-full blur-3xl" />
