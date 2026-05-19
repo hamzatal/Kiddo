@@ -237,7 +237,7 @@ class LessonDeckBuilder
      * the card still displays something delightful instead of a
      * coloured letter tile.
      */
-    private function resolveImage(Word $w): ?string
+    private function resolveImage(Word $w): string
     {
         if ($w->exists) {
             return $w->imageUrl();
@@ -255,11 +255,10 @@ class LessonDeckBuilder
                 return '/' . $rel;
             }
         }
-        if ($w->word) {
-            $slug = rawurlencode(preg_replace('/[^A-Za-z0-9 ]+/', '', $w->word));
-            return "/api/word-svg-by-text/{$slug}.svg";
-        }
-        return null;
+        // Always return a usable URL — never null.
+        $text = $w->word ?: 'word';
+        $slug = rawurlencode(preg_replace('/[^A-Za-z0-9 ]+/', '', $text));
+        return "/api/word-svg-by-text/{$slug}.svg";
     }
 
     private function pickDecoys(Word $target, int $n, string $pool, int $unitId): Collection

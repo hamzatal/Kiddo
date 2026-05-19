@@ -141,15 +141,9 @@ const UnitNode = ({ unit, onClick }) => {
             {/* Stars / hint pill (below) */}
             <div className="relative z-20 -mt-1 flex flex-col items-center gap-1 pointer-events-none">
                 {isDone && stars > 0 && (
-                    <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border border-amber-100 flex items-center gap-0.5">
-                        {stars <= 3 ? (
-                            Array.from({ length: stars }).map((_, i) => <span key={i} className="text-xs">⭐</span>)
-                        ) : (
-                            <>
-                                <span className="text-xs">⭐</span>
-                                <span className="text-[10px] font-black text-amber-600 ml-0.5">×{stars}</span>
-                            </>
-                        )}
+                    <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border border-amber-100 flex items-center gap-1">
+                        <span className="text-xs">⭐</span>
+                        <span className="text-[10px] font-black text-amber-600">{stars}</span>
                     </span>
                 )}
                 {isActive && (

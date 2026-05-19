@@ -57,28 +57,44 @@ class Word extends Model
      * The frontend SmartImage's onError handler still kicks in if
      * even the SVG endpoint fails, so we have three layers of safety.
      */
-    public function imageUrl(): ?string
+    public function imageUrl(): string
     {
         $path = $this->image_path;
+
+        // No path set at all → guaranteed dynamic SVG fallback.
         if (! $path) {
-            return $this->id ? "/api/word-svg/{$this->id}.svg" : null;
+            return $this->id
+                ? "/api/word-svg/{$this->id}.svg"
+                : "/api/word-svg-by-text/" . rawurlencode($this->word ?? 'word') . ".svg";
         }
 
+        // Absolute URL (admin pasted a CDN link, etc.)
         if (preg_match('~^https?://~i', $path)) {
             return $path;
         }
 
         $rel = ltrim($path, '/');
         $abs = public_path($rel);
+
+        // File exists on disk → serve it with a cache-bust timestamp
+        // so re-uploads take effect without a hard-refresh.
         if (is_file($abs)) {
-            // Cache-bust by mtime so re-uploaded images take effect
-            // without forcing the kid to hard-refresh.
             $v = @filemtime($abs);
             return '/' . $rel . ($v ? '?v=' . $v : '');
         }
 
-        // Fall through to the dynamic SVG so every card has art.
-        return $this->id ? "/api/word-svg/{$this->id}.svg" : '/' . $rel;
+        // File DOESN'T exist (very common for the Welcome unit —
+        // numbers/colours/characters have paths like
+        // "assets/lessons/welcome/six.png" seeded by the curriculum
+        // but no actual PNG uploaded yet). Rather than serve a path
+        // that will 404 (which triggers SmartImage fallback with a
+        // round-trip and a console error), jump straight to the
+        // guaranteed dynamic SVG. The SVG uses the curated emoji map
+        // (1️⃣ for "one", 🟥 for "red", etc.) so the kid always sees
+        // a meaningful, category-appropriate card.
+        return $this->id
+            ? "/api/word-svg/{$this->id}.svg"
+            : "/api/word-svg-by-text/" . rawurlencode(preg_replace('/[^A-Za-z0-9 ]+/', '', $this->word ?? '')) . ".svg";
     }
 
     /**
