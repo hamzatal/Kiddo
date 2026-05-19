@@ -6,15 +6,20 @@ export default {
     ],
 
     // Kiddo is a LIGHT-ONLY product (school audience, parents on
-    // shared devices, accessibility consistency). We disable
-    // Tailwind's dark-mode variants entirely so any stray
-    // `dark:bg-slate-900` utility added by mistake is treated as
-    // unknown — far safer than letting a half-applied dark theme
-    // leak through. The matching `<meta name="color-scheme"
-    // content="light only">` in app.blade.php and the
-    // `:root { color-scheme: light }` rule in app.css extend this
-    // contract to native form controls + scrollbars.
-    darkMode: ["selector", '[data-kiddo-theme="dark"]'],
+    // shared devices, accessibility consistency).
+    //
+    // We keep `darkMode: "class"` here — the historical default —
+    // because we never apply a `.dark` class anywhere in the React
+    // tree, so every `dark:` variant is silently inert. The actual
+    // mechanism that prevents the OS dark theme from leaking into
+    // native form controls lives in two places:
+    //   • <meta name="color-scheme" content="light"> in app.blade.php
+    //   • :root { color-scheme: light } in resources/css/app.css
+    // Combined, those two declarations stop Chrome / Edge / Safari
+    // from auto-darkening `<input>`, `<select>`, scrollbars, etc.
+    // when the visitor's OS is in dark mode — which is the bug the
+    // operator reported as "بعض الحقول لونها دارك".
+    darkMode: "class",
 
     theme: {
         // FIX: add a tighter `xs` breakpoint so the home hero
