@@ -12,12 +12,15 @@ import path from "node:path";
  *    but trips up TypeScript LSPs, ESLint, and Vitest. Declaring
  *    the alias here makes every tool agree on what `@/` means.
  *  - We co-locate React + ReactDOM + Inertia in one vendor chunk.
- *    Splitting them into separate chunks (the previous setup) is a
- *    classic foot-gun: `@inertiajs/react` evaluates `React.createContext(...)`
- *    at module-load time, so if the inertia chunk loads before the
- *    react chunk you get the cryptic
- *      "Cannot read properties of null (reading 'createProvider')"
- *    runtime error. Keeping them in one chunk eliminates the race.
+ *    React, react-dom and `@inertiajs/react` share a context graph
+ *    (HeadContext, PageContext) at module-evaluation time, so
+ *    splitting them into separate vendor bundles introduces a
+ *    load-order race that's hard to debug. One chunk = one
+ *    evaluation order = no surprises.
+ *  - `resolve.dedupe` makes sure a transitive dependency that
+ *    declares `react` as a peer can't accidentally pull a second
+ *    React copy — two React instances share zero context and any
+ *    `useContext()` call against the "other" React returns null.
  *  - `build.target = es2020` lets us ship modern syntax (no
  *    polyfills) while still working on every browser shipped in
  *    the last ~5 years — well above the "kids on a school tablet"
@@ -37,10 +40,7 @@ export default defineConfig(({ mode }) => ({
             "@": path.resolve(__dirname, "resources/js"),
             "@css": path.resolve(__dirname, "resources/css"),
         },
-        // Force a single React copy across the whole graph. Some
-        // sub-deps still ship their own React peer reference; without
-        // this, Vite can resolve two copies and `useContext` returns
-        // null — same root-cause family as the createProvider error.
+        // Force a single React copy across the whole module graph.
         dedupe: ["react", "react-dom", "@inertiajs/react"],
     },
 
@@ -63,7 +63,7 @@ export default defineConfig(({ mode }) => ({
             output: {
                 manualChunks: {
                     // Single chunk for React + Inertia. See header
-                    // comment for why these can NOT be split.
+                    // comment for why we keep these together.
                     "react-vendor": [
                         "react",
                         "react-dom",
