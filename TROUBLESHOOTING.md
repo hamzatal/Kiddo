@@ -4,47 +4,35 @@ Quick fixes for the most common Kiddo dev-environment failures.
 
 ## Browser shows: "Cannot read properties of null (reading 'createProvider')"
 
-**Root cause:** `@inertiajs/react` evaluates `React.createContext(...)` at
-module-load time. If the build splits React and Inertia into separate
-vendor chunks, those chunks can be evaluated in the wrong order — and
-React is `null` when Inertia first reaches for it.
+**Stack trace points at `Head.ts:14:47`**, which is the line inside
+`@inertiajs/react`:
 
-**Permanent fix (already applied on `main`):** `vite.config.js` now bundles
-React, ReactDOM, and `@inertiajs/react` into a single `react-vendor`
-chunk and adds them to `optimizeDeps.include` + `resolve.dedupe`. There
-is no longer a way for them to load out of order.
-
-**If you're still seeing it on your machine** it's almost always a stale
-build artifact. From the project root:
-
-```powershell
-# Windows
-powershell -ExecutionPolicy Bypass -File .\scripts\clean-reset.ps1
+```ts
+const provider = useMemo(() => headManager.createProvider(), [headManager])
 ```
 
-```bash
-# macOS / Linux
-rm -rf node_modules package-lock.json .vite public/build
-npm install --no-audit --no-fund
-npm run build
-```
+`headManager` comes from `useContext(HeadContext)`. The `<App>` Inertia
+hands you in `setup({ App, ... })` is the component that mounts
+`<HeadContext.Provider value={headManager}>`. If `<Head />` is rendered
+**outside** `<App>` it falls back to the context's default value of
+`null`, and `null.createProvider()` throws.
 
-Then clear Laravel's caches:
+**Permanent fix (already applied on `main`):** `resources/js/app.jsx`
+no longer renders a stand-alone `<Head title="" />` next to `<App>`.
+The default page title is configured via the `title:` callback on
+`createInertiaApp(...)`, which Inertia honours without needing a root
+`<Head>` element. Pages that want to override the title still render
+their own `<Head>` from inside the page component, where the context
+is available.
 
-```
-php artisan config:clear
-php artisan view:clear
-php artisan route:clear
-```
-
-Hard-reload the page (Ctrl+F5 / Cmd+Shift+R) so the browser drops the
-old JS bundle.
+If you want to add another root-level `<Head>` in the future, render
+it inside `<App>`, never as a sibling.
 
 ## `npm ci` fails with "Missing: <package> from lock file"
 
 The `package-lock.json` shipped with the repo was deliberately removed
-on the `fix/lockfile-and-build-stability` branch because it was out of
-sync with `package.json` (~95% of declared deps were missing from it).
+when the lockfile got out of sync with `package.json` (~95% of declared
+deps were missing from it).
 
 **Fix:** run `npm install` (NOT `npm ci`) to regenerate the lockfile,
 then commit the regenerated lockfile so other devs and CI can use
@@ -70,6 +58,27 @@ powershell -ExecutionPolicy Bypass -File .\scripts\clean-reset.ps1
 ```
 
 If that still fails, close VS Code completely and re-run the script.
+
+## Browser shows: "SQLSTATE[42S02]: ... Table 'kiddo.cache' doesn't exist"
+
+The project's `config/cache.php` defaults to the `database` driver and
+`StreakService::summary()` / `DailyQuestService::for()` use
+`Cache::remember(...)`. The migrations for the `cache`, `cache_locks`,
+`jobs`, `job_batches`, and `failed_jobs` tables ship with the repo;
+just run them:
+
+```
+php artisan migrate
+```
+
+If you'd rather skip the database driver entirely, change `.env`:
+
+```
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+```
+
+…then `php artisan config:clear`.
 
 ## Never run `npm audit fix --force`
 
