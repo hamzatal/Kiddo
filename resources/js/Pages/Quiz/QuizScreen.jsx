@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageHead from "@/learning/components/ui/PageHead";
+import StreakCelebration from "@/learning/components/ui/StreakCelebration";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
@@ -232,6 +233,10 @@ const QuizScreen = ({ quizData }) => {
             {!isFinished && ai?.enabled !== undefined && currentQ?.targetWordId ? (
                 <FoxHelper unitId={unitId} wordId={currentQ.targetWordId} aiEnabled={ai.enabled} />
             ) : null}
+
+            {/* Streak celebration toast — fires once per session when the
+                quiz submission ticks the streak counter up. */}
+            <StreakCelebration />
 
             <style>{`
                 @keyframes slideIn {

@@ -111,6 +111,11 @@ class ProgressService
         $user->increment('xp', $xp);
         $user->increment('total_stars', $stars);
 
+        // Streak + Daily Quest: bust the per-user caches so the very
+        // next Inertia response shows the new streak day / quest
+        // progress without waiting for the 60-second TTL to expire.
+        $this->bustEngagementCaches($user);
+
         $isLastLesson = $progress->current_lesson > (int) $unit->lessons_count;
 
         return [
@@ -120,6 +125,22 @@ class ProgressService
             'next'             => $isLastLesson ? 'quiz' : 'lesson',
             'nextLessonNumber' => $isLastLesson ? null : $progress->current_lesson,
         ];
+    }
+
+    /**
+     * Forget the cached streak + daily-quest summaries for this user
+     * so the next page render reflects the just-recorded result.
+     * Kept private + best-effort: if the cache backend is unavailable
+     * we silently skip — the TTL guarantees eventual freshness.
+     */
+    private function bustEngagementCaches(User $user): void
+    {
+        try {
+            app(\App\Services\StreakService::class)->bust($user);
+            app(\App\Services\DailyQuestService::class)->bust($user);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::debug('Streak cache bust skipped: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -163,6 +184,10 @@ class ProgressService
 
         $user->increment('xp', $xp);
         $user->increment('total_stars', $stars);
+
+        // Same as recordLessonResult — refresh the streak + quest
+        // numbers so the post-quiz redirect shows the new state.
+        $this->bustEngagementCaches($user);
 
         $nextUnitId = null;
         if ($passed) {

@@ -18,6 +18,8 @@ import PolicyModal, {
     PrivacyPolicyContent,
     TermsOfUseContent,
 } from "@/learning/components/ui/PolicyModal";
+import StreakBadge from "@/learning/components/ui/StreakBadge";
+import StreakCelebration from "@/learning/components/ui/StreakCelebration";
 import MascotBuddy from "@/learning/components/ai/MascotBuddy";
 
 /**
@@ -185,7 +187,17 @@ export default function AppLayout({
                                 Login / Register
                             </Link>
                         ) : (
-                            <div className="relative" ref={userMenuRef}>
+                            <>
+                                {/* Streak pill — sits to the LEFT of the user
+                                    chip so the navbar reads
+                                    "🔥 5 days · [avatar] Hamza ▾". Hidden on
+                                    very narrow tablets to make room for the
+                                    user pill. */}
+                                <div className="hidden md:block">
+                                    <StreakBadge size="sm" />
+                                </div>
+
+                                <div className="relative" ref={userMenuRef}>
                                 <button
                                     type="button"
                                     onClick={() => setUserMenuOpen((v) => !v)}
@@ -251,6 +263,7 @@ export default function AppLayout({
                                     </div>
                                 )}
                             </div>
+                            </>
                         )}
                     </div>
 
@@ -313,6 +326,10 @@ export default function AppLayout({
                                         <span className="truncate text-sm font-black text-slate-900">
                                             {currentUser.name}
                                         </span>
+                                    </div>
+                                    {/* Streak pill on mobile drawer */}
+                                    <div className="px-1">
+                                        <StreakBadge size="md" className="w-full justify-start" />
                                     </div>
                                     {currentUser.isAdmin && (
                                         <Link
@@ -443,6 +460,10 @@ export default function AppLayout({
 
             {/* Global mascot — only when signed in and not suppressed. */}
             {currentUser && showMascot ? <MascotBuddy /> : null}
+
+            {/* Streak celebration — fires once per session whenever the
+                shared streak prop ticks up (Streaks + Daily Quest feature). */}
+            {currentUser ? <StreakCelebration /> : null}
 
             {/* Privacy / Terms modals */}
             <PolicyModal
