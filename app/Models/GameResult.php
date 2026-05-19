@@ -19,6 +19,14 @@ class GameResult extends Model
         'wrong_count',
         'score',
         'meta',
+        // Mass-assignable so seeders, the StreakService test suite,
+        // and any future history-back-fill commands can plant rows
+        // at deterministic timestamps. Eloquent's updateTimestamps()
+        // already skips overwriting either column when it's marked
+        // dirty by fill(), so passing an explicit value through
+        // GameResult::create([...]) is honoured exactly.
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [

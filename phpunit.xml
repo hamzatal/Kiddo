@@ -21,13 +21,29 @@
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
+        <!--
+            CACHE / SESSION / QUEUE: pin to in-memory drivers so
+            tests don't try to read a `cache` / `sessions` / `jobs`
+            table that might not exist yet (we have migrations for
+            them now, but in-memory keeps tests fast and isolated).
+        -->
         <env name="CACHE_STORE" value="array"/>
-        <!-- <env name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <env name="DB_DATABASE" value=":memory:"/> -->
-        <env name="MAIL_MAILER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+
+        <!--
+            Force SQLite in-memory for the test suite. We previously
+            had this commented out, which meant tests inherited the
+            DB_CONNECTION value from .env and could end up trying to
+            talk to a real MySQL server when one wasn't available.
+            :memory: is fastest and survives a `RefreshDatabase` reset
+            cleanly.
+        -->
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
     </php>
 </phpunit>

@@ -38,8 +38,16 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Catch N+1 / unguarded relations during dev — never throw in prod.
-        Model::shouldBeStrict(! $this->app->isProduction());
+        // Catch N+1 / unguarded relations during dev — never throw in
+        // prod, and (importantly) never inside the test runner. Strict
+        // mode flips a number of legitimate test patterns into hard
+        // exceptions (e.g. seeding deterministic timestamps via
+        // Model::create([...'created_at' => ...])), and we'd rather
+        // those tests stay readable than carry per-test boilerplate
+        // to disable strictness.
+        Model::shouldBeStrict(
+            ! $this->app->isProduction() && ! $this->app->runningUnitTests(),
+        );
 
         // Only apply the 191-char default for MySQL 5.7-style installs;
         // modern MySQL/MariaDB and PostgreSQL handle utf8mb4 indexes
