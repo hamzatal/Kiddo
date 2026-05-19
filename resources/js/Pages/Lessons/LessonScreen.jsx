@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
+import PageHead from "@/learning/components/ui/PageHead";
 
 import { resolveMode, modeMeta, LESSON_STAGES } from "@/learning/core/lessonEngine";
 import { playClick, playCheer, playStarCollect, playMagic } from "@/learning/utils/soundEffects";
@@ -188,6 +189,10 @@ const LessonScreen = (props) => {
 
     return (
         <div className="h-[100dvh] w-screen font-sans flex flex-col relative overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-amber-50">
+            <PageHead
+                title={`${safeUnit?.title ?? "Lesson"} · Lesson ${currentLesson}`}
+                description="Learn new English words with Kiddo through fun, audio-rich mini-games."
+            />
             {/* Decorative background blobs — fully behind the play area */}
             <div className="absolute inset-0 pointer-events-none z-0">
                 <div className="absolute top-[20%] right-[-5%] w-72 h-72 sm:w-96 sm:h-96 bg-purple-100/40 rounded-full blur-3xl" />

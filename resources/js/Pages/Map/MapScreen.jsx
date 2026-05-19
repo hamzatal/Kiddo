@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
-
-/**
- * MapScreen — Adventure map (Kiddo v3).
+import PageHead from "@/learning/components/ui/PageHead";
  *
  * Hard layout rules this rewrite enforces:
  *   1. The whole page fits inside one viewport (h:100dvh) — no
@@ -260,6 +258,10 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
 
     return (
         <div className="h-[100dvh] w-screen flex flex-col overflow-hidden bg-gradient-to-b from-sky-100 via-blue-50 to-indigo-50 font-sans">
+            <PageHead
+                title="Adventure Map"
+                description="Travel the Kiddo learning map and unlock new English units lesson by lesson."
+            />
             {/* ─── HEADER ─────────────────────────────────────── */}
             <header className="h-14 sm:h-16 lg:h-[68px] shrink-0 bg-white/95 backdrop-blur-2xl border-b border-gray-100 shadow-sm flex items-center z-50">
                 <div className="w-full px-3 sm:px-5 lg:px-6 flex items-center justify-between gap-2 sm:gap-3">

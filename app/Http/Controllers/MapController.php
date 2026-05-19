@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Unit;
 use App\Models\UserProgress;
+use App\Services\UnitAccessService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class MapController extends Controller
 {
+    public function __construct(private readonly UnitAccessService $access)
+    {
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -16,72 +21,54 @@ class MapController extends Controller
         // Make sure the very first unit (U0) has a progress row so the
         // learner can start immediately.
         $firstUnit = Unit::orderBy('unit_number')->first();
-        if ($firstUnit && !$user->progresses()->where('unit_id', $firstUnit->id)->exists()) {
-            UserProgress::create([
-                'user_id'        => $user->id,
-                'unit_id'        => $firstUnit->id,
-                'status'         => 'active',
-                'current_lesson' => 1,
-                'stars_earned'   => 0,
-            ]);
+        if ($firstUnit) {
+            UserProgress::firstOrCreate(
+                ['user_id' => $user->id, 'unit_id' => $firstUnit->id],
+                [
+                    'status'         => 'active',
+                    'current_lesson' => 1,
+                    'stars_earned'   => 0,
+                ],
+            );
         }
 
-        $unitsRaw = Unit::orderBy('unit_number')->with('lessons')->get();
+        // FIX (N+1): the previous version called
+        //   $user->progresses()->where('unit_id', $u->id)->first()
+        // inside a `map()` over every unit — turning the page load
+        // into 1 + N queries. UnitAccessService now eager-loads all
+        // progresses in a single query and indexes them by unit_id.
+        $unitsRaw = Unit::orderBy('unit_number')
+            ->withCount('lessons')
+            ->get();
 
-        // Strict sequential unlocking (FIX 6):
-        //   - unit_number 0  -> always active/done
-        //   - unit N > 0     -> locked unless previous unit's progress is 'done'
-        // We walk units in order so we can consult the previously-computed
-        // unit's status for the lock rule.
-        $prevStatus = 'done'; // treat the "before U0" state as done so U0 unlocks.
+        $annotated = $this->access->annotate($unitsRaw, $user);
 
-        $units = $unitsRaw->map(function (Unit $unit) use ($user, &$prevStatus) {
-            $progress = $user->progresses()
-                ->where('unit_id', $unit->id)
-                ->first();
-
-            $storedStatus = $progress->status ?? null;
-
-            if ((int) $unit->unit_number === 0) {
-                // Welcome unit: always either active or done.
-                $status = $storedStatus === 'done' ? 'done' : 'active';
-            } else {
-                if ($storedStatus === 'done') {
-                    $status = 'done';
-                } elseif ($prevStatus === 'done') {
-                    $status = 'active';
-                } else {
-                    $status = 'locked';
-                }
-            }
-
-            $prevStatus = $status;
-
+        $units = $annotated->map(function (array $row) {
+            $unit     = $row['unit'];
+            $progress = $row['progress'];
             return [
-                'id'            => $unit->id,
-                'number'        => $unit->unit_number,
-                'title'         => $unit->title,
-                'lessonsCount'  => $unit->lessons_count,
-                'currentLesson' => $progress->current_lesson ?? 1,
-                'status'        => $status,
-                'stars'         => $progress->stars_earned ?? 0,
-                'stars_earned'  => $progress->stars_earned ?? 0,
-                // Map placement is now driven by the DB so the admin
-                // can move/resize a pin without code changes. Falls
-                // back to a sensible auto-layout if the columns are
-                // unset (e.g. brand-new unit before the admin saved).
-                'image_path'    => $unit->image_path,
-                'color_key'     => $unit->color_key,
-                'map_x'         => $unit->map_x,
-                'map_y'         => $unit->map_y,
-                'map_size'      => $unit->map_size,
+                'id'             => $unit->id,
+                'number'         => $unit->unit_number,
+                'title'          => $unit->title,
+                'lessonsCount'   => (int) $unit->lessons_count,
+                'currentLesson'  => $row['current_lesson'],
+                'status'         => $row['status'],
+                'stars'          => $row['stars_earned'],
+                'stars_earned'   => $row['stars_earned'],
+                // Map placement is DB-driven so the admin can reposition
+                // a pin without code changes.
+                'image_path'     => $unit->image_path,
+                'color_key'      => $unit->color_key,
+                'map_x'          => $unit->map_x,
+                'map_y'          => $unit->map_y,
+                'map_size'       => $unit->map_size,
                 'map_image_path' => $unit->map_image_path ?: $unit->image_path,
             ];
         });
 
         $completedUnitsCount = $units->where('status', 'done')->count();
 
-        // آخر وحدة/درس نشط
+        // Latest active unit (for the sidebar's "Today's mission" tile).
         $activeProgress = $user->progresses()
             ->with('unit')
             ->where('status', 'active')
@@ -98,22 +85,11 @@ class MapController extends Controller
 
         $totalStars = $units->sum('stars_earned');
 
-        // Games Arena (mixed-review playground) unlocks the moment
-        // the learner has finished at least one lesson — i.e. has
-        // a UserProgress with current_lesson > 1 OR status='done'.
-        // We also unlock it when *any* word exists in unlocked
-        // units so the kid never lands on an empty Arena room.
+        // Arena unlocks once at least one lesson has been cleared.
         $arenaUnlocked = $units->contains(fn ($u) => $u['status'] === 'done')
-            || (bool) $user->progresses()
-                ->where(function ($q) {
-                    $q->where('current_lesson', '>', 1)->orWhere('status', 'done');
-                })->exists();
+            || $this->access->arenaUnlocked($user);
 
-        // Position the Arena pin to the LEFT of Unit 2 (the user's
-        // explicit request). We compute "left of U2" dynamically by
-        // looking up U2's map_x in the units payload — if the admin
-        // moves U2 later, the Arena pin follows it. If U2 isn't
-        // placed yet, we default to a sensible spot near the centre.
+        // Position the Arena pin to the left of Unit 2.
         $u2 = $units->firstWhere('number', 2);
         $arenaX = $u2 && $u2['map_x'] !== null ? max(8, (float) $u2['map_x'] - 18) : 38;
         $arenaY = $u2 && $u2['map_y'] !== null ? (float) $u2['map_y'] : 50;

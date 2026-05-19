@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import AppLayout from "@/Layouts/AppLayout";
+import PageHead from "@/learning/components/ui/PageHead";
 import HelpAIChat from "@/learning/components/ai/HelpAIChat";
 
 const ContactInfoCard = ({ emoji, title, value, sub, bg, textColor }) => (
@@ -150,6 +151,10 @@ const HelpCenter = () => {
 
     return (
         <AppLayout active="help">
+            <PageHead
+                title="Help Center"
+                description="FAQs, contact details, and an AI assistant for parents using Kiddo."
+            />
             <div
                 id="help-inner-scroll"
                 className="h-full w-full overflow-y-auto overflow-x-hidden font-sans"

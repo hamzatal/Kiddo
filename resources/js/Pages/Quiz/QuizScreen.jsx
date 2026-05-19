@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { router, usePage } from "@inertiajs/react";
+import PageHead from "@/learning/components/ui/PageHead";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
@@ -121,6 +122,10 @@ const QuizScreen = ({ quizData }) => {
 
     return (
         <div ref={containerRef} className="h-[100dvh] w-screen font-sans flex flex-col overflow-hidden relative bg-gradient-to-br from-indigo-50 via-white to-amber-50">
+            <PageHead
+                title={`${unitTitle} Quiz`}
+                description="Show what you've learned in this Kiddo unit and earn stars!"
+            />
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
                 <div className="absolute top-[-5%] left-[-5%] w-72 h-72 bg-blue-200/40 rounded-full blur-3xl" />
                 <div className="absolute bottom-[-5%] right-[-5%] w-72 h-72 bg-purple-200/40 rounded-full blur-3xl" />
