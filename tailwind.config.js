@@ -5,9 +5,16 @@ export default {
         "./resources/**/*.{js,jsx,ts,tsx}",
     ],
 
-    // FIX: enable class-based dark mode so the parent dashboard /
-    // admin panel can offer a comfortable night theme.
-    darkMode: "class",
+    // Kiddo is a LIGHT-ONLY product (school audience, parents on
+    // shared devices, accessibility consistency). We disable
+    // Tailwind's dark-mode variants entirely so any stray
+    // `dark:bg-slate-900` utility added by mistake is treated as
+    // unknown — far safer than letting a half-applied dark theme
+    // leak through. The matching `<meta name="color-scheme"
+    // content="light only">` in app.blade.php and the
+    // `:root { color-scheme: light }` rule in app.css extend this
+    // contract to native form controls + scrollbars.
+    darkMode: ["selector", '[data-kiddo-theme="dark"]'],
 
     theme: {
         // FIX: add a tighter `xs` breakpoint so the home hero

@@ -299,11 +299,17 @@ const SegmentEditor = ({
     //
     // When the linked NCCD track has no clear pronunciation of this
     // word (or the audio is missing entirely), the operator can ask
-    // OpenAI's tts-1-hd model with the warm "shimmer" voice to
-    // synthesise a fresh clip. The resulting mp3 is stored at
-    // /assets/audio/tts/word_{id}.mp3 and the Word's audio_path is
-    // pointed at it. Children then hear the same warm, clearly-
-    // articulated voice everywhere the word appears.
+    // OpenAI's `gpt-4o-mini-tts` model (with `tts-1-hd` as fallback)
+    // to synthesise a fresh clip using the configured default voice
+    // — currently `alloy` for its crystal-clear articulation, the
+    // single most important quality when a six-year-old is hearing
+    // the word for the very first time. The resulting mp3 is stored
+    // at /assets/audio/tts/word_{id}.mp3 and the Word's audio_path
+    // is pointed at it.
+    //
+    // The voice + personality can be customised per-word via the
+    // dedicated AudioPanel (✨ AI voice tab); this button uses the
+    // smart default from the server's services.openai.voice config.
     //
     // We POST to /admin/words/{id}/tts (already wired in routes/web.php)
     // which returns { ok, audio_path }. After a successful generation
@@ -314,9 +320,10 @@ const SegmentEditor = ({
         if (!wordId) return;
         if (!confirm(
             "Generate a fresh child-friendly voice clip for this word?\n\n" +
-            "This calls OpenAI tts-1-hd (~$0.001) and replaces any " +
-            "existing per-word audio file. The browser will reload " +
-            "so the new clip plays immediately."
+            "Uses the configured default OpenAI voice (Alloy by default — " +
+            "swap in a different voice from the AudioPanel if you prefer). " +
+            "Replaces any existing per-word audio file. The browser will " +
+            "reload so the new clip plays immediately."
         )) return;
 
         setTtsBusy(true);

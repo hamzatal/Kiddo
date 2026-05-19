@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AudioTrack;
 use App\Models\Word;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -30,6 +31,13 @@ use Illuminate\Support\Facades\Log;
 class AudioSegmentationService
 {
     private const WHISPER_ENDPOINT = 'https://api.openai.com/v1/audio/transcriptions';
+
+    /**
+     * Where we cache verbose Whisper transcripts so we don't pay for
+     * the same track twice across the lifetime of the project. JSON
+     * blobs keyed by track code under storage/app/audio_cache/.
+     */
+    private const TRANSCRIPT_CACHE_DIR = 'audio_cache';
 
     public function __construct(
         private readonly ?string $apiKey = null,
@@ -144,6 +152,352 @@ class AudioSegmentationService
             'total'   => $words->count(),
             'words'   => $details,
         ];
+    }
+
+
+    /**
+     * Cross-curriculum auto-segment.
+     *
+     * The user request: "the AI should hear every unit's audio and
+     * the entire material's audio with all its branches, then match
+     * the audio against the existing words". The original
+     * `segmentTrack()` only matches the words explicitly linked to
+     * a single track via `audio_track_id`, so a freshly-added Word
+     * (or a Word still pending an audio binding) was always invisible
+     * to the matcher.
+     *
+     * This method walks every AudioTrack the project knows about,
+     * transcribes each one ONCE (cached on disk under
+     * storage/app/audio_cache/{code}.transcript.json so re-runs are
+     * effectively free), and then for every Word in the database
+     * scans those transcripts for the best match. The best match
+     * wins by:
+     *
+     *     1. Match quality:  exact > synonym > prefix > phrase > fuzzy
+     *     2. Same-unit preference:  a Word from "Family & Friends"
+     *        prefers a track whose linked Lessons live in the same
+     *        unit, even when an out-of-unit track has an equally
+     *        good token match. This avoids accidentally pinning
+     *        "boy" from a Welcome unit decoy onto a track that
+     *        belongs to "Around the world".
+     *     3. Track preference:  pb > ab > new > part2  (mirrors how
+     *        the curriculum is organised — Pupil's Book is the
+     *        canonical recording).
+     *
+     * Returns a structured report identical in shape to the existing
+     * `autoSegmentAll` admin endpoint so the React UI can render it
+     * with no changes.
+     *
+     * @param array $opts {
+     *     @type bool       $overwrite     replace already-set timestamps. default false
+     *     @type ?int[]     $unit_ids      restrict the WORDS we update to these units
+     *                                      (still considers ALL tracks for transcription)
+     *     @type bool       $prefer_same_unit  bias toward same-unit tracks. default true
+     *     @type bool       $relink_track  when a word's best match lives on a different
+     *                                      track than its current audio_track_id, also
+     *                                      update audio_track_id (default true)
+     * }
+     */
+    public function segmentEverything(array $opts = []): array
+    {
+        if (! $this->isConfigured()) {
+            return [
+                'ok'    => false,
+                'error' => 'OPENAI_API_KEY is not configured. Add it to .env to enable AI auto-segment.',
+                'tracks_run'    => 0,
+                'words_matched' => 0,
+                'words_total'   => 0,
+                'report'        => [],
+            ];
+        }
+
+        @set_time_limit(0);
+        $overwrite      = (bool) ($opts['overwrite'] ?? false);
+        $unitIds        = $opts['unit_ids'] ?? null;
+        $preferSameUnit = (bool) ($opts['prefer_same_unit'] ?? true);
+        $relinkTrack    = (bool) ($opts['relink_track'] ?? true);
+
+        // Pull every track and every candidate word in two queries
+        // so we don't issue lookups inside the matching loop.
+        $tracks = AudioTrack::orderByRaw("CASE book_type WHEN 'pb' THEN 1 WHEN 'ab' THEN 2 WHEN 'new' THEN 3 ELSE 4 END")
+            ->orderBy('page')
+            ->orderBy('track_no')
+            ->get();
+        if ($tracks->isEmpty()) {
+            return [
+                'ok'    => false,
+                'error' => 'No audio tracks in the database. Run "Discover NCCD audio" first.',
+                'tracks_run'    => 0,
+                'words_matched' => 0,
+                'words_total'   => 0,
+                'report'        => [],
+            ];
+        }
+
+        $wordsQuery = Word::query()->with('unit:id,unit_number,title');
+        if ($unitIds) {
+            $wordsQuery->whereIn('unit_id', array_map('intval', $unitIds));
+        }
+        if (! $overwrite) {
+            $wordsQuery->where(function ($q) {
+                $q->whereNull('segment_start_ms')
+                  ->orWhereNull('segment_end_ms');
+            });
+        }
+        $words = $wordsQuery->orderByDesc(DB::raw('LENGTH(word)'))->get();
+
+        if ($words->isEmpty()) {
+            return [
+                'ok'             => true,
+                'message'        => 'Every word is already segmented (use overwrite=true to redo).',
+                'tracks_run'     => 0,
+                'words_matched'  => 0,
+                'words_total'    => 0,
+                'report'         => [],
+            ];
+        }
+
+        // Build a vocabulary hint that primes Whisper with the union
+        // of every word in the curriculum, capped at the prompt limit.
+        $vocab = $words->pluck('word')->unique()->values()->all();
+
+        // Step 1 — transcribe every track once (with caching).
+        $transcripts = [];      // track_id => array
+        $trackErrors = [];      // track_id => string
+        $tracksRun   = 0;
+        $tracksCachedHit = 0;
+
+        // Pre-compute which Lessons belong to each track so we can
+        // honour the "same unit" preference without N+1 queries.
+        $trackUnitIds = $this->mapTracksToUnits($tracks->pluck('id')->all());
+
+        foreach ($tracks as $track) {
+            try {
+                $cacheStatus = null;
+                $transcript  = $this->cachedOrFreshTranscript(
+                    $track,
+                    $vocab,
+                    $cacheStatus,
+                );
+                if ($transcript && ! empty($transcript['words'])) {
+                    $transcripts[$track->id] = $transcript;
+                    $tracksRun++;
+                    if ($cacheStatus === 'hit') $tracksCachedHit++;
+                } else {
+                    $trackErrors[$track->id] = 'Empty / failed transcription';
+                }
+            } catch (\Throwable $e) {
+                $trackErrors[$track->id] = 'Whisper error: ' . $e->getMessage();
+                Log::warning('segmentEverything transcribe', [
+                    'track' => $track->code,
+                    'msg'   => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Step 2 — for every word, find the best match across ALL
+        // transcripts, taking the same-unit preference into account.
+        $matched = 0;
+        $perWord = [];
+        $perTrack = [];
+        foreach ($transcripts as $tid => $_t) {
+            $perTrack[$tid] = ['matched' => 0, 'total' => 0];
+        }
+
+        foreach ($words as $word) {
+            $best = null; // ['score' => N, 'track' => AudioTrack, 'match' => [...]]
+            foreach ($transcripts as $tid => $transcript) {
+                $hit = $this->findBestMatch($word->word, $transcript['words'] ?? []);
+                if (! $hit) continue;
+
+                $score = $this->reasonScore($hit['_reason'] ?? '');
+                if ($preferSameUnit && $word->unit_id) {
+                    $unitsForTrack = $trackUnitIds[$tid] ?? [];
+                    if (in_array($word->unit_id, $unitsForTrack, true)) {
+                        $score += 50; // Strong bonus for same-unit tracks
+                    } elseif (! empty($unitsForTrack)) {
+                        // Track is bound to a different unit — small penalty
+                        $score -= 5;
+                    }
+                }
+                if ($best === null || $score > $best['score']) {
+                    $tracksById = $tracks->keyBy('id');
+                    $best = [
+                        'score' => $score,
+                        'track' => $tracksById[$tid] ?? null,
+                        'match' => $hit,
+                    ];
+                }
+                if (isset($perTrack[$tid])) $perTrack[$tid]['total']++;
+            }
+
+            if (! $best || ! $best['track']) {
+                $perWord[] = [
+                    'word_id' => $word->id,
+                    'word'    => $word->word,
+                    'unit'    => $word->unit?->title,
+                    'matched' => false,
+                    'reason'  => 'No track contained this word',
+                ];
+                continue;
+            }
+
+            $startMs = max(0, (int) round($best['match']['start'] * 1000) - 50);
+            $endMs   = (int) round($best['match']['end']   * 1000) + 100;
+            $patch = [
+                'segment_start_ms' => $startMs,
+                'segment_end_ms'   => $endMs,
+            ];
+            if ($relinkTrack && $word->audio_track_id !== $best['track']->id) {
+                $patch['audio_track_id'] = $best['track']->id;
+            }
+            $word->update($patch);
+            $matched++;
+
+            $perWord[] = [
+                'word_id'  => $word->id,
+                'word'     => $word->word,
+                'unit'     => $word->unit?->title,
+                'matched'  => true,
+                'track'    => $best['track']->code,
+                'reason'   => $best['match']['_reason'] ?? null,
+                'start_ms' => $startMs,
+                'end_ms'   => $endMs,
+            ];
+            if (isset($perTrack[$best['track']->id])) {
+                $perTrack[$best['track']->id]['matched']++;
+            }
+        }
+
+        // Step 3 — assemble the per-track report so the admin sees
+        // exactly which tracks contributed and which failed.
+        $tracksReport = [];
+        foreach ($tracks as $track) {
+            $tracksReport[] = [
+                'track'   => $track->code,
+                'label'   => $track->label,
+                'matched' => $perTrack[$track->id]['matched'] ?? 0,
+                'total'   => $perTrack[$track->id]['total']   ?? 0,
+                'error'   => $trackErrors[$track->id] ?? null,
+            ];
+        }
+
+        return [
+            'ok'             => true,
+            'mode'           => 'cross-track',
+            'tracks_run'     => $tracksRun,
+            'tracks_cached'  => $tracksCachedHit,
+            'words_matched'  => $matched,
+            'words_total'    => $words->count(),
+            'report'         => $tracksReport,
+            'words'          => $perWord,
+        ];
+    }
+
+    /**
+     * Build a parallel array index of [track_id => [unit_id, ...]]
+     * pulled from the `lessons` table so the segmentation matcher
+     * can prefer same-unit tracks without firing a query per word.
+     */
+    private function mapTracksToUnits(array $trackIds): array
+    {
+        if (empty($trackIds)) return [];
+        $rows = DB::table('lessons')
+            ->whereIn('audio_track_id', $trackIds)
+            ->whereNotNull('audio_track_id')
+            ->select('audio_track_id', 'unit_id')
+            ->distinct()
+            ->get();
+        $index = [];
+        foreach ($rows as $r) {
+            $tid = (int) $r->audio_track_id;
+            $uid = (int) $r->unit_id;
+            $index[$tid] ??= [];
+            if (! in_array($uid, $index[$tid], true)) $index[$tid][] = $uid;
+        }
+        // Also pull tracks linked via the words.audio_track_id column
+        // (the Words admin lets you pick a track without creating a
+        // Lesson row), so a Welcome-unit track that's only attached
+        // through Word::audio_track_id is still scored as same-unit.
+        $wordRows = DB::table('words')
+            ->whereIn('audio_track_id', $trackIds)
+            ->whereNotNull('audio_track_id')
+            ->select('audio_track_id', 'unit_id')
+            ->distinct()
+            ->get();
+        foreach ($wordRows as $r) {
+            $tid = (int) $r->audio_track_id;
+            $uid = (int) $r->unit_id;
+            $index[$tid] ??= [];
+            if (! in_array($uid, $index[$tid], true)) $index[$tid][] = $uid;
+        }
+        return $index;
+    }
+
+    /**
+     * Disk-backed transcript cache.
+     *
+     * Whisper-1 has stable, deterministic output for a given input
+     * (we pin temperature=0), and our audio URLs come from NCCD which
+     * is essentially read-only. Caching the verbose JSON response
+     * once per track means the operator can run "AI auto-segment all"
+     * twice in a row without paying for the same transcription twice
+     * — only newly-discovered tracks incur a Whisper call.
+     */
+    private function cachedOrFreshTranscript(AudioTrack $track, array $vocab, ?string &$cacheStatus = null): ?array
+    {
+        $cacheKey = $track->code ?: ('id_' . $track->id);
+        $cachePath = storage_path(
+            'app/' . self::TRANSCRIPT_CACHE_DIR . '/' . preg_replace('/[^A-Za-z0-9_-]/', '_', $cacheKey) . '.transcript.json'
+        );
+
+        if (is_file($cachePath) && filesize($cachePath) > 0) {
+            $raw = @file_get_contents($cachePath);
+            $decoded = $raw ? json_decode($raw, true) : null;
+            if (is_array($decoded) && ! empty($decoded['words'])) {
+                $cacheStatus = 'hit';
+                return $decoded;
+            }
+        }
+
+        $audioPath = $this->getAudioFile($track);
+        if (! $audioPath) {
+            $cacheStatus = 'miss-no-audio';
+            return null;
+        }
+
+        $hint = $this->buildVocabHint($vocab, $track);
+        $transcript = $this->transcribeAudio($audioPath, $hint);
+        if ($transcript && ! empty($transcript['words'])) {
+            @mkdir(dirname($cachePath), 0775, true);
+            @file_put_contents($cachePath, json_encode($transcript));
+            $cacheStatus = 'miss-fresh';
+            return $transcript;
+        }
+
+        $cacheStatus = 'miss-failed';
+        return null;
+    }
+
+    /**
+     * Numeric quality score for a match reason. Higher is better.
+     * Used by `segmentEverything()` to break ties between candidate
+     * matches on different tracks.
+     */
+    private function reasonScore(string $reason): int
+    {
+        if (str_starts_with($reason, 'exact'))   return 100;
+        if (str_starts_with($reason, 'phrase'))  return 95;
+        if (str_starts_with($reason, 'synonym')) return 80;
+        if (str_starts_with($reason, 'prefix'))  return 60;
+        if (str_starts_with($reason, 'fuzzy')) {
+            // fuzzy(d=N) — smaller N = better
+            if (preg_match('/d=(\d+)/', $reason, $m)) {
+                return 40 - (int) $m[1] * 5;
+            }
+            return 30;
+        }
+        return 10;
     }
 
     /**

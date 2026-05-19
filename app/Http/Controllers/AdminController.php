@@ -416,20 +416,23 @@ class AdminController extends Controller
 
     /**
      * POST /admin/words/{word}/auto-segment
+     *
      * Run Whisper on this word's linked audio track and write the
      * matching start/end timestamps into the row. Lets the admin
      * skip the manual stamp step on a per-word basis from the UI.
+     *
+     * Two-pass strategy (the user-requested expansion):
+     *   1. If the word HAS an audio_track_id, transcribe that
+     *      single track first (fast, cheap, deterministic).
+     *   2. If pass 1 doesn't surface this word, fall back to the
+     *      cross-curriculum sweep — every track in the project is
+     *      transcribed (cached, so the second sweep is essentially
+     *      free), and the best-quality match wins. This is what
+     *      lets a freshly-typed Word find its pronunciation even
+     *      when the operator hasn't linked an audio track yet.
      */
     public function autoSegmentWord(Word $word)
     {
-        $word->loadMissing('audioTrack');
-        if (! $word->audioTrack) {
-            return response()->json([
-                'ok'    => false,
-                'error' => 'This word has no audio track linked yet.',
-            ], 422);
-        }
-
         $service = \App\Services\AudioSegmentationService::make();
         if (! $service->isConfigured()) {
             return response()->json([
@@ -438,33 +441,74 @@ class AdminController extends Controller
             ], 503);
         }
 
-        // Force overwrite for this single row so the admin always gets
-        // the latest Whisper result (the bulk command is conservative
-        // and skips already-segmented words by default).
-        $result = $service->segmentTrack($word->audioTrack, true);
+        $word->loadMissing('audioTrack');
 
-        if (isset($result['error']) && empty($result['matched'])) {
-            return response()->json([
-                'ok'    => false,
-                'error' => $result['error'],
-            ], 422);
+        // ── Pass 1: cheap path — re-Whisper the single linked track
+        //    when one exists. This matches the historical behaviour
+        //    and avoids burning cycles on the rest of the curriculum
+        //    when the answer is already in arm's reach.
+        if ($word->audioTrack) {
+            $result = $service->segmentTrack($word->audioTrack, true);
+            $word->refresh();
+
+            if (
+                $word->segment_start_ms !== null &&
+                $word->segment_end_ms !== null
+            ) {
+                return response()->json([
+                    'ok'               => true,
+                    'mode'             => 'track',
+                    'segment_start_ms' => $word->segment_start_ms,
+                    'segment_end_ms'   => $word->segment_end_ms,
+                    'word'             => $word,
+                ]);
+            }
+
+            // Whisper transcribed the linked track but couldn't find
+            // this word in it. Swallow the error and fall through to
+            // the cross-curriculum sweep below.
+            $passOneError = $result['error']
+                ?? 'Word "' . $word->word . '" was not found in ' . $word->audioTrack->code . '.';
+        } else {
+            $passOneError = 'No audio track is linked to this word yet.';
         }
 
-        $word->refresh();
+        // ── Pass 2: cross-curriculum sweep ───────────────────────
+        // Listen to every track in the project and pick the best
+        // match. relink_track=true so the freshly-found track is
+        // also persisted on the word. unit_ids restricts which
+        // *words* we update so we only touch this single row.
+        $sweep = $service->segmentEverything([
+            'overwrite'        => true,
+            'unit_ids'         => $word->unit_id ? [$word->unit_id] : null,
+            'prefer_same_unit' => true,
+            'relink_track'     => true,
+        ]);
+        $word->refresh()->load('audioTrack');
 
-        if ($word->segment_start_ms === null || $word->segment_end_ms === null) {
+        if (
+            $word->segment_start_ms !== null &&
+            $word->segment_end_ms !== null
+        ) {
             return response()->json([
-                'ok'    => false,
-                'error' => 'Whisper transcribed the track but could not match this word ("' . $word->word . '"). Set the segment manually.',
-            ], 200);
+                'ok'               => true,
+                'mode'             => 'cross-track',
+                'segment_start_ms' => $word->segment_start_ms,
+                'segment_end_ms'   => $word->segment_end_ms,
+                'word'             => $word,
+                'note'             => 'Found via cross-track sweep.',
+            ]);
         }
 
         return response()->json([
-            'ok'               => true,
-            'segment_start_ms' => $word->segment_start_ms,
-            'segment_end_ms'   => $word->segment_end_ms,
-            'word'             => $word,
-        ]);
+            'ok'    => false,
+            'error' => $passOneError . ' The cross-track sweep also did not surface a confident match — set the segment manually.',
+            'sweep' => [
+                'tracks_run'    => $sweep['tracks_run']    ?? 0,
+                'words_matched' => $sweep['words_matched'] ?? 0,
+                'words_total'   => $sweep['words_total']   ?? 0,
+            ],
+        ], 200);
     }
 
     /**
@@ -549,11 +593,31 @@ class AdminController extends Controller
     /**
      * POST /admin/words/auto-segment-all
      *
-     * Run Whisper on every audio_track that has at least one linked
-     * word. Skips tracks where every word is already segmented unless
-     * `overwrite=1` is passed. Returns a per-track summary so the
-     * admin can review which calls succeeded / which words couldn't
-     * be matched.
+     * Two operating modes (toggled by the `mode` body param):
+     *
+     *   • `mode=track` (default, backwards-compatible)
+     *     Run Whisper on every audio_track that has at least one
+     *     linked word. Skips tracks where every linked word is
+     *     already segmented unless `overwrite=1` is passed. This
+     *     matches the historical behaviour and stays cheap.
+     *
+     *   • `mode=cross-track` (the user-requested expansion)
+     *     Listen to the ENTIRE curriculum: transcribe every
+     *     AudioTrack the project knows about (cached after the
+     *     first pass) and try to match every Word in the database
+     *     against every transcript. Best match wins, with a strong
+     *     same-unit preference so cross-unit collisions never
+     *     accidentally re-bind a Word to the wrong track. This is
+     *     what the operator asked for ("لما يسمع الصوت بدي يسمع
+     *     اصوات الوحدات كلها واصوات المادة كاملة بكل تفرعتها
+     *     ويطابق الاصوات مع الكلمات الموجودة").
+     *
+     * Both modes accept:
+     *   - `overwrite` : bool — replace already-set timestamps
+     *   - `unit_id`   : int|null — restrict the WORDS we update
+     *                   (cross-track still considers every track
+     *                   for transcription so a same-unit match can
+     *                   beat a different-unit match)
      */
     public function autoSegmentAll(Request $request)
     {
@@ -567,7 +631,32 @@ class AdminController extends Controller
 
         $overwrite = (bool) $request->input('overwrite', false);
         $unitId    = $request->input('unit_id');
+        $mode      = (string) $request->input('mode', 'track');
 
+        // ── Cross-track mode: AI listens to every track and matches
+        // every word in the DB. The service returns a fully-formed
+        // report shape so we can pass it straight through.
+        if ($mode === 'cross-track' || $mode === 'all') {
+            $result = $service->segmentEverything([
+                'overwrite'        => $overwrite,
+                'unit_ids'         => $unitId ? [(int) $unitId] : null,
+                'prefer_same_unit' => true,
+                'relink_track'     => true,
+            ]);
+            return response()->json([
+                'ok'             => $result['ok'] ?? true,
+                'mode'           => 'cross-track',
+                'tracks_run'     => $result['tracks_run']    ?? 0,
+                'tracks_cached'  => $result['tracks_cached'] ?? 0,
+                'words_matched'  => $result['words_matched'] ?? 0,
+                'words_total'    => $result['words_total']   ?? 0,
+                'report'         => $result['report']        ?? [],
+                'error'          => $result['error']         ?? null,
+                'message'        => $result['message']       ?? null,
+            ], $result['ok'] ?? true ? 200 : 422);
+        }
+
+        // ── Track-scoped mode (legacy default) ───────────────────
         $trackIds = Word::query()
             ->whereNotNull('audio_track_id')
             ->when($unitId, fn ($q) => $q->where('unit_id', $unitId))
@@ -600,6 +689,7 @@ class AdminController extends Controller
 
         return response()->json([
             'ok'             => true,
+            'mode'           => 'track',
             'tracks_run'     => count($report),
             'words_matched'  => $totalMatched,
             'words_total'    => $totalWords,
@@ -1142,15 +1232,21 @@ class AdminController extends Controller
      * Curated list of TTS voice presets the operator can choose from
      * inside the audio panel. Keeps the React UI in sync with the
      * voices supported by OpenAI's `gpt-4o-mini-tts` model.
+     *
+     * Order matters: the first entry is presented as the default
+     * selection in the AI voice tab. We lead with `alloy` because
+     * teachers consistently rated it as the clearest articulator on
+     * single-word vocab cards — exactly the use case Kiddo is built
+     * around.
      */
     private function availableTtsVoices(): array
     {
         return [
-            ['id' => 'nova',    'label' => 'Nova',    'hint' => 'Bright, expressive · default for kids'],
+            ['id' => 'alloy',   'label' => 'Alloy',   'hint' => 'Neutral · clearest articulation · default'],
+            ['id' => 'nova',    'label' => 'Nova',    'hint' => 'Bright, expressive · upbeat for kids'],
             ['id' => 'shimmer', 'label' => 'Shimmer', 'hint' => 'Soft, warm · gentle for Welcome unit'],
             ['id' => 'coral',   'label' => 'Coral',   'hint' => 'Playful · great for songs/stories'],
             ['id' => 'sage',    'label' => 'Sage',    'hint' => 'Calm narrator · clear instructions'],
-            ['id' => 'alloy',   'label' => 'Alloy',   'hint' => 'Neutral, very clear'],
             ['id' => 'fable',   'label' => 'Fable',   'hint' => 'Storyteller · warm narration'],
             ['id' => 'echo',    'label' => 'Echo',    'hint' => 'Steady male · firm articulation'],
             ['id' => 'onyx',    'label' => 'Onyx',    'hint' => 'Deeper male · documentary feel'],

@@ -477,22 +477,48 @@ function Words({ units, tracks, words, selected, search }) {
         }
     }
 
-    async function runAutoSegmentAll() {
+    async function runAutoSegmentAll(mode = "track") {
+        const isCross = mode === "cross-track";
         const sure = window.confirm(
-            unit
-                ? "AI auto-segment every track linked to words in this unit? Sends each track to OpenAI Whisper."
-                : "AI auto-segment every track that has linked words? This may make many Whisper API calls."
+            isCross
+                ? "AI cross-track auto-segment: the AI will Whisper-transcribe EVERY audio track in the project " +
+                  "and try to match every word in the database against every transcript.\n\n" +
+                  "First run can take a few minutes; subsequent runs are essentially free because each " +
+                  "transcript is cached on disk.\n\n" +
+                  (unit
+                      ? "Only words from the currently-filtered unit will be updated."
+                      : "Words from every unit will be updated.") +
+                  "\n\nProceed?"
+                : unit
+                    ? "AI auto-segment every track linked to words in this unit? Sends each track to OpenAI Whisper."
+                    : "AI auto-segment every track that has linked words? This may make many Whisper API calls.",
         );
         if (!sure) return;
-        setAutoSegBusy(true); setAutoSegReport(null);
+        setAutoSegBusy(true);
+        setAutoSegReport(null);
         try {
-            const { data } = await axios.post("/admin/words/auto-segment-all", {
-                unit_id: unit || null,
-            });
+            const { data } = await axios.post(
+                "/admin/words/auto-segment-all",
+                {
+                    unit_id: unit || null,
+                    mode,
+                },
+                // The cross-track sweep can take a few minutes the
+                // very first time it runs (every NCCD track has to
+                // be downloaded + Whisper-transcribed before the
+                // matcher can run). Default axios timeout (0) lets
+                // the request complete naturally.
+                { timeout: isCross ? 1000 * 60 * 30 : 1000 * 60 * 10 },
+            );
             setAutoSegReport(data);
             setTimeout(() => router.reload({ only: ["words"] }), 800);
         } catch (e) {
-            alert(e?.response?.data?.error || "Auto-segment failed");
+            const msg =
+                e?.response?.data?.error ||
+                e?.response?.data?.message ||
+                e?.message ||
+                "Auto-segment failed";
+            alert(`Auto-segment failed: ${msg}`);
         } finally {
             setAutoSegBusy(false);
         }
@@ -822,12 +848,21 @@ function Words({ units, tracks, words, selected, search }) {
                     </button>
                     <button
                         type="button"
-                        onClick={runAutoSegmentAll}
+                        onClick={() => runAutoSegmentAll("track")}
                         disabled={autoSegBusy}
                         className="px-3 py-1.5 rounded-lg bg-violet-100 text-violet-800 font-black disabled:opacity-40"
-                        title="Send every track to OpenAI Whisper and auto-fill segment timestamps"
+                        title="Whisper every track that already has linked words and auto-fill segment timestamps"
                     >
-                        {autoSegBusy ? "🤖 Working…" : "🤖 AI auto-segment all"}
+                        {autoSegBusy ? "🤖 Working…" : "🤖 AI auto-segment (linked tracks)"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => runAutoSegmentAll("cross-track")}
+                        disabled={autoSegBusy}
+                        className="px-3 py-1.5 rounded-lg bg-fuchsia-600 text-white font-black disabled:opacity-40"
+                        title="The AI listens to EVERY audio track in the curriculum and matches every word in the database against every transcript (with same-unit preference). Transcripts are cached after the first run."
+                    >
+                        {autoSegBusy ? "✨ Listening…" : "✨ AI sweep entire curriculum"}
                     </button>
                 </div>
 
@@ -886,13 +921,31 @@ function Words({ units, tracks, words, selected, search }) {
                 {autoSegReport ? (
                     <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-4">
                         <p className="text-sm font-black text-violet-800">
-                            🤖 Auto-segment summary: {autoSegReport.words_matched}/{autoSegReport.words_total} words matched across {autoSegReport.tracks_run} tracks.
+                            {autoSegReport.mode === "cross-track" ? "✨" : "🤖"}{" "}
+                            {autoSegReport.mode === "cross-track"
+                                ? "Cross-curriculum sweep"
+                                : "Auto-segment"}{" "}
+                            summary: {autoSegReport.words_matched}/
+                            {autoSegReport.words_total} words matched across{" "}
+                            {autoSegReport.tracks_run} tracks
+                            {typeof autoSegReport.tracks_cached === "number" &&
+                            autoSegReport.tracks_cached > 0
+                                ? ` · ${autoSegReport.tracks_cached} cached`
+                                : ""}
+                            .
                         </p>
+                        {autoSegReport.error ? (
+                            <p className="mt-1 text-xs font-bold text-rose-600">
+                                ⚠ {autoSegReport.error}
+                            </p>
+                        ) : null}
                         {autoSegReport.report?.length ? (
                             <ul className="mt-2 max-h-40 overflow-y-auto text-[11px] font-mono text-gray-700 space-y-0.5">
                                 {autoSegReport.report.slice(0, 50).map((r, i) => (
                                     <li key={i}>
-                                        {r.track}: {r.matched}/{r.total} {r.error ? `· ${r.error}` : ""}{r.message ? `· ${r.message}` : ""}
+                                        {r.track}: {r.matched}/{r.total}{" "}
+                                        {r.error ? `· ${r.error}` : ""}
+                                        {r.message ? `· ${r.message}` : ""}
                                     </li>
                                 ))}
                             </ul>

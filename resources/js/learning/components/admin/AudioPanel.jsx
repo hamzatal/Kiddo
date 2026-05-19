@@ -61,8 +61,12 @@ const AudioPanel = ({ word, onChange, onClose }) => {
     const [libQuery, setLibQuery] = useState("");
     const [libBook,  setLibBook]  = useState(null);
 
-    // Voice state
-    const [voice, setVoice] = useState("nova");
+    // Voice state.
+    // Default mirrors `config/services.php` -> `services.openai.voice`
+    // (alloy — cleanest articulation for first-grade vocab cards).
+    // The teacher can switch to nova / shimmer / coral / etc. on a
+    // per-word basis from the AI voice tab below.
+    const [voice, setVoice] = useState("alloy");
     const [instructions, setInstructions] = useState("");
 
     // Recorder state
@@ -645,7 +649,8 @@ function AiVoiceTab({ voices, voice, setVoice, instructions, setInstructions, on
             </label>
             <div className="flex flex-wrap gap-2 mb-3">
                 {(voices.length ? voices : [
-                    { id: "nova",    label: "Nova",    hint: "Bright, expressive · default for kids" },
+                    { id: "alloy",   label: "Alloy",   hint: "Neutral · clearest articulation · default" },
+                    { id: "nova",    label: "Nova",    hint: "Bright, expressive · upbeat for kids" },
                     { id: "shimmer", label: "Shimmer", hint: "Soft, warm · gentle for Welcome unit" },
                     { id: "coral",   label: "Coral",   hint: "Playful · stories/songs" },
                     { id: "sage",    label: "Sage",    hint: "Calm narrator · clear instructions" },
