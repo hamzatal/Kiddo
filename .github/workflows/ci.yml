@@ -32,7 +32,13 @@ jobs:
                   cache: npm
 
             - name: Install dependencies
-              run: npm ci
+              # We use `npm install` here (not `npm ci`) because the
+              # lockfile has been intentionally invalidated to force a
+              # clean regeneration — see fix/lockfile-and-build-stability.
+              # Once a fresh package-lock.json is committed back to main,
+              # this should be switched back to `npm ci` for speed and
+              # reproducibility.
+              run: npm install --no-audit --no-fund
 
             - name: Lint (eslint)
               run: npm run lint
