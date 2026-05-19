@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 
 /**
@@ -353,9 +354,33 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 text-center">
-                {selectedLeft ? "✨ Now tap the matching picture →" : "👈 Tap a word to start"}
+            <p className="text-[10px] sm:text-xs font-bold text-gray-500 text-center sr-only">
+                {selectedLeft ? "Now tap the matching picture" : "Tap a word to start"}
             </p>
+            <ModeHint
+                text={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "All connected!"
+                        : selectedLeft
+                            ? "Now tap the matching picture →"
+                            : "👈 Tap a word to start"
+                }
+                icon={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "🎉"
+                        : selectedLeft
+                            ? "✨"
+                            : "👆"
+                }
+                tone={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "success"
+                        : selectedLeft
+                            ? "action"
+                            : "hint"
+                }
+                pulse={!!selectedLeft}
+            />
 
             <style>{`
                 .mc-line-correct {

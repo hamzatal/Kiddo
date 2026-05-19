@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -139,6 +140,34 @@ const MemoryFlipMode = ({ lesson, deck = [], onComplete }) => {
                     {label}
                 </p>
             </div>
+
+            {/* Big two-state instruction so a kid never wonders what
+                to do next. revealed.length === 1 means one card is
+                face-up — the most common stuck moment in this game. */}
+            <ModeHint
+                text={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "All pairs matched!"
+                        : revealed.length === 1
+                            ? "Now flip another card to find its match!"
+                            : "Tap a card to flip it and find pairs."
+                }
+                icon={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "🎉"
+                        : revealed.length === 1
+                            ? "✨"
+                            : "👆"
+                }
+                tone={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "success"
+                        : revealed.length === 1
+                            ? "action"
+                            : "hint"
+                }
+                pulse={revealed.length === 1}
+            />
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 lg:gap-5 w-full max-w-4xl">
                 {initialCards.map((c) => {

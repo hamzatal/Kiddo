@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 import { speakWord } from "@/learning/utils/playAudio";
 
@@ -292,9 +293,30 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 text-center">
-                {selectedWord ? "✨ Now tap the matching picture →" : "👈 Tap a word to start"}
-            </p>
+            <ModeHint
+                text={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "All connected!"
+                        : selectedWord
+                            ? "Now tap the matching picture →"
+                            : "👈 Tap a word to start"
+                }
+                icon={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "🎉"
+                        : selectedWord
+                            ? "✨"
+                            : "👆"
+                }
+                tone={
+                    matched.length >= pairs.length && pairs.length > 0
+                        ? "success"
+                        : selectedWord
+                            ? "action"
+                            : "hint"
+                }
+                pulse={!!selectedWord}
+            />
 
             <style>{`
                 .wpc-line-correct {

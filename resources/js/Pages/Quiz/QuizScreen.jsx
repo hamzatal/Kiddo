@@ -7,6 +7,7 @@ import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
 import OptionCard from "@/learning/components/ui/OptionCard";
 import AppHeader from "@/learning/components/ui/AppHeader";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 
 /**
@@ -161,6 +162,35 @@ const QuizScreen = ({ quizData }) => {
                                 <h2 className="text-lg sm:text-2xl lg:text-3xl font-black text-gray-800 truncate">{currentQ.targetWord}</h2>
                             </div>
                         </div>
+
+                        {/* Big readable instruction so a kid never sits
+                            staring at the screen. Switches state on a
+                            wrong tap so the kid knows to try again
+                            rather than thinking the game is broken. */}
+                        <ModeHint
+                            text={
+                                selectedCorrect !== null
+                                    ? "Great pick!"
+                                    : wrongClicks.length > 0
+                                        ? "Not that one — try a different picture!"
+                                        : "Tap the picture that matches the word!"
+                            }
+                            icon={
+                                selectedCorrect !== null
+                                    ? "🎉"
+                                    : wrongClicks.length > 0
+                                        ? "💪"
+                                        : "✨"
+                            }
+                            tone={
+                                selectedCorrect !== null
+                                    ? "success"
+                                    : wrongClicks.length > 0
+                                        ? "warn"
+                                        : "action"
+                            }
+                            pulse={selectedCorrect === null}
+                        />
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
                             {currentQ.options.map((opt) => {

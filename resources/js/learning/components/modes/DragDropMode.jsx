@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -187,9 +188,30 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
                 })}
             </div>
 
-            <p className="text-[10px] font-bold text-gray-500 text-center">
-                {selectedImage ? "✨ Now tap the matching word →" : "👆 Tap a picture to start"}
-            </p>
+            <ModeHint
+                text={
+                    allMatched
+                        ? "All matched!"
+                        : selectedImage
+                            ? "Now tap the matching word →"
+                            : "👆 Tap a picture to start"
+                }
+                icon={
+                    allMatched
+                        ? "🎉"
+                        : selectedImage
+                            ? "✨"
+                            : "👆"
+                }
+                tone={
+                    allMatched
+                        ? "success"
+                        : selectedImage
+                            ? "action"
+                            : "hint"
+                }
+                pulse={!!selectedImage && !allMatched}
+            />
         </div>
     );
 };

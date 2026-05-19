@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -66,7 +67,17 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
                 ))}
             </div>
 
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
+                <ModeHint
+                    text={
+                        allSeen
+                            ? "All words played! Tap Finish."
+                            : `Tap each picture to hear it (${seen.size}/${cards.length})`
+                    }
+                    icon={allSeen ? "✅" : "👆"}
+                    tone={allSeen ? "success" : "action"}
+                    pulse={!allSeen}
+                />
                 <button
                     onClick={() => onComplete({ correct: cards.length, total: Math.max(1, cards.length), rounds: [] })}
                     disabled={!allSeen}

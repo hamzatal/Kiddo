@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -156,6 +157,25 @@ const SequenceBuildMode = ({ lesson, deck = [], onComplete }) => {
                     Build the sentence — drag the words in order.
                 </p>
             </div>
+
+            <ModeHint
+                text={
+                    placed.length === 0
+                        ? "Pick a word from the bottom to start!"
+                        : placed.length < expectedLen
+                            ? `Add ${expectedLen - placed.length} more word${expectedLen - placed.length === 1 ? "" : "s"} to the slots.`
+                            : "All slots filled — press Done!"
+                }
+                icon={
+                    placed.length === 0
+                        ? "👇"
+                        : placed.length < expectedLen
+                            ? "✨"
+                            : "✅"
+                }
+                tone={placed.length === expectedLen ? "action" : "hint"}
+                pulse={placed.length === expectedLen}
+            />
 
             {/* Slots */}
             <div

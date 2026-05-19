@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import RoundProgress from "@/learning/components/ui/RoundProgress";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -152,6 +153,34 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
                     />
                 </div>
             </div>
+
+            {/* Big readable next-step hint that switches between
+                'tap the right one' and 'try a different one' so the
+                kid always knows what to do, even after a wrong tap. */}
+            <ModeHint
+                text={
+                    correctId !== null
+                        ? "Great job!"
+                        : wrong.length > 0
+                            ? "Not that one — try a different picture!"
+                            : "Tap the picture that matches the word!"
+                }
+                icon={
+                    correctId !== null
+                        ? "🎉"
+                        : wrong.length > 0
+                            ? "💪"
+                            : "✨"
+                }
+                tone={
+                    correctId !== null
+                        ? "success"
+                        : wrong.length > 0
+                            ? "warn"
+                            : "action"
+                }
+                pulse={correctId === null}
+            />
 
             {/* Option row — 3 cols always (it's a 3-choice game) but
                 tighter gaps and aspect tweak on phones. */}

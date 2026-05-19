@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playPop } from "@/learning/utils/soundEffects";
 import { speakWord } from "@/learning/utils/playAudio";
 
@@ -131,6 +132,31 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
+            <ModeHint
+                text={
+                    matched.size === totalPairs && totalPairs > 0
+                        ? "Every pair matched!"
+                        : flipped.length === 1
+                            ? "Now flip another card to find its match!"
+                            : "Flip two cards to find a matching pair!"
+                }
+                icon={
+                    matched.size === totalPairs && totalPairs > 0
+                        ? "🎉"
+                        : flipped.length === 1
+                            ? "✨"
+                            : "🎴"
+                }
+                tone={
+                    matched.size === totalPairs && totalPairs > 0
+                        ? "success"
+                        : flipped.length === 1
+                            ? "action"
+                            : "hint"
+                }
+                pulse={flipped.length === 1}
+            />
+
             <div className={`grid ${colsClass} gap-2 sm:gap-3 w-full max-w-2xl mx-auto justify-items-center`}>
                 {cards.map((card) => {
                     const isFlipped = flipped.includes(card.id) || matched.has(card.pairId);
@@ -172,7 +198,9 @@ const PictureMatchMode = ({ lesson, deck = [], onComplete }) => {
                 })}
             </div>
 
-            <p className="text-[10px] font-bold text-gray-500 text-center">Flip two cards to find a matching pair!</p>
+            <p className="text-[10px] font-bold text-gray-500 text-center">
+                {matched.size === totalPairs ? "🎉 You matched them all!" : null}
+            </p>
 
             <style>{`
                 @media (min-width: 400px) {

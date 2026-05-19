@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import TrackPlayer from "@/learning/components/ui/TrackPlayer";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playAudio } from "@/learning/utils/playAudio";
 import { playClick } from "@/learning/utils/soundEffects";
 
@@ -83,11 +84,16 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
             </div>
 
             <div className="flex flex-col items-center gap-2 pt-2">
-                <p className="text-xs sm:text-sm font-bold text-gray-500">
-                    {allTapped
-                        ? "Nice work! Tap Continue."
-                        : `Tap each card to hear it (${tapped.size}/${cards.length})`}
-                </p>
+                <ModeHint
+                    text={
+                        allTapped
+                            ? "Nice work! Tap Continue."
+                            : `Tap each card to hear it (${tapped.size}/${cards.length})`
+                    }
+                    icon={allTapped ? "✅" : "👆"}
+                    tone={allTapped ? "success" : "action"}
+                    pulse={!allTapped}
+                />
                 <button
                     onClick={() => onComplete({ correct: cards.length, total: Math.max(1, cards.length), rounds: [] })}
                     disabled={!allTapped}

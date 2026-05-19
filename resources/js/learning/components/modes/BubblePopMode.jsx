@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playClick, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -156,6 +157,33 @@ const BubblePopMode = ({ lesson, deck = [], onComplete }) => {
                     !
                 </p>
             </div>
+
+            {/* Big colour-changing instruction so the kid always knows
+                what to do — including after a missed pop. */}
+            <ModeHint
+                text={
+                    wrongIds.length > 0 && !popped
+                        ? "Not that one — listen and try again!"
+                        : popped
+                            ? "Great pop!"
+                            : "Pop the bubble that matches the word!"
+                }
+                icon={
+                    wrongIds.length > 0 && !popped
+                        ? "💪"
+                        : popped
+                            ? "🎉"
+                            : "🫧"
+                }
+                tone={
+                    wrongIds.length > 0 && !popped
+                        ? "warn"
+                        : popped
+                            ? "success"
+                            : "action"
+                }
+                pulse={!popped}
+            />
 
             <div className="bp-stage relative w-full max-w-4xl h-[24rem] sm:h-[26rem] lg:h-[30rem] rounded-[2rem] bg-gradient-to-b from-sky-50 to-purple-50 border border-white/80 shadow-inner overflow-hidden">
                 {roundData.options.map((o, i) => {

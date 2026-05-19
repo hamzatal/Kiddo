@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playSuccess, playFail, playPop } from "@/learning/utils/soundEffects";
 import { speakWord } from "@/learning/utils/playAudio";
 
@@ -130,6 +131,35 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
+            {/* Big, readable next-step instruction. flipped.length === 1
+                means the kid has revealed one card and now needs to
+                pick a SECOND one to compare — the most stuck-prone
+                moment in this game. */}
+            <ModeHint
+                text={
+                    matched.size === totalPairs && totalPairs > 0
+                        ? "All pairs found!"
+                        : flipped.length === 1
+                            ? "Now flip another card to find its pair!"
+                            : "Tap any card to start a turn!"
+                }
+                icon={
+                    matched.size === totalPairs && totalPairs > 0
+                        ? "🎉"
+                        : flipped.length === 1
+                            ? "✨"
+                            : "👆"
+                }
+                tone={
+                    matched.size === totalPairs && totalPairs > 0
+                        ? "success"
+                        : flipped.length === 1
+                            ? "action"
+                            : "hint"
+                }
+                pulse={flipped.length === 1}
+            />
+
             <div className={`grid ${colsClass} gap-2 sm:gap-3 w-full max-w-2xl`}>
                 {pairs.map((card) => {
                     const isFlipped = flipped.includes(card.id) || matched.has(card.pairId);
@@ -184,7 +214,7 @@ const MemoryGameMode = ({ lesson, deck = [], onComplete }) => {
             </div>
 
             <p className="text-[10px] font-bold text-gray-500 text-center">
-                Tap a card, then tap another to find its match!
+                {matched.size === totalPairs ? "🎉 You found every pair!" : null}
             </p>
 
             <style>{`

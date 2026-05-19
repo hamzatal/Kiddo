@@ -6,6 +6,7 @@ import OptionCard from "@/learning/components/ui/OptionCard";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import AppHeader from "@/learning/components/ui/AppHeader";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
@@ -185,6 +186,35 @@ const ArenaScreen = ({ arena }) => {
                         <UnitChip title={round?.unitTitle} colorKey={round?.unitColor} />
 
                         <Prompt style={style} round={round} disabled={correctId !== null} />
+
+                        {/* Style-aware instruction so the kid knows what
+                            kind of answer to look for in this round. */}
+                        <ModeHint
+                            text={
+                                correctId !== null
+                                    ? "Nice pick!"
+                                    : wrong.length > 0
+                                        ? "Not that one — try a different one!"
+                                        : style === "image-to-word" || style === "listen-then-spell"
+                                            ? "Tap the matching word!"
+                                            : "Tap the matching picture!"
+                            }
+                            icon={
+                                correctId !== null
+                                    ? "🎉"
+                                    : wrong.length > 0
+                                        ? "💪"
+                                        : "✨"
+                            }
+                            tone={
+                                correctId !== null
+                                    ? "success"
+                                    : wrong.length > 0
+                                        ? "warn"
+                                        : "action"
+                            }
+                            pulse={correctId === null}
+                        />
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
                             {(round?.options || []).map((opt) => {

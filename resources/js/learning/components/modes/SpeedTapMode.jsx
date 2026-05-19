@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
+import ModeHint from "@/learning/components/ui/ModeHint";
 import { playClick, playSuccess, playFail, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -227,6 +228,15 @@ const SpeedTapMode = ({ lesson, deck = [], onComplete }) => {
             <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
                 Round {Math.min(roundIdx + 1, totalRounds)} / {totalRounds}
             </p>
+
+            {/* Constant CTA — Speed Tap is fast-paced so the hint
+                doesn't switch states between rounds. */}
+            <ModeHint
+                text={hearts <= 0 ? "Out of hearts!" : "Tap the right picture before it floats away!"}
+                icon={hearts <= 0 ? "💔" : "⚡"}
+                tone={hearts <= 0 ? "warn" : "action"}
+                pulse={hearts > 0 && phase === "play"}
+            />
 
             {/* Play area — bubbles drift left → right on staggered lanes */}
             <div
