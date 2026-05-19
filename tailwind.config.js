@@ -5,8 +5,20 @@ export default {
         "./resources/**/*.{js,jsx,ts,tsx}",
     ],
 
-    // FIX: enable class-based dark mode so the parent dashboard /
-    // admin panel can offer a comfortable night theme.
+    // Kiddo is a LIGHT-ONLY product (school audience, parents on
+    // shared devices, accessibility consistency).
+    //
+    // We keep `darkMode: "class"` here — the historical default —
+    // because we never apply a `.dark` class anywhere in the React
+    // tree, so every `dark:` variant is silently inert. The actual
+    // mechanism that prevents the OS dark theme from leaking into
+    // native form controls lives in two places:
+    //   • <meta name="color-scheme" content="light"> in app.blade.php
+    //   • :root { color-scheme: light } in resources/css/app.css
+    // Combined, those two declarations stop Chrome / Edge / Safari
+    // from auto-darkening `<input>`, `<select>`, scrollbars, etc.
+    // when the visitor's OS is in dark mode — which is the bug the
+    // operator reported as "بعض الحقول لونها دارك".
     darkMode: "class",
 
     theme: {

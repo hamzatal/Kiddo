@@ -11,9 +11,27 @@
         on iPhones with notches without disabling zoom.
     --}}
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#7C3AED" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#1E1B4B" media="(prefers-color-scheme: dark)">
-    <meta name="color-scheme" content="light dark">
+    {{--
+        FIX (Kiddo is a LIGHT-ONLY product): we explicitly opt OUT of
+        the OS-level dark mode here. The previous value
+        `<meta name="color-scheme" content="light dark">` told Chrome /
+        Edge / Safari to render native form controls (`<input>`,
+        `<select>`, `<textarea>`, date pickers, scrollbars …) using the
+        OS dark theme whenever the user's machine was set to dark
+        mode — which is exactly the "بعض الحقول لونها دارك" complaint:
+        the rest of the page is white but the inputs draw with a
+        slate-grey background and white text. Pinning to `light` keeps
+        every native UI element looking the way our Tailwind theme
+        expects, regardless of the visitor's OS setting. The CSS
+        `:root { color-scheme: light }` rule in app.css backs this up
+        for browsers that honour the property but ignore the meta tag.
+
+        The single `theme-color` ensures the address-bar / status-bar
+        on mobile picks the brand purple consistently — no separate
+        dark variant since we don't ship a dark theme.
+    --}}
+    <meta name="theme-color" content="#7C3AED">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Kiddo — playful English-learning adventure for kids aged 6-7. Curriculum-aligned vocabulary, audio, games, and a friendly Fox helper.">
     <meta name="format-detection" content="telephone=no">
 
