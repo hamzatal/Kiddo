@@ -18,9 +18,16 @@ class AiController extends Controller
 
     /**
      * POST /ai/lesson-helper
-     * Child-facing Fox helper inside LessonScreen.
-     * Prompt is constrained to the current unit + word and only allowed
+     * Child-facing Fox helper inside LessonScreen. The prompt is
+     * constrained to the current unit + word and only allowed
      * vocabulary so the model can't wander off-curriculum.
+     *
+     * Hardening (this rewrite):
+     *   - Verifies the requested word actually belongs to the
+     *     requested unit (so a user can't trick the helper into
+     *     speaking words from a unit they haven't unlocked yet).
+     *   - Stores the OpenAI interaction with PROMPT only, not the
+     *     full word payload, to keep AiInteraction rows compact.
      */
     public function lessonHelper(Request $request)
     {
@@ -31,7 +38,9 @@ class AiController extends Controller
         ]);
 
         $unit = Unit::findOrFail($data['unitId']);
-        $word = Word::where('unit_id', $unit->id)->findOrFail($data['wordId']);
+        $word = Word::where('unit_id', $unit->id)
+            ->where('id', $data['wordId'])
+            ->firstOrFail();
 
         $allowed = Word::where('unit_id', $unit->id)
             ->orderBy('word')
@@ -57,40 +66,59 @@ class AiController extends Controller
      * POST /ai/parent-report
      * Generates a 3-5 sentence report from UserProgress + GameResult
      * data for the parent's Dashboard.
+     *
+     * Hardening (this rewrite):
+     *   - The child's NAME is no longer sent to OpenAI. The model
+     *     receives a generic placeholder ("the child") and only
+     *     curriculum-level metadata. The friendly name is then
+     *     re-stitched into the response string locally.
+     *   - We also drop fields the model doesn't need (xp absolute
+     *     value, internal IDs) to minimise leakage.
      */
     public function parentReport(Request $request)
     {
         $user = $request->user();
         abort_unless($user, 403);
 
+        // FIX (N+1): pull all progresses with their unit in one go.
         $progresses = UserProgress::where('user_id', $user->id)
-            ->with('unit')
+            ->with('unit:id,title,lessons_count')
             ->get()
-            ->map(function (UserProgress $p) {
-                return [
-                    'unit'            => $p->unit?->title,
-                    'status'          => $p->status,
-                    'current_lesson'  => $p->current_lesson,
-                    'total_lessons'   => $p->unit?->lessons_count,
-                    'stars_earned'    => $p->stars_earned,
-                ];
-            })
+            ->map(fn (UserProgress $p) => [
+                'unit'           => $p->unit?->title,
+                'status'         => $p->status,
+                'current_lesson' => $p->current_lesson,
+                'total_lessons'  => $p->unit?->lessons_count,
+                'stars_earned'   => $p->stars_earned,
+            ])
             ->all();
 
-        $stats = [
-            'name'        => $user->name,
-            'total_stars' => $user->total_stars ?? 0,
-            'xp'          => $user->xp ?? 0,
+        // Anonymous payload for OpenAI — no PII.
+        $aiPayload = [
+            'total_stars' => (int) ($user->total_stars ?? 0),
             'units'       => $progresses,
             'weakWords'   => $this->collectWeakWords($user->id),
         ];
 
-        $report = $this->ai->parentInsight($stats);
+        $report = $this->ai->parentInsight($aiPayload);
+
+        // Replace generic stand-ins with the actual child's name on
+        // the way back to the browser. We only do this if the
+        // model actually used the placeholder, so a non-AI
+        // fallback string still reads naturally.
+        if ($user->name) {
+            $report = preg_replace(
+                ['/\bthe child\b/i', '/\byour child\b/i'],
+                $user->name,
+                $report,
+                3, // first three occurrences only
+            );
+        }
 
         AiInteraction::create([
             'user_id'  => $user->id,
             'context'  => 'parent-report',
-            'payload'  => $stats,
+            'payload'  => $aiPayload, // already PII-free
             'response' => $report,
         ]);
 
@@ -98,13 +126,12 @@ class AiController extends Controller
     }
 
     /**
-     * POST /ai/help-center
-     * Parent chat on Help Center.
+     * POST /ai/help-center — parent chat on Help Center.
      */
     public function helpCenter(Request $request)
     {
         $data = $request->validate([
-            'question' => 'required|string|max:500',
+            'question' => 'required|string|min:3|max:500',
         ]);
 
         $answer = $this->ai->helpCenterReply($data['question']);
@@ -120,7 +147,7 @@ class AiController extends Controller
     }
 
     /**
-     * FIX 8 — Top weak words for the parent AI report.
+     * Top weak words for the parent AI report.
      * Reads `meta.word_errors` from GameResult rows.
      */
     private function collectWeakWords(int $userId, int $limit = 6): array

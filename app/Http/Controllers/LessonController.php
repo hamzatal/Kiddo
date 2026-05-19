@@ -122,9 +122,7 @@ class LessonController extends Controller
         $user = $request->user();
         $unit = Unit::findOrFail($unitId);
 
-        $progress = UserProgress::where('user_id', $user->id)
-            ->where('unit_id', $unit->id)
-            ->firstOrFail();
+        $progress = $this->progressForUserOrFail($user->id, $unit->id);
 
         $lesson = Lesson::where('unit_id', $unit->id)
             ->where('lesson_number', $progress->current_lesson)
@@ -146,24 +144,55 @@ class LessonController extends Controller
 
     /**
      * POST /lesson/{unit}/{lesson}/result
+     *
+     * FIX (Authorization):
+     *   The previous version trusted the request's unit/lesson IDs
+     *   blindly. A determined user could `POST /lesson/5/12/result`
+     *   without ever opening the unit and farm stars + XP. We now:
+     *     1. Confirm the lesson belongs to the requested unit.
+     *     2. Confirm the unit is unlocked for this user (UserProgress
+     *        with status != 'locked' OR unit_number == 0).
+     *     3. Confirm the requested lesson_number is <= current_lesson
+     *        (so you can't submit lesson 5's result before completing
+     *        lessons 1-4).
      */
     public function submitResult(Request $request, int $unitId, int $lessonId)
     {
         $data = $request->validate([
-            'rounds'                  => 'array',
-            'rounds.*.roundId'        => 'nullable|string',
+            'rounds'                  => 'array|max:200',
+            'rounds.*.roundId'        => 'nullable|string|max:64',
             'rounds.*.correct'        => 'required|boolean',
-            'rounds.*.timeMs'         => 'nullable|integer',
-            'rounds.*.wordId'         => 'nullable|integer',
+            'rounds.*.timeMs'         => 'nullable|integer|min:0|max:600000',
+            'rounds.*.wordId'         => 'nullable|integer|min:1',
             'rounds.*.word'           => 'nullable|string|max:120',
             'rounds.*.wrongChoice'    => 'nullable|string|max:120',
-            'rounds.*.wrongChoiceId'  => 'nullable|integer',
-            'durationMs'              => 'nullable|integer',
+            'rounds.*.wrongChoiceId'  => 'nullable|integer|min:1',
+            'durationMs'              => 'nullable|integer|min:0|max:7200000',
         ]);
 
         $user   = $request->user();
         $unit   = Unit::findOrFail($unitId);
-        $lesson = Lesson::where('unit_id', $unit->id)->findOrFail($lessonId);
+
+        // Lesson MUST belong to the unit on the URL — otherwise return 404.
+        $lesson = Lesson::where('unit_id', $unit->id)
+            ->where('id', $lessonId)
+            ->firstOrFail();
+
+        $progress = $this->progressForUserOrFail($user->id, $unit->id);
+
+        // Refuse submissions for locked units. We let unit_number=0
+        // through unconditionally because UserProgress is created
+        // lazily for first-time visitors.
+        if ($progress->status === 'locked' && (int) $unit->unit_number !== 0) {
+            abort(403, 'Unit is locked.');
+        }
+
+        // Refuse submissions for lessons the user hasn't reached yet.
+        // current_lesson points at the NEXT lesson the user should
+        // play, so any lesson_number > current_lesson is out of range.
+        if ((int) $lesson->lesson_number > (int) $progress->current_lesson) {
+            abort(403, 'Lesson not yet reached.');
+        }
 
         $rounds  = $data['rounds'] ?? [];
         $correct = collect($rounds)->where('correct', true)->count();
@@ -179,6 +208,22 @@ class LessonController extends Controller
         return redirect()
             ->route($result['next'] === 'quiz' ? 'quiz.show' : 'lesson.show', $unit->id)
             ->with('lessonResult', $result);
+    }
+
+    /**
+     * Resolve the UserProgress row for a (user, unit) pair, aborting
+     * with 403 when the row is missing — i.e. the learner never
+     * even loaded the lesson page that creates it lazily.
+     */
+    private function progressForUserOrFail(int $userId, int $unitId): UserProgress
+    {
+        $row = UserProgress::where('user_id', $userId)
+            ->where('unit_id', $unitId)
+            ->first();
+        if (! $row) {
+            abort(403, 'No progress recorded for this unit.');
+        }
+        return $row;
     }
 
     private function trackPayload(Lesson $lesson): ?array
