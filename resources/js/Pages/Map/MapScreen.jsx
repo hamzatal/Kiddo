@@ -4,6 +4,9 @@ import PageHead from "@/learning/components/ui/PageHead";
 import DailyQuestCard from "@/learning/components/ui/DailyQuestCard";
 import StreakBadge from "@/learning/components/ui/StreakBadge";
 import StreakCelebration from "@/learning/components/ui/StreakCelebration";
+
+/**
+ * MapScreen — the world-map landing page after sign-in.
  *
  * Hard layout rules this rewrite enforces:
  *   1. The whole page fits inside one viewport (h:100dvh) — no
