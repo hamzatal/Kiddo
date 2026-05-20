@@ -142,18 +142,29 @@ option {
 .animate-fade-in { animation: fade-in 0.25s ease-out forwards; }
 
 /* ── OptionCard idle pulse ─────────────────────────────────
- * Subtle purple glow that breathes on every clickable option
- * card. Gives kids an unmistakable signal that the card is a
- * button (the previous decorative-only chip in the corner read
- * as static). The animation pauses on hover/focus so it doesn't
- * compete with the active state. */
+ * Strong purple glow that breathes on every clickable option
+ * card. v7 (May 2026) bumped the intensity from 0.10 to 0.35
+ * because operators reported the old animation was too subtle
+ * to register against the page background — kids saw the cards
+ * as decoration. The animation pauses on hover/focus so it
+ * doesn't compete with the active state. */
 @keyframes optionPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
-    50%      { box-shadow: 0 0 0 6px rgba(124, 58, 237, 0.10); }
+    50%      { box-shadow: 0 0 0 10px rgba(124, 58, 237, 0.18); }
 }
-.animate-optionPulse { animation: optionPulse 2.6s ease-in-out infinite; }
+.animate-optionPulse { animation: optionPulse 2.4s ease-in-out infinite; }
 .animate-optionPulse:hover,
 .animate-optionPulse:focus-visible { animation-play-state: paused; }
+
+/* ── OptionCard "TAP" badge bounce ─────────────────────────
+ * Tiny purple chip in the top-right corner of every idle card.
+ * Bounces gently to draw the eye. Disappears once the kid has
+ * tapped a card (replaced with ✓ / ✕). */
+@keyframes tapBadge {
+    0%, 100% { transform: translateY(0) scale(1);   }
+    50%      { transform: translateY(-3px) scale(1.06); }
+}
+.animate-tapBadge { animation: tapBadge 1.6s ease-in-out infinite; }
 
 /* ── Better scrollbar for all pages ───────────────────────── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
