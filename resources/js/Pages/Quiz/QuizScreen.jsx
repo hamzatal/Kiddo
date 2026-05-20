@@ -7,6 +7,7 @@ import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
 import OptionCard from "@/learning/components/ui/OptionCard";
 import AppHeader from "@/learning/components/ui/AppHeader";
+import StageBreadcrumb from "@/learning/components/ui/StageBreadcrumb";
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 
 /**
@@ -274,6 +275,22 @@ const QuizScreen = ({ quizData }) => {
             {!isFinished && ai?.enabled !== undefined && currentQ?.targetWordId ? (
                 <FoxHelper unitId={unitId} wordId={currentQ.targetWordId} aiEnabled={ai.enabled} />
             ) : null}
+
+            {/* "You are here" pill at the bottom-center — same
+                placement and visual language as LessonScreen and
+                ArenaScreen so the indicator feels like one
+                consistent system across every play surface. */}
+            {!isFinished && (
+                <StageBreadcrumb
+                    unitTitle={unitTitle}
+                    lessonTitle="Unit Quiz"
+                    lessonNumber={currentIndex + 1}
+                    totalLessons={questions.length}
+                    modeLabel="Quiz"
+                    modeIcon="🏆"
+                    modeColor="#F59E0B"
+                />
+            )}
 
             {/* Floating Skip pill — secondary recovery path. Mirrors
                 the LessonScreen / ArenaScreen design so navigation

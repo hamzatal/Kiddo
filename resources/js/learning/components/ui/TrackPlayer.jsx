@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useAudioSettings } from "@/learning/utils/audioSettings";
 
 /**
  * Plays an official NCCD audio track with a child-friendly UI.
@@ -8,6 +9,10 @@ import React, { useEffect, useRef, useState } from "react";
  *
  * By default plays the full MP3. Pass segmentStartMs/segmentEndMs (or
  * segment={{ startMs, endMs }}) to loop just one clip.
+ *
+ * Honours the global mute / master-volume settings (see
+ * `audioSettings.js`) — toggling mute INSTANTLY silences the
+ * underlying <audio> element even mid-track.
  */
 const TrackPlayer = ({
     audioTrack,
@@ -20,6 +25,20 @@ const TrackPlayer = ({
     const audioRef = useRef(null);
     const [state, setState] = useState("idle"); // idle | loading | playing | error
     const [progress, setProgress] = useState(0);
+
+    const { muted, volume } = useAudioSettings();
+
+    // Apply mute / volume to the live <audio> element whenever the
+    // user changes the settings. The element is kept around between
+    // toggles, so we have to push the new value imperatively.
+    useEffect(() => {
+        const a = audioRef.current;
+        if (!a) return;
+        try {
+            a.volume = muted ? 0 : volume;
+            a.muted = !!muted;
+        } catch (_) {}
+    }, [muted, volume]);
 
     const src =
         audioTrack?.playUrl || audioTrack?.localUrl || audioTrack?.url || null;

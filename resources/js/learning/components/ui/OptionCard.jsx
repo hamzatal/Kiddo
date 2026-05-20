@@ -84,11 +84,11 @@ const OptionCard = ({
             "animate-optionPulse cursor-pointer",
         correct:
             "ring-4 ring-emerald-500 shadow-[0_10px_30px_rgba(16,185,129,0.45)] " +
-            "bg-gradient-to-br from-emerald-50 via-white to-emerald-50 " +
-            "scale-[1.04] z-10",
+            "bg-gradient-to-br from-emerald-50 via-white to-emerald-100 " +
+            "scale-[1.04] z-10 animate-correctPop",
         wrong:
             "ring-4 ring-rose-400 bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
-            "opacity-60 grayscale scale-[0.97] cursor-not-allowed",
+            "opacity-60 grayscale scale-[0.97] cursor-not-allowed animate-shake",
         disabled:
             "ring-2 ring-gray-200 bg-white opacity-60 cursor-not-allowed",
     }[state];

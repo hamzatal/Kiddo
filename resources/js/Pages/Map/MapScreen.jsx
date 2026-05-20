@@ -4,6 +4,7 @@ import PageHead from "@/learning/components/ui/PageHead";
 import DailyQuestCard from "@/learning/components/ui/DailyQuestCard";
 import StreakBadge from "@/learning/components/ui/StreakBadge";
 import StreakCelebration from "@/learning/components/ui/StreakCelebration";
+import AudioControl from "@/learning/components/ui/AudioControl";
 
 /**
  * MapScreen — the world-map landing page after sign-in.
@@ -234,7 +235,6 @@ const ArenaNode = ({ unlocked, arena }) => {
    MapScreen
    ═════════════════════════════════════════════════════════════ */
 const MapScreen = ({ user, units: propUnits, arena }) => {
-    const [soundOn, setSoundOn] = useState(true);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [showQuizResult, setShowQuizResult] = useState(false);
 
@@ -324,14 +324,10 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             <span className="font-black text-[#1E293B] text-[10px] hidden md:block max-w-[80px] truncate">{user?.name || "Student"}</span>
                         </button>
 
-                        {/* Sound toggle */}
-                        <button
-                            onClick={() => setSoundOn((s) => !s)}
-                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-base shadow-sm hover:bg-gray-50"
-                            aria-label="Toggle sound"
-                        >
-                            {soundOn ? "🔊" : "🔇"}
-                        </button>
+                        {/* Sound toggle — wired to the global audio
+                            settings so muting here also silences
+                            every lesson, quiz, song, and helper. */}
+                        <AudioControl size="sm" placement="bottom" />
 
                         {/* Mobile drawer toggle */}
                         <button

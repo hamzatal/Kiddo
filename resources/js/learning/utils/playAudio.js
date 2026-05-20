@@ -17,10 +17,47 @@
  *
  * Returns a Promise that resolves when playback finishes so callers
  * can chain audio with UI transitions.
+ *
+ * Master volume / mute
+ * ────────────────────
+ * Every play call honours the global audio settings stored in
+ * `audioSettings.js`. When the user mutes the app from the header
+ * AudioControl chip we:
+ *   • set audio.volume = 0  on the live <audio> element
+ *   • set utter.volume = 0  on browser TTS
+ *   • subscribe to settings changes so a mid-clip mute INSTANTLY
+ *     silences the current playback (we don't need to wait for the
+ *     next call).
+ * Web Audio beeps are wired the same way over in `soundEffects.js`.
  */
+
+import { getEffectiveVolume, subscribe as subscribeToAudioSettings } from "./audioSettings";
 
 let currentAudio = null;
 let currentResolvers = [];
+let currentUtter = null;
+
+// When the user toggles mute / drags the volume slider, push the new
+// gain onto whatever is playing right now. Subscribed once at module
+// load — un-subscribing isn't necessary since this module is alive
+// for the whole SPA session.
+subscribeToAudioSettings(({ muted, volume }) => {
+    const v = muted ? 0 : volume;
+    if (currentAudio) {
+        try {
+            currentAudio.volume = v;
+            // Brief safety: some browsers retain the previous mute
+            // state on the underlying MediaElement until the volume
+            // actually changes, so we also explicitly set .muted.
+            currentAudio.muted = !!muted;
+        } catch (_) {}
+    }
+    if (currentUtter) {
+        try {
+            currentUtter.volume = v;
+        } catch (_) {}
+    }
+});
 
 const speechSupported =
     typeof window !== "undefined" &&
@@ -69,7 +106,8 @@ export const speakText = (text) => {
         utter.lang = "en-US";
         utter.rate = 0.9;       // a touch slower so children catch every sound
         utter.pitch = 1.1;      // slightly brighter, more child-friendly
-        utter.volume = 1.0;
+        utter.volume = getEffectiveVolume();
+        currentUtter = utter;
 
         try {
             const voices = window.speechSynthesis.getVoices() || [];
@@ -83,6 +121,7 @@ export const speakText = (text) => {
         const cleanup = () => {
             if (cleaned) return;
             cleaned = true;
+            if (currentUtter === utter) currentUtter = null;
             currentResolvers = currentResolvers.filter((r) => r !== resolve);
             resolve();
         };
@@ -117,6 +156,7 @@ export const playAudioClip = (src, { startMs = null, endMs = null, tts = null } 
     // is set; without it, plain playback + seeking + timeupdate all work
     // even when the redirect target (qr.nccd.gov.jo) returns no CORS
     // headers. This matches the Admin → Audio Tracks page exactly.
+    audio.volume = getEffectiveVolume();
     currentAudio = audio;
 
     return new Promise((resolve) => {

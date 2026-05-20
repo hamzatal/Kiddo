@@ -57,8 +57,16 @@ const FoxHelper = ({ unitId, wordId, aiEnabled = true }) => {
                         <div className="flex items-center gap-2">
                             <span className="text-2xl">🦊</span>
                             <span className="font-black text-sm text-[#1E293B]">
-                                Kiddo Fox {aiEnabled ? "" : <span className="text-[10px] text-amber-500 ml-1">offline</span>}
+                                Kiddo Fox
                             </span>
+                            {!aiEnabled ? (
+                                <span
+                                    className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full"
+                                    title="AI is not configured — quick prompts still give helpful answers."
+                                >
+                                    Offline
+                                </span>
+                            ) : null}
                         </div>
                         <button
                             onClick={() => setOpen(false)}
@@ -68,6 +76,23 @@ const FoxHelper = ({ unitId, wordId, aiEnabled = true }) => {
                             ✕
                         </button>
                     </div>
+
+                    {/* Visible offline banner — explains in plain
+                        words what's going on so the parent isn't
+                        confused by the canned fallback responses.
+                        We render this ABOVE the answer bubble so
+                        even after a click the explanation persists. */}
+                    {!aiEnabled && (
+                        <div className="mb-2 px-3 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800 leading-snug">
+                            <p className="font-black mb-0.5">Helper is offline</p>
+                            <p className="font-semibold">
+                                The AI key isn't set up, so Fox is using built-in
+                                tips. Add <code className="bg-white px-1 rounded text-amber-600">OPENAI_API_KEY</code>{" "}
+                                in <code className="bg-white px-1 rounded text-amber-600">.env</code>{" "}
+                                to unlock smart answers.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Answer / loading bubble */}
                     {loading && (

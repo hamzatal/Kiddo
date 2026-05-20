@@ -6,6 +6,7 @@ import OptionCard from "@/learning/components/ui/OptionCard";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import AppHeader from "@/learning/components/ui/AppHeader";
+import StageBreadcrumb from "@/learning/components/ui/StageBreadcrumb";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
@@ -23,6 +24,9 @@ const STYLE_META = {
     "audio-to-image":    { label: "Listen!",      icon: "🎧", color: "#0EA5E9" },
     "image-to-word":     { label: "Name it!",     icon: "🏷️", color: "#10B981" },
     "listen-then-spell": { label: "Tap the word", icon: "📝", color: "#F59E0B" },
+    // v2 — May 2026 — new round shapes for variety.
+    "odd-one-out":       { label: "Odd one out",  icon: "🔍", color: "#F59E0B" },
+    "spot-the-decoy":    { label: "Read it!",     icon: "📖", color: "#EC4899" },
 };
 
 const ArenaScreen = ({ arena }) => {
@@ -214,7 +218,16 @@ const ArenaScreen = ({ arena }) => {
                                 // styles so the child has to use the picture or the
                                 // audio. Only image-to-word & listen-then-spell ever
                                 // show the word, because the word IS the answer.
-                                const wantLabel = useText;
+                                //
+                                // For the new spot-the-decoy / odd-one-out styles we
+                                // KEEP the picture (so the kid still uses visual
+                                // recognition) AND show the word ribbon (so the kid
+                                // verifies by reading) — this is intentional, the
+                                // round teaches read-and-match together.
+                                const wantLabel =
+                                    useText ||
+                                    style === "spot-the-decoy" ||
+                                    style === "odd-one-out";
 
                                 return (
                                     <OptionCard
@@ -295,6 +308,24 @@ const ArenaScreen = ({ arena }) => {
             {/* Streak celebration toast — fires once per session whenever
                 an arena round bumps today's streak counter. */}
             <StreakCelebration />
+
+            {/* "You are here" pill — pinned to bottom-center like on
+                LessonScreen and QuizScreen. Arena rounds rotate
+                through every unlocked unit, so the unit chip shows
+                the CURRENT round's source ("From Family") and the
+                lesson chip shows the round number out of total. */}
+            {!finished && (
+                <StageBreadcrumb
+                    unitTitle={round?.unitTitle || "Games Arena"}
+                    unitNumber={null}
+                    lessonTitle="Mixed practice"
+                    lessonNumber={Math.min(idx + 1, total)}
+                    totalLessons={total}
+                    modeLabel={meta.label}
+                    modeIcon={meta.icon}
+                    modeColor={meta.color}
+                />
+            )}
 
             {/* Floating Finish pill — secondary recovery path so a
                 stuck child can jump straight to results without

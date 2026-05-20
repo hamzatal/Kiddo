@@ -24,9 +24,13 @@ import WordPicConnectMode from "@/learning/components/modes/WordPicConnectMode";
 import BubblePopMode from "@/learning/components/modes/BubblePopMode";
 import SequenceBuildMode from "@/learning/components/modes/SequenceBuildMode";
 import SpeedTapMode from "@/learning/components/modes/SpeedTapMode";
+import OddOneOutMode from "@/learning/components/modes/OddOneOutMode";
+import WordRainMode from "@/learning/components/modes/WordRainMode";
+import ColorTapMode from "@/learning/components/modes/ColorTapMode";
 
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 import AppHeader from "@/learning/components/ui/AppHeader";
+import StageBreadcrumb from "@/learning/components/ui/StageBreadcrumb";
 
 /**
  * LessonScreen — the play page (Kiddo v3).
@@ -164,6 +168,14 @@ const LessonScreen = (props) => {
             SpeedTapMode,
             MemoryFlipMode,
             MatchConnectMode,
+            // New games — added to the review/mixed-practice rotation
+            // so the kid sees them naturally without authors having
+            // to set the mode explicitly. They still render exactly
+            // when an author DOES pick them in the admin (see the
+            // switch below).
+            OddOneOutMode,
+            WordRainMode,
+            ColorTapMode,
         ];
 
         // Only review/mixed-practice rotate — every other mode
@@ -193,6 +205,10 @@ const LessonScreen = (props) => {
             case "bubble-pop":      return <BubblePopMode {...common} deck={_deck} />;
             case "sequence-build":  return <SequenceBuildMode {...common} deck={_deck} />;
             case "speed-tap":       return <SpeedTapMode {...common} deck={_deck} />;
+            // ── New game modes ─────────────────────────────────
+            case "odd-one-out":     return <OddOneOutMode {...common} deck={_deck} />;
+            case "word-rain":       return <WordRainMode {...common} deck={_deck} />;
+            case "color-tap":       return <ColorTapMode {...common} deck={_deck} />;
             default:                return <VocabGameMode {...common} deck={_deck} />;
         }
     };
@@ -333,6 +349,24 @@ const LessonScreen = (props) => {
             {ai?.enabled !== undefined && stage === LESSON_STAGES.PLAY && firstWord?.id ? (
                 <FoxHelper unitId={safeUnit.id} wordId={firstWord.id} aiEnabled={ai.enabled} />
             ) : null}
+
+            {/* Persistent "you are here" indicator pinned to the
+                bottom-center of the play surface. The kid always
+                knows which unit, which lesson, and which game type
+                they're on — even when the AppHeader at the top
+                scrolls into a tiny strip on a phone. */}
+            {stage === LESSON_STAGES.PLAY && (
+                <StageBreadcrumb
+                    unitTitle={safeUnit.title}
+                    unitNumber={safeUnit.number}
+                    lessonTitle={safeLesson?.title}
+                    lessonNumber={currentLesson}
+                    totalLessons={totalLessons}
+                    modeLabel={meta.label}
+                    modeIcon={meta.icon}
+                    modeColor={meta.color}
+                />
+            )}
 
             {/* Streak celebration toast — only renders when the just-
                 recorded lesson bumped today's streak counter. */}

@@ -30,6 +30,13 @@ export const resolveMode = (lesson) => {
         "bubble-pop",
         "sequence-build",
         "speed-tap",
+        // ── New games (May 2026) ───────────────────────────
+        // odd-one-out:  spot the picture that doesn't fit the group
+        // word-rain:    arcade — tap target cards as they fall
+        // color-tap:    reaction game — tap the colour you hear
+        "odd-one-out",
+        "word-rain",
+        "color-tap",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -77,6 +84,12 @@ export const modeMeta = (mode) => {
         "bubble-pop":       { label: "Pop!",    icon: "🫧", color: "#3B82F6" },
         "sequence-build":   { label: "Build",   icon: "🧱", color: "#84CC16" },
         "speed-tap":        { label: "Whack",   icon: "⚡", color: "#F59E0B" },
+        // ── New games (May 2026) — distinct icons + colours so
+        //    they're easy to tell apart in the AppHeader pill and
+        //    the bottom StageBreadcrumb.
+        "odd-one-out":      { label: "Odd Out", icon: "🔍", color: "#F59E0B" },
+        "word-rain":        { label: "Catch",   icon: "🌧",  color: "#0EA5E9" },
+        "color-tap":        { label: "Colour",  icon: "🎨", color: "#A855F7" },
     };
     return map[mode] || map["vocab-game"];
 };
