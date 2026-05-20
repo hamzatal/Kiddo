@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -194,14 +195,24 @@ const BubblePopMode = ({ lesson, deck = [], onComplete }) => {
                             }}
                         >
                             <span className="bp-skin">
-                                {o.imagePath ? (
-                                    <img
-                                        src={o.imagePath}
-                                        alt={o.word}
-                                        className="max-h-20 lg:max-h-28 object-contain drop-shadow-md"
-                                    />
-                                ) : null}
-                                <span className="mt-1 text-[11px] sm:text-xs font-black uppercase text-[#1E293B] truncate">
+                                {/* SmartImage renders the picture
+                                    when one is configured, and falls
+                                    back to a colourful word-emoji
+                                    tile when image_path is null
+                                    (curriculum words like 'Six' or
+                                    'Hello' that don't have a PNG).
+                                    Without this every imageless
+                                    bubble was empty — which is
+                                    exactly the "sometimes shows
+                                    pictures, sometimes blank"
+                                    complaint from the operator. */}
+                                <SmartImage
+                                    src={o.imagePath}
+                                    label={o.word}
+                                    className="w-full h-[70%] flex items-center justify-center"
+                                    imgClassName="max-h-20 lg:max-h-28 object-contain drop-shadow-md"
+                                />
+                                <span className="mt-1 text-[11px] sm:text-xs font-black uppercase text-[#1E293B] truncate max-w-full px-1">
                                     {o.word}
                                 </span>
                             </span>

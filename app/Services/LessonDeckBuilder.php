@@ -26,6 +26,19 @@ class LessonDeckBuilder
         $cfg  = $lesson->config ?? [];
         $mode = $cfg['mode'] ?? $lesson->type;
 
+        // Deterministic seed per lesson — every visit to the same
+        // lesson now yields the same target words, decoy options,
+        // and option order. Operators were complaining "sometimes
+        // images appear, sometimes they don't" and "the order keeps
+        // jumbling around". Both symptoms came from the previous
+        // ->shuffle() and ->inRandomOrder() calls picking a
+        // different sample each request. Seeding mt_rand by the
+        // lesson id (with a stable salt) means the shuffle is still
+        // visually varied between lessons but stable per lesson.
+        // We re-seed at the top of each build() call so other
+        // request paths aren't accidentally affected.
+        mt_srand((int) $lesson->id * 1000003 + 17);
+
         return match ($mode) {
             'intro'        => $this->buildIntro($lesson, $cfg),
             'phonics-game' => $this->buildPhonicsGame($lesson, $cfg),
@@ -33,6 +46,25 @@ class LessonDeckBuilder
             'vocab-game'   => $this->buildVocabGame($lesson, $cfg),
             default        => $this->buildVocabGame($lesson, $cfg),
         };
+    }
+
+    /**
+     * Deterministic in-place shuffle using mt_rand. Because we seed
+     * mt_rand once per build() call (in build()), the same lesson
+     * always produces the same ordering — but different lessons
+     * still feel varied. PHP's Collection::shuffle() ultimately
+     * calls array_rand which is also seeded by mt_srand, so we
+     * could rely on that, but using our own implementation makes
+     * the determinism explicit and easy to test.
+     */
+    private function seededShuffle(Collection $items): Collection
+    {
+        $arr = $items->all();
+        for ($i = count($arr) - 1; $i > 0; $i--) {
+            $j = mt_rand(0, $i);
+            [$arr[$i], $arr[$j]] = [$arr[$j], $arr[$i]];
+        }
+        return collect($arr);
     }
 
     // ───────── INTRO ─────────
@@ -66,9 +98,17 @@ class LessonDeckBuilder
         $opts    = (int) ($cfg['options_per_round'] ?? 3);
         $pool    = $cfg['decoy_pool'] ?? 'same_category';
 
-        $deck = $targets->loadMissing('audioTrack')->shuffle()->take($rounds)->values()->map(
-            fn (Word $target, int $i) => $this->makeRound("r{$i}", $target, $style, $opts, $pool, $lesson->unit_id)
-        );
+        // Deterministic per-lesson ordering (see build()). Using our
+        // seeded shuffle instead of ->shuffle() is what keeps the
+        // SAME words appearing in the SAME order on every visit to a
+        // given lesson — kids no longer see "Boy / Hello / Goodbye"
+        // one minute and "Goodbye / Hut / Boy" the next.
+        $deck = $this->seededShuffle($targets->loadMissing('audioTrack'))
+            ->take($rounds)
+            ->values()
+            ->map(
+                fn (Word $target, int $i) => $this->makeRound("r{$i}", $target, $style, $opts, $pool, $lesson->unit_id)
+            );
 
         return [
             'mode'       => 'vocab-game',
@@ -86,8 +126,10 @@ class LessonDeckBuilder
             ->where('unit_id', $lesson->unit_id)
             ->where('type', 'phonics')
             ->when(! empty($sets), fn ($q) => $q->whereIn('category', $sets))
-            ->inRandomOrder()
+            ->orderBy('id')
             ->get();
+        // Deterministic per-lesson ordering (see build()).
+        $targets = $this->seededShuffle($targets);
 
         $rounds  = min((int) ($cfg['rounds'] ?? 8), max(1, $targets->count()));
         $style   = $cfg['question_style'] ?? 'sound-to-word';
@@ -102,7 +144,7 @@ class LessonDeckBuilder
                 ->where('type', 'phonics')
                 ->when(! empty($others), fn ($q) => $q->whereIn('category', $others))
                 ->where('id', '!=', $target->id)
-                ->inRandomOrder()
+                ->orderBy('id')
                 ->take($opts - 1)
                 ->get();
 
@@ -112,7 +154,7 @@ class LessonDeckBuilder
                         ->where('unit_id', $lesson->unit_id)
                         ->where('id', '!=', $target->id)
                         ->whereNotIn('id', $decoys->pluck('id'))
-                        ->inRandomOrder()
+                        ->orderBy('id')
                         ->take($opts - 1 - $decoys->count())
                         ->get()
                 );
@@ -140,9 +182,10 @@ class LessonDeckBuilder
         $targets = Word::with('audioTrack')
             ->where('unit_id', $lesson->unit_id)
             ->when($categories, fn ($q) => $q->whereIn('category', $categories))
-            ->inRandomOrder()
-            ->take($rounds)
+            ->orderBy('id')
             ->get();
+        // Deterministic per-lesson ordering (see build()).
+        $targets = $this->seededShuffle($targets)->take($rounds);
 
         $deck = $targets->values()->map(function (Word $target, int $i) use ($styles, $opts, $lesson) {
             $style = $styles[$i % count($styles)];
@@ -170,10 +213,18 @@ class LessonDeckBuilder
             $q->whereIn('category', $cfg['categories']);
         }
 
-        $words = $q->get();
+        // Stable order by id so authoring "Boy, Girl, Family" ALWAYS
+        // produces the same target sequence — the seeded shuffle in
+        // build() then varies the order between lessons but stays
+        // deterministic per-lesson.
+        $words = $q->orderBy('id')->get();
 
         if ($words->isEmpty()) {
-            $words = Word::with('audioTrack')->where('unit_id', $lesson->unit_id)->limit(8)->get();
+            $words = Word::with('audioTrack')
+                ->where('unit_id', $lesson->unit_id)
+                ->orderBy('id')
+                ->limit(8)
+                ->get();
         }
 
         return $words;
@@ -212,7 +263,14 @@ class LessonDeckBuilder
             'imagePath' => $this->resolveImage($w),
             'audioClip' => $w->audioClip(),
             'isCorrect' => $w->is($target),
-        ])->shuffle()->values()->all();
+        ]);
+
+        // Deterministic option order — uses the same seeded mt_rand
+        // sequence we set in build() so the kid sees the same option
+        // layout on every visit. Without this the cards would jump
+        // around between Inertia partial reloads, which the operator
+        // reported as "buttons keep moving".
+        $options = $this->seededShuffle($options)->values()->all();
 
         return [
             'roundId' => $id,
@@ -278,7 +336,12 @@ class LessonDeckBuilder
             $seen = [$targetKey => true];
             $resolved = collect();
 
-            $shuffledAuthored = collect($target->wrong_options)->shuffle();
+            // Deterministic order — keep authored decoys in the
+            // exact order the curriculum-author wrote them, then
+            // shuffle deterministically. Previously this used
+            // ->shuffle() which made the kid see different decoys
+            // every visit even when the author had pinned them.
+            $shuffledAuthored = $this->seededShuffle(collect($target->wrong_options));
 
             foreach ($shuffledAuthored as $w) {
                 if ($resolved->count() >= $n) break;
@@ -377,9 +440,10 @@ class LessonDeckBuilder
                 ->where('category', $target->category)
                 ->whereNotNull('image_path')
                 ->where('image_path', '!=', '')
-                ->inRandomOrder()
+                ->orderBy('id')
                 ->take($n * 3)
                 ->get();
+            $tierA = $this->seededShuffle($tierA);
             $picked = $picked->concat($applyFilter($tierA));
             if ($picked->count() >= $n) return $picked;
 
@@ -391,9 +455,10 @@ class LessonDeckBuilder
                 ->where('unit_id', $unitId)
                 ->where('id', '!=', $target->id)
                 ->where('category', $target->category)
-                ->inRandomOrder()
+                ->orderBy('id')
                 ->take($n * 3)
                 ->get();
+            $tierB = $this->seededShuffle($tierB);
             $picked = $picked->concat($applyFilter($tierB));
             if ($picked->count() >= $n) return $picked;
         }
@@ -405,9 +470,10 @@ class LessonDeckBuilder
         $tierC = Word::with('audioTrack')
             ->where('unit_id', $unitId)
             ->where('id', '!=', $target->id)
-            ->inRandomOrder()
+            ->orderBy('id')
             ->take($n * 3)
             ->get();
+        $tierC = $this->seededShuffle($tierC);
         $picked = $picked->concat($applyFilter($tierC));
 
         return $picked;

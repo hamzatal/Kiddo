@@ -62,7 +62,43 @@ const LessonScreen = (props) => {
     const _progress = props.progress || progress;
 
     const resolvedMode = useMemo(() => _mode || resolveMode(_lesson), [_mode, _lesson]);
-    const meta = modeMeta(resolvedMode);
+
+    /**
+     * Pick the actual variant to render for review/mixed-practice
+     * lessons — same lookup as renderMode() below uses, exposed up
+     * here so the AppHeader chip and the StageBreadcrumb pill can
+     * SHOW the actual game name (Memory, Bubble Pop, Connect, etc.)
+     * rather than a generic "Review" label that confused kids when
+     * they tapped a "Review" lesson and landed in a 3-D flip board.
+     *
+     * For non-review modes we just pass through resolvedMode so the
+     * label always matches what the kid sees.
+     */
+    const VARIANT_KEYS = useMemo(() => [
+        "vocab-game",
+        "memory-game",
+        "listening-game",
+        "drag-drop",
+        "picture-match",
+        "word-pic-connect",
+        "bubble-pop",
+        "speed-tap",
+        "memory-flip",
+        "match-connect",
+        "odd-one-out",
+        "word-rain",
+        "color-tap",
+    ], []);
+
+    const effectiveMode = useMemo(() => {
+        if (resolvedMode !== "review" && resolvedMode !== "mixed-practice") {
+            return resolvedMode;
+        }
+        const lessonNum = _lesson?.number || _lesson?.lesson_number || 1;
+        return VARIANT_KEYS[lessonNum % VARIANT_KEYS.length];
+    }, [resolvedMode, _lesson, VARIANT_KEYS]);
+
+    const meta = modeMeta(effectiveMode);
 
     const [stage, setStage] = useState(LESSON_STAGES.PLAY);
     const [result, setResult] = useState(null);
@@ -116,7 +152,19 @@ const LessonScreen = (props) => {
         router.post(
             `/lesson/${safeUnit.id}/${safeLesson.id}/result`,
             { rounds: summary.rounds || [], durationMs: 0 },
-            { preserveScroll: true, preserveState: true, only: ["flash"] }
+            {
+                preserveScroll: true,
+                preserveState:  true,
+                only:           ["flash"],
+                // Swallow network errors silently — the celebration
+                // screen has already advanced the kid forward, so a
+                // failed save just means we'll re-grade on the next
+                // visit. Logging keeps it visible for debug.
+                onError: (errors) => {
+                    // eslint-disable-next-line no-console
+                    console.warn("Lesson result save failed:", errors);
+                },
+            }
         );
     };
 
@@ -157,32 +205,33 @@ const LessonScreen = (props) => {
      */
     const renderMode = () => {
         const common = { lesson: safeLesson, audioTrack: _audioTrack, onComplete: onModeComplete };
-        const VARIANTS = [
-            VocabGameMode,
-            MemoryGameMode,
-            ListeningGameMode,
-            DragDropMode,
-            PictureMatchMode,
-            WordPicConnectMode,
-            BubblePopMode,
-            SpeedTapMode,
-            MemoryFlipMode,
-            MatchConnectMode,
-            // New games — added to the review/mixed-practice rotation
-            // so the kid sees them naturally without authors having
-            // to set the mode explicitly. They still render exactly
-            // when an author DOES pick them in the admin (see the
-            // switch below).
-            OddOneOutMode,
-            WordRainMode,
-            ColorTapMode,
-        ];
+
+        // Map the variant key strings (used by VARIANT_KEYS above
+        // for AppHeader / StageBreadcrumb labels) to their actual
+        // React components. Keep the order identical to VARIANT_KEYS
+        // so `lessonNum % N` picks the same variant in both places.
+        const VARIANT_BY_KEY = {
+            "vocab-game":       VocabGameMode,
+            "memory-game":      MemoryGameMode,
+            "listening-game":   ListeningGameMode,
+            "drag-drop":        DragDropMode,
+            "picture-match":    PictureMatchMode,
+            "word-pic-connect": WordPicConnectMode,
+            "bubble-pop":       BubblePopMode,
+            "speed-tap":        SpeedTapMode,
+            "memory-flip":      MemoryFlipMode,
+            "match-connect":    MatchConnectMode,
+            "odd-one-out":      OddOneOutMode,
+            "word-rain":        WordRainMode,
+            "color-tap":        ColorTapMode,
+        };
 
         // Only review/mixed-practice rotate — every other mode
-        // renders exactly what the author asked for.
+        // renders exactly what the author asked for. We use the
+        // already-computed `effectiveMode` so the rendered component
+        // always matches the AppHeader chip and breadcrumb label.
         if (resolvedMode === "review" || resolvedMode === "mixed-practice") {
-            const lessonNum = safeLesson?.number || safeLesson?.lesson_number || 1;
-            const Variant = VARIANTS[lessonNum % VARIANTS.length];
+            const Variant = VARIANT_BY_KEY[effectiveMode] || VocabGameMode;
             return <Variant {...common} deck={_deck} />;
         }
 
@@ -288,7 +337,7 @@ const LessonScreen = (props) => {
                 tall mode forced the wrapper to be taller than
                 viewport — children stuck to the top-left corner. */}
             <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
+                <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 pb-20 sm:pb-24">
                     <div className="w-full flex items-center justify-center">
                         {stage === LESSON_STAGES.PLAY && renderMode()}
                         {stage === LESSON_STAGES.REWARD && (

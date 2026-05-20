@@ -572,18 +572,18 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
         router.visit(path);
     };
     return (
-        <div className="flex-1 min-h-0 flex flex-col gap-3 p-3 overflow-y-auto custom-scroll">
+        <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-2.5 sm:p-3 overflow-y-auto custom-scroll">
             {/* Daily Quest — first card so it's always visible, even
                 without scrolling. The card itself returns null when
                 the user is signed out. */}
             <DailyQuestCard />
 
             {/* Today's mission */}
-            <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-3 border border-indigo-100 shadow-sm">
-                <h3 className="font-black text-[#1E293B] text-xs flex items-center gap-1.5 mb-2">
+            <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-2.5 border border-indigo-100 shadow-sm">
+                <h3 className="font-black text-[#1E293B] text-xs flex items-center gap-1.5 mb-1.5">
                     <span className="text-base">🎯</span> Today's Mission
                 </h3>
-                <div className="flex items-center gap-2 mb-3 bg-white p-2 rounded-xl">
+                <div className="flex items-center gap-2 mb-2 bg-white p-2 rounded-xl">
                     <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center text-lg shrink-0">
                         🚀
                     </div>
@@ -598,7 +598,7 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
                 </div>
                 <button
                     onClick={() => go(activeUnit ? `/lesson/${activeUnit.id}` : "/progress")}
-                    className="w-full bg-[#10B981] text-white py-2.5 rounded-xl font-black text-[11px] shadow-[0_3px_0_#059669] hover:translate-y-[1px] transition-all"
+                    className="w-full bg-[#10B981] text-white py-2 rounded-xl font-black text-[11px] shadow-[0_3px_0_#059669] hover:translate-y-[1px] transition-all"
                 >
                     {activeUnit ? "START ADVENTURE →" : "VIEW REWARDS →"}
                 </button>
@@ -619,11 +619,11 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
             </div>
 
             {/* Map index — units + arena */}
-            <div className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
-                <h3 className="font-black text-[#1E293B] text-xs mb-2 flex items-center gap-1.5">
+            <div className="bg-white rounded-2xl p-2.5 border border-gray-100 shadow-sm">
+                <h3 className="font-black text-[#1E293B] text-xs mb-1.5 flex items-center gap-1.5">
                     <span>🗺️</span> Map Index
                 </h3>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1">
                     {units.map((u) => {
                         const color = visualFor(u).color;
                         return (
@@ -671,13 +671,19 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
                 </div>
             </div>
 
-            {/* Mascot tip */}
-            <div className="mt-auto bg-[#7C3AED] rounded-2xl p-3 relative overflow-hidden shadow-md border border-[#6D28D9] shrink-0">
+            {/* Mascot tip — sits naturally in flow at the bottom of
+                the sidebar list. Earlier this used mt-auto, which on
+                short viewports (1366×768) pushed it below the
+                viewport and the parent container's overflow-y-auto
+                hid it. We now keep it in the regular flow with a
+                small top margin so the whole card list scrolls
+                cleanly. */}
+            <div className="bg-[#7C3AED] rounded-2xl p-2.5 relative overflow-hidden shadow-md border border-[#6D28D9] shrink-0">
                 <div className="flex items-center gap-2 relative z-10">
                     <img
                         src="/assets/ui/mascot/fox-hint.png"
                         alt="Fox tip"
-                        className="w-10 h-10 object-contain drop-shadow-md shrink-0"
+                        className="w-9 h-9 object-contain drop-shadow-md shrink-0"
                         onError={(e) => (e.currentTarget.style.display = "none")}
                     />
                     <div className="min-w-0">

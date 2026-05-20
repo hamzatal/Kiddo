@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick, playPop } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
 
@@ -168,20 +169,21 @@ const MemoryFlipMode = ({ lesson, deck = [], onComplete }) => {
                                     }`}
                                 >
                                     {c.type === "image" ? (
-                                        c.value.imagePath ? (
-                                            <img
-                                                src={c.value.imagePath}
-                                                alt={c.value.word}
-                                                // Use percentage-based max-height so the image
-                                                // scales with the card on every breakpoint
-                                                // instead of clipping inside a fixed 128px box
-                                                // when the phone rotates or the parent grid
-                                                // collapses to a smaller column count.
-                                                className="max-h-[70%] max-w-full object-contain drop-shadow-md"
-                                            />
-                                        ) : (
-                                            <span className="text-3xl text-gray-300">?</span>
-                                        )
+                                        // SmartImage falls back to a
+                                        // colourful word-emoji tile
+                                        // when image_path is null
+                                        // (e.g. curriculum words like
+                                        // 'Hello' that don't ship
+                                        // with a PNG). Without this
+                                        // such cards rendered as a
+                                        // bare "?" and players
+                                        // couldn't tell them apart.
+                                        <SmartImage
+                                            src={c.value.imagePath}
+                                            label={c.value.word}
+                                            className="w-full h-[70%] flex items-center justify-center"
+                                            imgClassName="max-h-[70%] max-w-full object-contain drop-shadow-md"
+                                        />
                                     ) : (
                                         <span className="text-xl sm:text-2xl lg:text-3xl font-black uppercase text-[#1E293B]">
                                             {c.value.word}
