@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import OptionCard from "@/learning/components/ui/OptionCard";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
@@ -7,12 +7,18 @@ import { playAudio } from "@/learning/utils/playAudio";
 /**
  * VocabGameMode — multi-round picture/word matching game.
  *
- * Layout v3:
- *  • Compact prompt header (no big white slab eating the screen).
- *  • Option grid uses dynamic columns: 2 on phones, 3 on tablets,
- *    up to 4 on big desktops. Each option is `aspect-square` so
- *    they line up cleanly.
- *  • The whole game fits a 720p tablet without scroll.
+ * Layout v4 (2026-05) — fixes "the page only shows the audio button"
+ * complaint:
+ *  • Compact prompt header. Word always visible for `word-to-image`
+ *    so the child sees what they're looking for.
+ *  • For `audio-to-image` rounds the word stays hidden as a pure
+ *    listening challenge, but a "Show word" hint pill reveals it
+ *    after a wrong attempt (or whenever the child taps the pill).
+ *    Without this hint stuck kids had no path forward — they'd see
+ *    only a 🔊 button and bland fallback tiles below.
+ *  • Grid is 3 columns on every breakpoint so all three same-
+ *    category cards are visible above the fold on a 360px phone
+ *    (was 2 cols on phone, putting the third option below the fold).
  */
 const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     const rounds = useMemo(() => deck || [], [deck]);
@@ -20,14 +26,23 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     const [results, setResults] = useState([]);
     const [wrong, setWrong] = useState([]);
     const [correctId, setCorrectId] = useState(null);
+    const [showHint, setShowHint] = useState(false);
 
     if (!rounds.length) {
         return (
-            <div className="text-center p-8">
-                <p className="text-gray-500 font-bold">No rounds available for this lesson yet.</p>
-                <button onClick={() => onComplete({ correct: 0, total: 1, rounds: [] })}
-                    className="mt-4 px-6 py-2 bg-[#7C3AED] text-white rounded-full">
-                    Skip
+            <div className="text-center p-6 sm:p-10 max-w-sm mx-auto">
+                <span className="text-5xl block mb-3">🧩</span>
+                <h3 className="text-lg sm:text-xl font-black text-gray-700 mb-1">
+                    No rounds yet
+                </h3>
+                <p className="text-sm text-gray-500 font-bold mb-5">
+                    Your teacher hasn't added words for this lesson yet — let's keep going.
+                </p>
+                <button
+                    onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                    Continue →
                 </button>
             </div>
         );
@@ -36,6 +51,25 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     const round = rounds[idx];
     const prompt = round?.prompt;
     const style = round?.style || "word-to-image";
+    const isAudioStyle = style === "audio-to-image";
+
+    // Reveal hint after first wrong attempt for audio-style rounds.
+    useEffect(() => {
+        if (isAudioStyle && wrong.length >= 1) setShowHint(true);
+    }, [wrong.length, isAudioStyle]);
+
+    // Reset hint between rounds.
+    useEffect(() => {
+        setShowHint(false);
+    }, [idx]);
+
+    // Auto-play the word once when a new audio-style round starts.
+    useEffect(() => {
+        if (isAudioStyle && prompt?.audioClip) {
+            const t = setTimeout(() => playAudio(prompt.audioClip), 300);
+            return () => clearTimeout(t);
+        }
+    }, [idx, isAudioStyle, prompt?.audioClip]);
 
     const handlePick = (option) => {
         if (correctId !== null) return;
@@ -91,13 +125,29 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                     <span className="text-[10px] font-black text-purple-600">{idx + 1}/{rounds.length}</span>
                 </div>
                 <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest text-center">{label}</p>
-                <div className="flex items-center justify-center gap-2">
-                    {style === "audio-to-image" ? (
-                        <button
-                            onClick={() => playAudio(prompt?.audioClip)}
-                            className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform"
-                            aria-label="Play target audio"
-                        >🔊</button>
+
+                {/* Prompt body — depends on the round style. */}
+                <div className="flex items-center justify-center gap-2 min-h-[3rem]">
+                    {isAudioStyle ? (
+                        <div className="flex flex-col items-center gap-1">
+                            <button
+                                onClick={() => playAudio(prompt?.audioClip)}
+                                className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform"
+                                aria-label="Play target audio"
+                            >🔊</button>
+                            {/* Hint pill — reveals the word for audio-style
+                                rounds. Auto-shown after a wrong attempt. */}
+                            <button
+                                onClick={() => setShowHint((h) => !h)}
+                                className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
+                                    showHint
+                                        ? "bg-amber-100 text-amber-700 border border-amber-300"
+                                        : "bg-gray-50 text-gray-400 hover:text-amber-500 hover:bg-amber-50 border border-gray-200"
+                                }`}
+                            >
+                                {showHint && prompt?.text ? `🔠 ${prompt.text.toUpperCase()}` : "💡 Hint"}
+                            </button>
+                        </div>
                     ) : style === "image-to-word" ? (
                         prompt?.imagePath ? (
                             <img src={prompt.imagePath} alt={prompt.text} className="w-16 h-16 sm:w-20 sm:h-20 object-contain" />
@@ -111,39 +161,42 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 </div>
             </div>
 
-            {/* Options grid — `mx-auto justify-items-center` keeps
-                 the grid horizontally centred on wide screens even
-                 when the round has fewer options than columns. */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl mx-auto justify-items-center">
+            {/* Options grid — 3 columns on every breakpoint so all three
+                same-category siblings stay visible above the fold even
+                on a 360px phone. Larger screens get 4-up. */}
+            <div className="grid grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl mx-auto justify-items-center">
                 {(round.options || []).map((opt) => {
                     let state = "idle";
                     if (correctId === opt.id) state = "correct";
                     else if (wrong.includes(opt.id)) state = "wrong";
                     else if (correctId !== null) state = "disabled";
 
-                                const useText = style === "image-to-word";
-                                // Show the word label only for the image-to-word
-                                // round (where the option IS a word). Every other
-                                // style hides the label so the child can't read
-                                // their way to the answer — they have to look at
-                                // the picture or listen to the audio. This matters
-                                // because rounds are picture-based and the goal is
-                                // visual / aural recognition, not reading.
-                                const showLabel = useText;
-                                return (
-                                    <OptionCard
-                                        key={opt.id}
-                                        imagePath={useText ? null : opt.imagePath}
-                                        label={opt.word}
-                                        audioClip={opt.audioClip}
-                                        wordId={opt.wordId}
-                                        showLabel={showLabel}
-                                        state={state}
-                                        onClick={() => handlePick(opt)}
-                                    />
-                                );
+                    const useText = style === "image-to-word";
+                    // Show the word label only for the image-to-word
+                    // round (where the option IS a word). Every other
+                    // style hides the label so the child can't read
+                    // their way to the answer.
+                    const showLabel = useText;
+                    return (
+                        <OptionCard
+                            key={opt.id}
+                            imagePath={useText ? null : opt.imagePath}
+                            label={opt.word}
+                            audioClip={opt.audioClip}
+                            wordId={opt.wordId}
+                            showLabel={showLabel}
+                            state={state}
+                            onClick={() => handlePick(opt)}
+                        />
+                    );
                 })}
             </div>
+
+            {wrong.length > 0 ? (
+                <p className="text-[11px] font-bold text-red-500 text-center">
+                    Not quite — try another one!
+                </p>
+            ) : null}
         </div>
     );
 };

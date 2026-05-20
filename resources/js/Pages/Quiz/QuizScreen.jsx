@@ -155,14 +155,22 @@ const QuizScreen = ({ quizData }) => {
                                 type="button"
                                 onClick={playTarget}
                                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-lg sm:text-xl shadow-lg hover:scale-110 active:scale-95 transition-transform flex items-center justify-center shrink-0"
+                                aria-label="Play target word"
                             >🔊</button>
                             <div className="flex-1 min-w-0">
                                 <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Find this word:</p>
                                 <h2 className="text-lg sm:text-2xl lg:text-3xl font-black text-gray-800 truncate">{currentQ.targetWord}</h2>
                             </div>
+                            {wrongClicks.length > 0 ? (
+                                <span className="shrink-0 text-[10px] font-black text-red-500 uppercase tracking-wider px-2 py-1 rounded-full bg-red-50 border border-red-200">
+                                    Try again
+                                </span>
+                            ) : null}
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
+                        {/* 3-column grid on every breakpoint so all options
+                            stay visible on a 360px phone. */}
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
                             {currentQ.options.map((opt) => {
                                 const isWrong = wrongClicks.includes(opt.id);
                                 const isCorrectPick = selectedCorrect === opt.id;

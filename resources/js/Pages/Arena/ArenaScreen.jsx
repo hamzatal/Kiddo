@@ -147,6 +147,16 @@ const ArenaScreen = ({ arena }) => {
         });
     }
 
+    /**
+     * "I'm stuck" — finish the arena early without losing the rounds
+     * the kid already played. We synthesise a partial submit so the
+     * map / parent dashboard still gets the data.
+     */
+    function skipArena() {
+        playClick();
+        setFinished(true);
+    }
+
     const total = rounds.length;
     const correctCount = results.filter((r) => r.correct).length;
     const scorePct = total ? Math.round((correctCount / total) * 100) : 0;
@@ -186,7 +196,7 @@ const ArenaScreen = ({ arena }) => {
 
                         <Prompt style={style} round={round} disabled={correctId !== null} />
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
                             {(round?.options || []).map((opt) => {
                                 const isCorrectPick = correctId === opt.id;
                                 const isWrong = wrong.includes(opt.id);
@@ -281,6 +291,20 @@ const ArenaScreen = ({ arena }) => {
             {/* Streak celebration toast — fires once per session whenever
                 an arena round bumps today's streak counter. */}
             <StreakCelebration />
+
+            {/* Floating Skip pill — visible during play so a stuck
+                child can jump to results without abandoning the run. */}
+            {!finished ? (
+                <button
+                    onClick={skipArena}
+                    className="fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur-md hover:bg-white border border-gray-200 hover:border-amber-300 text-gray-600 hover:text-amber-700 px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition-all hover:-translate-y-0.5"
+                    aria-label="End run early"
+                    title="End run early"
+                >
+                    <span className="text-base">🏁</span>
+                    <span className="text-[11px] font-black uppercase tracking-wider hidden sm:inline">Finish</span>
+                </button>
+            ) : null}
         </div>
     );
 };
