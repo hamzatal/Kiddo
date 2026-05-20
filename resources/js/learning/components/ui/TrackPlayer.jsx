@@ -1,4 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+    effectiveVolume,
+    isMuted as audioIsMuted,
+    subscribeAudioSettings,
+} from "@/learning/utils/audioSettings";
 
 /**
  * Plays an official NCCD audio track with a child-friendly UI.
@@ -33,14 +38,42 @@ const TrackPlayer = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src, autoPlay]);
 
+    /**
+     * Sync the underlying <audio> element's volume + muted state
+     * with the global audioSettings store. Subscribing here means a
+     * slider drag mid-playback is heard immediately, and pressing
+     * the mute button pauses the track instead of letting it bleed
+     * silently into the next page.
+     */
+    useEffect(() => {
+        const apply = () => {
+            const a = audioRef.current;
+            if (!a) return;
+            try {
+                a.volume = effectiveVolume();
+                a.muted = audioIsMuted();
+                if (audioIsMuted() && !a.paused) {
+                    a.pause();
+                    setState("idle");
+                }
+            } catch (_) { /* ignore */ }
+        };
+        apply();
+        return subscribeAudioSettings(apply);
+    }, []);
+
     const tryPlay = () => {
         if (!src) return;
+        // Honour the global mute toggle — silently no-op so the
+        // celebration UI / round timer continues normally.
+        if (audioIsMuted()) return;
         const audio = audioRef.current;
         if (!audio) return;
 
         setState("loading");
         try {
             audio.currentTime = startMs != null ? startMs / 1000 : 0;
+            audio.volume = effectiveVolume();
         } catch (_) {}
 
         audio.play()

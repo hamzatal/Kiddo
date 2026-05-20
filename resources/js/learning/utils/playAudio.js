@@ -14,13 +14,39 @@
  *     browser's built-in speechSynthesis using `tts` (the spoken
  *     text). This keeps Welcome unit working even though there is no
  *     usable NCCD audio for "Hello", "Blue", "One", etc.
+ *   • Respects the global mute / volume state (audioSettings.js).
+ *     When muted, every entry-point resolves immediately without
+ *     touching the speakers; when volume < 1, the audio element AND
+ *     the speech-synthesis utterance are scaled to match.
  *
  * Returns a Promise that resolves when playback finishes so callers
  * can chain audio with UI transitions.
  */
 
+import {
+    isMuted as audioIsMuted,
+    effectiveVolume,
+    subscribeAudioSettings,
+} from "@/learning/utils/audioSettings";
+
 let currentAudio = null;
 let currentResolvers = [];
+
+/**
+ * Live-update the volume on the active <audio> element whenever the
+ * kid drags the slider mid-playback. Without this, volume changes
+ * only take effect on the NEXT track, which feels broken.
+ */
+subscribeAudioSettings(() => {
+    if (currentAudio) {
+        try {
+            currentAudio.volume = effectiveVolume();
+            currentAudio.muted = audioIsMuted();
+        } catch (_) { /* ignore */ }
+    }
+    // Also kill any in-flight TTS when the kid mutes mid-utterance.
+    if (audioIsMuted()) cancelSpeech();
+});
 
 const speechSupported =
     typeof window !== "undefined" &&
@@ -59,6 +85,7 @@ export const stopAllAudio = () => {
  */
 export const speakText = (text) => {
     if (!speechSupported || !text) return Promise.resolve();
+    if (audioIsMuted()) return Promise.resolve(); // honour global mute
 
     cancelSpeech();
 
@@ -69,7 +96,7 @@ export const speakText = (text) => {
         utter.lang = "en-US";
         utter.rate = 0.9;       // a touch slower so children catch every sound
         utter.pitch = 1.1;      // slightly brighter, more child-friendly
-        utter.volume = 1.0;
+        utter.volume = effectiveVolume(); // honour global volume slider
 
         try {
             const voices = window.speechSynthesis.getVoices() || [];
@@ -101,6 +128,14 @@ export const speakText = (text) => {
 };
 
 export const playAudioClip = (src, { startMs = null, endMs = null, tts = null } = {}) => {
+    // Honour the global mute toggle. We resolve immediately so
+    // callers' .then() chains (UI advance, confetti, next-round
+    // setTimeout) still fire — silence shouldn't dead-end the game.
+    if (audioIsMuted()) {
+        stopAllAudio();
+        return Promise.resolve();
+    }
+
     // No URL? Skip straight to the TTS fallback so the child still
     // hears the word.
     if (!src) {
@@ -112,6 +147,7 @@ export const playAudioClip = (src, { startMs = null, endMs = null, tts = null } 
 
     const audio = new Audio(src);
     audio.preload = "auto";
+    audio.volume = effectiveVolume(); // honour global volume slider
     // NOTE: We deliberately do NOT set `audio.crossOrigin = "anonymous"`.
     // The browser only enforces CORS on cross-origin audio when that flag
     // is set; without it, plain playback + seeking + timeupdate all work

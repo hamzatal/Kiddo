@@ -14,12 +14,23 @@
  *   playLevelUp()    - Achievement/level up fanfare
  *   playBounce()     - Bouncy interaction sound
  *   playStarCollect() - Star collection ding
+ *
+ * All effects respect the global mute / volume settings stored in
+ * audioSettings.js. When muted, every export resolves immediately
+ * without scheduling any oscillator. When volume < 1, gain envelopes
+ * are scaled to match.
  */
+
+import { isMuted, effectiveVolume } from "@/learning/utils/audioSettings";
 
 let audioCtx = null;
 
 const ctx = () => {
   if (typeof window === 'undefined') return null;
+  // Hard mute path — never even open an AudioContext when the kid
+  // has the speakers turned off. Saves CPU and avoids accidental
+  // "click" blips when other code path-routes around the mute.
+  if (isMuted()) return null;
   if (!audioCtx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
@@ -31,6 +42,9 @@ const ctx = () => {
   return audioCtx;
 };
 
+/** Multiply a target volume by the global volume slider value. */
+const scaledVolume = (v) => Math.max(0, v * effectiveVolume());
+
 const playTone = (freq, startOffset = 0, duration = 0.18, volume = 0.12, type = 'sine') => {
   const ac = ctx();
   if (!ac) return;
@@ -39,8 +53,9 @@ const playTone = (freq, startOffset = 0, duration = 0.18, volume = 0.12, type = 
   const gain = ac.createGain();
   osc.type = type;
   osc.frequency.value = freq;
+  const peak = scaledVolume(volume);
   gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   osc.connect(gain);
   gain.connect(ac.destination);
@@ -57,8 +72,9 @@ const playGlide = (fromFreq, toFreq, startOffset = 0, duration = 0.2, volume = 0
   osc.type = type;
   osc.frequency.setValueAtTime(fromFreq, t0);
   osc.frequency.linearRampToValueAtTime(toFreq, t0 + duration);
+  const peak = scaledVolume(volume);
   gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t0 + 0.015);
+  gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + 0.015);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   osc.connect(gain);
   gain.connect(ac.destination);
@@ -82,7 +98,7 @@ const playNoise = (startOffset = 0, duration = 0.05, volume = 0.03) => {
   const filter = ac.createBiquadFilter();
   filter.type = 'highpass';
   filter.frequency.value = 4000;
-  gain.gain.setValueAtTime(volume, t0);
+  gain.gain.setValueAtTime(scaledVolume(volume), t0);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   source.connect(filter);
   filter.connect(gain);

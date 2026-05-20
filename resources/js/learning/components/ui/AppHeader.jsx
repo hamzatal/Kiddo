@@ -1,5 +1,6 @@
 import React from "react";
 import { router } from "@inertiajs/react";
+import AudioControls from "@/learning/components/ui/AudioControls";
 
 /**
  * AppHeader — unified header for every lesson / quiz / arena page.
@@ -133,6 +134,14 @@ const AppHeader = ({
                         <span className="font-black text-purple-600 text-[11px]">{xp}</span>
                     </div>
                 )}
+
+                {/* Audio controls — mute toggle + volume slider.
+                    Always visible on every header so the kid (or
+                    a teacher in a classroom) can silence the page
+                    instantly. Compact on phones (icon + popover),
+                    inline slider on tablet+ (md). */}
+                <AudioControls compact={true} className="md:hidden" />
+                <AudioControls compact={false} className="hidden md:flex" />
 
                 {/* Skip / Next button — primary recovery path so the
                     learner is NEVER stranded on a lesson. Always
