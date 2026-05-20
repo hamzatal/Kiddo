@@ -62,17 +62,17 @@ const StageBreadcrumb = ({
     return (
         <nav
             aria-label="Current lesson location"
-            className={`fixed bottom-3 sm:bottom-4 ${alignment} z-40 max-w-[92vw] pointer-events-none ${className}`}
+            className={`fixed bottom-3 sm:bottom-4 ${alignment} z-40 max-w-[92vw] pointer-events-none kiddo-stage-breadcrumb ${className}`}
         >
             <div
-                className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-full shadow-xl border-2 border-white/70 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3"
-                style={{ boxShadow: `0 8px 24px ${modeColor}33` }}
+                className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-full shadow-xl border-2 border-white/70 px-3 sm:px-4 py-1 sm:py-1.5 flex items-center gap-2 sm:gap-3"
+                style={{ boxShadow: `0 6px 18px ${modeColor}33` }}
             >
                 {/* Mode icon — matches the AppHeader's mode pill so
                     the kid associates the colour at the top with the
                     indicator at the bottom. */}
                 <span
-                    className="shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-lg shadow-inner border-2 border-white"
+                    className="shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-sm sm:text-lg shadow-inner border-2 border-white"
                     style={{ backgroundColor: `${modeColor}1A`, color: modeColor }}
                     aria-hidden="true"
                 >
@@ -153,6 +153,18 @@ const StageBreadcrumb = ({
                     </span>
                 )}
             </div>
+
+            {/* Hide the indicator entirely on landscape phones (height
+                ≤ 480px) so it never steals space from the play area
+                when the screen is very short. The padding-bottom we
+                add to the play surface compensates on portrait phones,
+                but in landscape a tiny extra height is too precious
+                to give up. */}
+            <style>{`
+                @media (max-height: 480px) and (orientation: landscape) {
+                    .kiddo-stage-breadcrumb { display: none; }
+                }
+            `}</style>
         </nav>
     );
 };

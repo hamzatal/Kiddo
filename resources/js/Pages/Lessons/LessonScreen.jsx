@@ -62,7 +62,36 @@ const LessonScreen = (props) => {
     const _progress = props.progress || progress;
 
     const resolvedMode = useMemo(() => _mode || resolveMode(_lesson), [_mode, _lesson]);
-    const meta = modeMeta(resolvedMode);
+
+    /**
+     * The mode the host UI advertises to the kid (header pill +
+     * StageBreadcrumb). Different from `resolvedMode` because the
+     * generic `vocab-game` / `review` defaults rotate through the
+     * full game library — we want the chip at the top to honestly
+     * say "Memory" / "Pop!" / "Catch" instead of always saying
+     * "Play". Computed once per render so the header label is
+     * stable across re-renders inside the same lesson.
+     */
+    const effectiveMode = useMemo(() => {
+        const lessonNum = _lesson?.number || _lesson?.lesson_number || 1;
+        // Same rotation table as renderMode() — kept here as plain
+        // mode strings so we don't have to import the components.
+        const POOL = [
+            "vocab-game", "memory-game", "listening-game", "drag-drop",
+            "picture-match", "word-pic-connect", "bubble-pop", "speed-tap",
+            "memory-flip", "match-connect", "odd-one-out", "word-rain",
+            "color-tap",
+        ];
+        if (resolvedMode === "vocab-game") {
+            return POOL[lessonNum % POOL.length];
+        }
+        if (resolvedMode === "review" || resolvedMode === "mixed-practice") {
+            return POOL[(lessonNum + 5) % POOL.length];
+        }
+        return resolvedMode;
+    }, [resolvedMode, _lesson]);
+
+    const meta = modeMeta(effectiveMode);
 
     const [stage, setStage] = useState(LESSON_STAGES.PLAY);
     const [result, setResult] = useState(null);
@@ -141,53 +170,75 @@ const LessonScreen = (props) => {
     /**
      * Pick the actual mode to render.
      *
-     * v3 (2026-05): we used to ROTATE 'vocab-game' across 10 game
-     * variants based on lesson number. That made the lesson-card
-     * label ("Play", "Vocab Game") wildly inconsistent with what
-     * actually rendered — kids would tap "Colours & Numbers"
-     * (vocab-game) and land in a listen-only round with no word
-     * visible. Authors lost control of the experience too.
+     * v4 (May 2026) — game variety overhaul.
      *
-     * Now: vocab-game ALWAYS renders VocabGameMode (picture match
-     * with the prompt word visible), and we only use the rotation
-     * for explicitly-mixed lesson types ('review' or
-     * 'mixed-practice') that exist for variety on purpose. Authors
-     * who want a memory game / bubble pop / etc. simply set the
-     * lesson's mode to that exact value in the seeder/admin.
+     * Operator complaint: "اللعبة الوحيدة هيه مطابقة الاسم مع الصورة
+     * فقط، اما ما في العاب تحفيزة للطفل ابدا". Root cause: most of
+     * the seeded curriculum has `lessons.type = 'vocab-game'` (the
+     * generic default) and v3 made vocab-game ALWAYS render
+     * VocabGameMode (picture match), so kids saw the exact same
+     * round shape on every lesson.
+     *
+     * v3 had a real reason for that — author override mismatched
+     * the lesson card label. We fix it without that regression by:
+     *   • Keeping author overrides FIRST. If the lesson has any
+     *     non-default mode set explicitly ('memory-flip',
+     *     'bubble-pop', 'odd-one-out', etc.), it wins exactly.
+     *   • For the GENERIC `vocab-game` default we now spread it
+     *     across the FULL game library using `lesson_number % N`
+     *     so the same lesson always picks the same variant (kids
+     *     can build muscle memory) but consecutive lessons feel
+     *     totally different.
+     *   • The `review` / `mixed-practice` modes also rotate, but
+     *     through a separate, slightly larger pool so they feel
+     *     like a true grab-bag.
+     *
+     * Result: the kid plays Memory Flip on Lesson 1, Bubble Pop on
+     * Lesson 2, Word Rain on Lesson 3, and so on — without the
+     * teacher needing to author each lesson individually.
      */
     const renderMode = () => {
         const common = { lesson: safeLesson, audioTrack: _audioTrack, onComplete: onModeComplete };
-        const VARIANTS = [
-            VocabGameMode,
-            MemoryGameMode,
-            ListeningGameMode,
-            DragDropMode,
-            PictureMatchMode,
-            WordPicConnectMode,
-            BubblePopMode,
-            SpeedTapMode,
-            MemoryFlipMode,
-            MatchConnectMode,
-            // New games — added to the review/mixed-practice rotation
-            // so the kid sees them naturally without authors having
-            // to set the mode explicitly. They still render exactly
-            // when an author DOES pick them in the admin (see the
-            // switch below).
-            OddOneOutMode,
-            WordRainMode,
-            ColorTapMode,
+
+        // The game library — every entry plays the same `deck` payload
+        // and reports the same `{correct,total,rounds}` summary so the
+        // host never has to special-case a variant.
+        const VOCAB_VARIANTS = [
+            VocabGameMode,        // 0 — the classic picture-match
+            MemoryGameMode,       // 1 — concentration with same-pair flips
+            ListeningGameMode,    // 2 — hear → tap matching picture
+            DragDropMode,         // 3 — drag word onto its picture
+            PictureMatchMode,     // 4 — picture-only match
+            WordPicConnectMode,   // 5 — line drawing word ↔ picture
+            BubblePopMode,        // 6 — pop the right bubble
+            SpeedTapMode,         // 7 — fast tap whack-a-mole
+            MemoryFlipMode,       // 8 — flip + memorise
+            MatchConnectMode,     // 9 — drag a connector line
+            OddOneOutMode,        // 10 — find the odd one (NEW May 2026)
+            WordRainMode,         // 11 — catch falling words (NEW May 2026)
+            ColorTapMode,         // 12 — tap the colour you hear (NEW May 2026)
         ];
 
-        // Only review/mixed-practice rotate — every other mode
-        // renders exactly what the author asked for.
+        const REVIEW_VARIANTS = VOCAB_VARIANTS; // same pool — review is just a different label
+
+        const lessonNum = safeLesson?.number || safeLesson?.lesson_number || 1;
+
+        // Generic / default modes — rotate through the whole library.
+        if (resolvedMode === "vocab-game") {
+            const Variant = VOCAB_VARIANTS[lessonNum % VOCAB_VARIANTS.length];
+            return <Variant {...common} deck={_deck} />;
+        }
         if (resolvedMode === "review" || resolvedMode === "mixed-practice") {
-            const lessonNum = safeLesson?.number || safeLesson?.lesson_number || 1;
-            const Variant = VARIANTS[lessonNum % VARIANTS.length];
+            // Offset by 5 so the review lesson plays a DIFFERENT
+            // variant than the same-numbered teaching lesson — keeps
+            // back-to-back lessons feeling fresh.
+            const Variant = REVIEW_VARIANTS[(lessonNum + 5) % REVIEW_VARIANTS.length];
             return <Variant {...common} deck={_deck} />;
         }
 
+        // Author-specified modes — render exactly what the seeder asked
+        // for. No surprises, no rotation.
         switch (resolvedMode) {
-            case "vocab-game":      return <VocabGameMode {...common} deck={_deck} />;
             case "intro":           return <IntroMode {...common} intro={_intro} />;
             case "picture-dict":    return <PictureDictMode {...common} intro={_intro} />;
             case "story":           return <StoryMode {...common} />;
@@ -205,11 +256,15 @@ const LessonScreen = (props) => {
             case "bubble-pop":      return <BubblePopMode {...common} deck={_deck} />;
             case "sequence-build":  return <SequenceBuildMode {...common} deck={_deck} />;
             case "speed-tap":       return <SpeedTapMode {...common} deck={_deck} />;
-            // ── New game modes ─────────────────────────────────
             case "odd-one-out":     return <OddOneOutMode {...common} deck={_deck} />;
             case "word-rain":       return <WordRainMode {...common} deck={_deck} />;
             case "color-tap":       return <ColorTapMode {...common} deck={_deck} />;
-            default:                return <VocabGameMode {...common} deck={_deck} />;
+            default: {
+                // Truly unknown mode — fall back to a rotated game so
+                // the kid still gets a playable round.
+                const Variant = VOCAB_VARIANTS[lessonNum % VOCAB_VARIANTS.length];
+                return <Variant {...common} deck={_deck} />;
+            }
         }
     };
 
@@ -288,7 +343,16 @@ const LessonScreen = (props) => {
                 tall mode forced the wrapper to be taller than
                 viewport — children stuck to the top-left corner. */}
             <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
+                {/* Bottom padding ensures the floating StageBreadcrumb +
+                    Skip pill + FoxHelper never cover the last row of
+                    cards on a phone. Without it, the kid sees the
+                    bottom row of options peek-bombed by the indicator
+                    chip on a 360px screen — the operator reported
+                    exactly that ("تقدم الطفل... جاي فوق البطاقات
+                    ومخفي بعض تفاصيل البطاقات"). 6rem leaves room for
+                    the breadcrumb (≈40px) + a comfortable 56px halo
+                    above the FoxHelper button. */}
+                <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 pb-24 sm:pb-28">
                     <div className="w-full flex items-center justify-center">
                         {stage === LESSON_STAGES.PLAY && renderMode()}
                         {stage === LESSON_STAGES.REWARD && (

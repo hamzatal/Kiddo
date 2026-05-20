@@ -23,6 +23,7 @@ const QuizScreen = ({ quizData }) => {
     const [selectedCorrect, setSelectedCorrect] = useState(null);
     const [wrongClicks, setWrongClicks] = useState([]);
     const [isFinished, setIsFinished] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [questionStats, setQuestionStats] = useState([]);
     const [errors, setErrors] = useState([]);
     const containerRef = useRef(null);
@@ -101,6 +102,8 @@ const QuizScreen = ({ quizData }) => {
      */
     const skipQuiz = () => {
         playClick();
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         // If the kid hasn't answered ANY question yet, synthesise a
         // minimal "1/1 correct" stat so ProgressService still records
         // an attempt. Otherwise submit what they've actually got.
@@ -110,13 +113,18 @@ const QuizScreen = ({ quizData }) => {
             questionStats.length === 0 ? 1 : 0,
         );
         const wrongCount = total - correctCount;
-        router.post("/quiz/submit", {
-            unitId,
-            correctCount,
-            wrongCount,
-            total,
-            errors,
-        });
+        const safetyId = setTimeout(() => setIsSubmitting(false), 12_000);
+        router.post(
+            "/quiz/submit",
+            { unitId, correctCount, wrongCount, total, errors },
+            {
+                onError: () => setIsSubmitting(false),
+                onFinish: () => {
+                    clearTimeout(safetyId);
+                    setIsSubmitting(false);
+                },
+            }
+        );
     };
 
     const correctCount = questionStats.filter((s) => s.correct).length;
@@ -125,14 +133,31 @@ const QuizScreen = ({ quizData }) => {
     const starsEarned = scorePercent >= 90 ? 3 : scorePercent >= 70 ? 2 : 1;
 
     const handleFinish = () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         playClick();
-        router.post("/quiz/submit", {
-            unitId,
-            correctCount,
-            wrongCount,
-            total: questions.length,
-            errors,
-        });
+        // Same defensive submit pattern as ArenaScreen — without a
+        // safety timer + onError reset, a failed POST left the UI
+        // stuck on "Saving…". 12s is generous for a slow connection
+        // but short enough that the kid doesn't stare forever.
+        const safetyId = setTimeout(() => setIsSubmitting(false), 12_000);
+        router.post(
+            "/quiz/submit",
+            {
+                unitId,
+                correctCount,
+                wrongCount,
+                total: questions.length,
+                errors,
+            },
+            {
+                onError: () => setIsSubmitting(false),
+                onFinish: () => {
+                    clearTimeout(safetyId);
+                    setIsSubmitting(false);
+                },
+            }
+        );
     };
 
     if (questions.length === 0) {
@@ -181,7 +206,11 @@ const QuizScreen = ({ quizData }) => {
 
             {!isFinished ? (
                 <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                    <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3">
+                    {/* pb-24 leaves room for the bottom-fixed
+                        StageBreadcrumb + Skip pill + FoxHelper so
+                        none of the option cards get covered on a
+                        phone. */}
+                    <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 pb-24 sm:pb-28">
                         <div key={currentIndex} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-slideIn">
                         {/* Compact prompt */}
                         <div className="bg-white/90 backdrop-blur px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-lg border border-white/60 flex items-center gap-2 sm:gap-3 w-full max-w-md">
@@ -264,9 +293,14 @@ const QuizScreen = ({ quizData }) => {
 
                         <button
                             onClick={handleFinish}
-                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 sm:py-3.5 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                            disabled={isSubmitting}
+                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 sm:py-3.5 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-60 disabled:cursor-wait"
                         >
-                            {scorePercent >= 70 ? "Continue Adventure! →" : "Try Again →"}
+                            {isSubmitting
+                                ? "Saving…"
+                                : scorePercent >= 70
+                                ? "Continue Adventure! →"
+                                : "Try Again →"}
                         </button>
                     </div>
                 </main>

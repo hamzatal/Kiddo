@@ -76,18 +76,39 @@ const OptionCard = ({
 
     const stateClasses = {
         idle:
-            "ring-4 ring-purple-400 shadow-[0_8px_0_rgba(124,58,237,0.18),0_4px_18px_rgba(124,58,237,0.18)] " +
+            // v8 (May 2026) — modernised idle look:
+            //   • Multi-stop gradient base (white → purple-50 → indigo-50)
+            //     gives the card a soft warm glow against the page bg.
+            //   • Layered shadow: a tight purple "shelf" (depth) + a
+            //     wider ambient halo (lift) + the existing pulse ring.
+            //   • Rounded to 24px (rounded-3xl) on every breakpoint
+            //     so the card feels chunkier and more toy-like, not
+            //     like a corporate UI tile.
+            //   • Hover: lifts 1.5px, scales 3%, and the ring widens
+            //     to 6px deep purple — telegraphs "I'm a button" hard.
+            //   • Active: snaps back so the kid feels a real "press".
+            "ring-4 ring-purple-400 " +
+            "shadow-[0_8px_0_rgba(124,58,237,0.16),0_12px_24px_-8px_rgba(124,58,237,0.28)] " +
             "bg-gradient-to-br from-white via-purple-50 to-indigo-50 " +
-            "hover:ring-purple-600 hover:ring-[6px] hover:shadow-2xl " +
+            "hover:ring-purple-600 hover:ring-[6px] " +
+            "hover:shadow-[0_10px_0_rgba(124,58,237,0.22),0_18px_30px_-8px_rgba(124,58,237,0.4)] " +
             "hover:-translate-y-1.5 hover:scale-[1.03] " +
-            "active:translate-y-0 active:scale-100 " +
+            "active:translate-y-0 active:scale-100 active:shadow-[0_4px_0_rgba(124,58,237,0.18)] " +
             "animate-optionPulse cursor-pointer",
         correct:
-            "ring-4 ring-emerald-500 shadow-[0_10px_30px_rgba(16,185,129,0.45)] " +
+            // Big, confident green stamp. Drops the gentle shadow for
+            // a strong emerald glow so the success reads from across
+            // the room.
+            "ring-4 ring-emerald-500 " +
+            "shadow-[0_10px_0_rgba(16,185,129,0.22),0_18px_36px_-6px_rgba(16,185,129,0.55)] " +
             "bg-gradient-to-br from-emerald-50 via-white to-emerald-100 " +
             "scale-[1.04] z-10 animate-correctPop",
         wrong:
-            "ring-4 ring-rose-400 bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
+            // Soft rose, faded out + a quick shake. Never harsh — kids
+            // should know they missed without feeling told off.
+            "ring-4 ring-rose-400 " +
+            "shadow-[0_4px_0_rgba(244,63,94,0.18)] " +
+            "bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
             "opacity-60 grayscale scale-[0.97] cursor-not-allowed animate-shake",
         disabled:
             "ring-2 ring-gray-200 bg-white opacity-60 cursor-not-allowed",
@@ -124,7 +145,7 @@ const OptionCard = ({
             onClick={onClick}
             className={`
                 group relative overflow-hidden select-none
-                rounded-2xl sm:rounded-3xl
+                rounded-3xl
                 w-full
                 min-h-[8rem] sm:min-h-[10rem] lg:min-h-[12rem]
                 aspect-square sm:aspect-[4/3]
@@ -159,10 +180,15 @@ const OptionCard = ({
 
             {/* Bottom label ribbon — only when the round style
                 actually wants the word visible AND the option has
-                a picture (text-only tiles already SHOW the word). */}
+                a picture (text-only tiles already SHOW the word).
+                v8 (May 2026): cleaner ribbon — solid coloured band
+                with a subtle gradient instead of the previous
+                semi-transparent black overlay. Reads better against
+                bright illustrations and matches the playful vibe
+                of the rest of the card. */}
             {showLabel && label && !isTextOnly ? (
-                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5 bg-gradient-to-t from-black/65 via-black/40 to-transparent">
-                    <span className="block text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-white text-center truncate drop-shadow">
+                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5 sm:py-2 bg-gradient-to-t from-purple-700/85 via-purple-700/55 to-transparent">
+                    <span className="block text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-white text-center truncate drop-shadow-md">
                         {label}
                     </span>
                 </div>
@@ -171,10 +197,13 @@ const OptionCard = ({
             {/* "TAP" badge — pulses on idle cards so first-time
                 learners have an unambiguous "this is a button"
                 signal even when the picture/word looks decorative.
-                Auto-hides on correct/wrong/disabled states. */}
+                Auto-hides on correct/wrong/disabled states.
+                v8: gradient + finger emoji to read as "press me"
+                even before the kid can read English. */}
             {state === "idle" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md border-2 border-white animate-tapBadge pointer-events-none z-10">
-                    Tap
+                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-2 py-0.5 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-lg border-2 border-white animate-tapBadge pointer-events-none z-10 flex items-center gap-1">
+                    <span className="text-[10px] sm:text-xs">👆</span>
+                    <span className="hidden sm:inline">Tap</span>
                 </div>
             )}
 

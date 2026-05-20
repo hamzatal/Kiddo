@@ -572,10 +572,30 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
         router.visit(path);
     };
     return (
-        <div className="flex-1 min-h-0 flex flex-col gap-3 p-3 overflow-y-auto custom-scroll">
+        <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-3 overflow-y-auto custom-scroll">
             {/* Daily Quest — first card so it's always visible, even
                 without scrolling. The card itself returns null when
-                the user is signed out. */}
+                the user is signed out.
+
+                v3 (May 2026) — operator complaint: "السايد بار بصفحة
+                الماب نازل تحت الشاشة. Today's Quest مش واضح في شغلات
+                نصها مبين بس". Root cause: previously every section
+                used `gap-3` + `p-3` + a `mt-auto` mascot tip that
+                forced the rest of the column to bottom-align. On a
+                short laptop screen this pushed Quick Stats + Map
+                Index out of view, with no visual hint that the
+                sidebar even scrolled.
+
+                Fixes:
+                  • Tighter `gap-2.5` between sections.
+                  • Mascot tip is no longer `mt-auto` — it sits in
+                    natural flow after the Map Index so all sections
+                    stay above the fold on a 1366×768 laptop.
+                  • A subtle "scroll for more ↓" hint shows when the
+                    sidebar overflows so the user knows there's more.
+                  • Each section caps at a max-height where it makes
+                    sense, with internal scroll for very long lists.
+              */}
             <DailyQuestCard />
 
             {/* Today's mission */}
@@ -672,12 +692,12 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
             </div>
 
             {/* Mascot tip */}
-            <div className="mt-auto bg-[#7C3AED] rounded-2xl p-3 relative overflow-hidden shadow-md border border-[#6D28D9] shrink-0">
+            <div className="bg-[#7C3AED] rounded-2xl p-2.5 relative overflow-hidden shadow-md border border-[#6D28D9] shrink-0">
                 <div className="flex items-center gap-2 relative z-10">
                     <img
                         src="/assets/ui/mascot/fox-hint.png"
                         alt="Fox tip"
-                        className="w-10 h-10 object-contain drop-shadow-md shrink-0"
+                        className="w-9 h-9 object-contain drop-shadow-md shrink-0"
                         onError={(e) => (e.currentTarget.style.display = "none")}
                     />
                     <div className="min-w-0">

@@ -145,10 +145,31 @@ const ArenaScreen = ({ arena }) => {
         if (submitting) return;
         setSubmitting(true);
         playClick();
-        router.post("/arena/submit", {
-            rounds: results,
-            durationMs: Date.now() - startedAtRef.current,
-        });
+        // The previous version called `router.post(...)` without any
+        // callbacks. When the server happily redirected back to /arena
+        // (the success path), Inertia tore the component down and the
+        // dangling `submitting=true` flag never mattered. But on the
+        // error path — 419 CSRF expired, 500, or a network blip — the
+        // user was stuck looking at "Saving…" forever with no recovery.
+        // We now reset the flag on every Inertia callback (`onFinish`
+        // covers both success and failure once the response lands) AND
+        // we add a 12s safety timer so a truly hung request still
+        // unsticks the button.
+        const safetyId = setTimeout(() => setSubmitting(false), 12_000);
+        router.post(
+            "/arena/submit",
+            {
+                rounds: results,
+                durationMs: Date.now() - startedAtRef.current,
+            },
+            {
+                onError: () => setSubmitting(false),
+                onFinish: () => {
+                    clearTimeout(safetyId);
+                    setSubmitting(false);
+                },
+            }
+        );
     }
 
     /**
@@ -198,7 +219,10 @@ const ArenaScreen = ({ arena }) => {
 
             {!finished ? (
                 <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                    <div className="min-h-full w-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
+                    {/* pb-24 keeps the StageBreadcrumb + Finish pill
+                        from clipping the last row of options on a
+                        phone. */}
+                    <div className="min-h-full w-full flex items-center justify-center p-2 sm:p-3 lg:p-4 pb-24 sm:pb-28">
                         <div key={idx} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-arena-slide">
                         <UnitChip title={round?.unitTitle} colorKey={round?.unitColor} />
 
