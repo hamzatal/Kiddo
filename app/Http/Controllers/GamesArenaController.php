@@ -162,7 +162,15 @@ class GamesArenaController extends Controller
             }
         } catch (\Throwable $_) { /* silent */ }
 
-        return redirect()->route('arena')->with('arenaResult', [
+        // Send the kid back to the world map after saving — the
+        // celebration button promises "Save & back to map →" and
+        // the redirect target needs to match. Previously this
+        // redirected to /arena, which silently swapped the
+        // celebration card for a fresh round 1 and looked exactly
+        // like the button "did nothing". The arenaResult flash
+        // message rides along so MapScreen can show a one-time
+        // "Arena complete!" toast.
+        return redirect()->route('map')->with('arenaResult', [
             'correct' => $correct,
             'total'   => $total,
             'percent' => (int) round(($correct / $total) * 100),
