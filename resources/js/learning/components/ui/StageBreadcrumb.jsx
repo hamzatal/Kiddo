@@ -62,17 +62,17 @@ const StageBreadcrumb = ({
     return (
         <nav
             aria-label="Current lesson location"
-            className={`fixed bottom-3 sm:bottom-4 ${alignment} z-40 max-w-[92vw] pointer-events-none ${className}`}
+            className={`stage-breadcrumb fixed bottom-2 sm:bottom-3 ${alignment} z-30 max-w-[92vw] pointer-events-none ${className}`}
         >
             <div
-                className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-full shadow-xl border-2 border-white/70 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3"
+                className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-full shadow-xl border-2 border-white/70 px-2.5 sm:px-4 py-1 sm:py-2 flex items-center gap-1.5 sm:gap-3"
                 style={{ boxShadow: `0 8px 24px ${modeColor}33` }}
             >
                 {/* Mode icon — matches the AppHeader's mode pill so
                     the kid associates the colour at the top with the
                     indicator at the bottom. */}
                 <span
-                    className="shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-lg shadow-inner border-2 border-white"
+                    className="shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-sm sm:text-lg shadow-inner border-2 border-white"
                     style={{ backgroundColor: `${modeColor}1A`, color: modeColor }}
                     aria-hidden="true"
                 >
@@ -91,7 +91,7 @@ const StageBreadcrumb = ({
                                 : "Now playing"}
                         </span>
                         <span
-                            className="text-[11px] sm:text-xs font-black text-gray-800 truncate max-w-[28vw] sm:max-w-[18ch]"
+                            className="text-[10px] sm:text-xs font-black text-gray-800 truncate max-w-[24vw] sm:max-w-[18ch]"
                             title={unitTitle}
                         >
                             {unitTitle}
@@ -113,7 +113,7 @@ const StageBreadcrumb = ({
                         <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400">
                             Lesson
                         </span>
-                        <span className="text-[11px] sm:text-xs font-black text-gray-800 whitespace-nowrap">
+                        <span className="text-[10px] sm:text-xs font-black text-gray-800 whitespace-nowrap">
                             {lessonNumber || "?"}
                             {totalLessons ? (
                                 <span className="text-gray-400 font-bold">
@@ -153,6 +153,18 @@ const StageBreadcrumb = ({
                     </span>
                 )}
             </div>
+
+            {/* Auto-hide on short landscape phones (e.g. iPhone in
+                landscape) where every pixel of vertical space matters
+                for the play surface. The breakpoint matches the
+                "phone landscape" media query used elsewhere in the
+                app. The kid still has the AppHeader at the top so
+                navigation context is never lost. */}
+            <style>{`
+                @media (max-height: 480px) and (orientation: landscape) {
+                    .stage-breadcrumb { display: none !important; }
+                }
+            `}</style>
         </nav>
     );
 };

@@ -145,10 +145,26 @@ const ArenaScreen = ({ arena }) => {
         if (submitting) return;
         setSubmitting(true);
         playClick();
-        router.post("/arena/submit", {
-            rounds: results,
-            durationMs: Date.now() - startedAtRef.current,
-        });
+
+        // Safety net: if the server never responds (offline,
+        // dropped wifi, validation 422 silently rolling back),
+        // re-enable the button after 8 seconds so the kid is
+        // never stuck on "Saving…" forever. This matches the
+        // pattern used by every long-running button in the app.
+        const stuckTimer = setTimeout(() => setSubmitting(false), 8000);
+
+        router.post(
+            "/arena/submit",
+            {
+                rounds: results,
+                durationMs: Date.now() - startedAtRef.current,
+            },
+            {
+                onError:   () => { clearTimeout(stuckTimer); setSubmitting(false); },
+                onFinish:  () => { clearTimeout(stuckTimer); setSubmitting(false); },
+                onSuccess: () => { clearTimeout(stuckTimer); /* redirect handles state */ },
+            }
+        );
     }
 
     /**
@@ -198,7 +214,7 @@ const ArenaScreen = ({ arena }) => {
 
             {!finished ? (
                 <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                    <div className="min-h-full w-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
+                    <div className="min-h-full w-full flex items-center justify-center p-2 sm:p-3 lg:p-4 pb-20 sm:pb-24">
                         <div key={idx} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-arena-slide">
                         <UnitChip title={round?.unitTitle} colorKey={round?.unitColor} />
 

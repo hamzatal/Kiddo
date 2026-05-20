@@ -25,6 +25,7 @@ const QuizScreen = ({ quizData }) => {
     const [isFinished, setIsFinished] = useState(false);
     const [questionStats, setQuestionStats] = useState([]);
     const [errors, setErrors] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const containerRef = useRef(null);
 
     const unitId = quizData?.unitId || 1;
@@ -100,6 +101,8 @@ const QuizScreen = ({ quizData }) => {
      * every play surface.
      */
     const skipQuiz = () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         playClick();
         // If the kid hasn't answered ANY question yet, synthesise a
         // minimal "1/1 correct" stat so ProgressService still records
@@ -110,13 +113,21 @@ const QuizScreen = ({ quizData }) => {
             questionStats.length === 0 ? 1 : 0,
         );
         const wrongCount = total - correctCount;
-        router.post("/quiz/submit", {
-            unitId,
-            correctCount,
-            wrongCount,
-            total,
-            errors,
-        });
+
+        // Safety: if the response never arrives (offline, dropped
+        // wifi), re-enable buttons after 8s so the kid is not stuck
+        // on a frozen "Saving…" UI.
+        const stuckTimer = setTimeout(() => setIsSubmitting(false), 8000);
+
+        router.post(
+            "/quiz/submit",
+            { unitId, correctCount, wrongCount, total, errors },
+            {
+                onError:   () => { clearTimeout(stuckTimer); setIsSubmitting(false); },
+                onFinish:  () => { clearTimeout(stuckTimer); setIsSubmitting(false); },
+                onSuccess: () => { clearTimeout(stuckTimer); /* redirect handles state */ },
+            }
+        );
     };
 
     const correctCount = questionStats.filter((s) => s.correct).length;
@@ -125,14 +136,24 @@ const QuizScreen = ({ quizData }) => {
     const starsEarned = scorePercent >= 90 ? 3 : scorePercent >= 70 ? 2 : 1;
 
     const handleFinish = () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         playClick();
-        router.post("/quiz/submit", {
-            unitId,
-            correctCount,
-            wrongCount,
-            total: questions.length,
-            errors,
-        });
+
+        // Safety net so a kid never sees a permanent "Saving…"
+        // (offline, dropped connection, validation 422). 8s is well
+        // above any normal Inertia round trip.
+        const stuckTimer = setTimeout(() => setIsSubmitting(false), 8000);
+
+        router.post(
+            "/quiz/submit",
+            { unitId, correctCount, wrongCount, total: questions.length, errors },
+            {
+                onError:   () => { clearTimeout(stuckTimer); setIsSubmitting(false); },
+                onFinish:  () => { clearTimeout(stuckTimer); setIsSubmitting(false); },
+                onSuccess: () => { clearTimeout(stuckTimer); /* redirect handles state */ },
+            }
+        );
     };
 
     if (questions.length === 0) {
@@ -181,7 +202,7 @@ const QuizScreen = ({ quizData }) => {
 
             {!isFinished ? (
                 <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                    <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3">
+                    <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 pb-20 sm:pb-24">
                         <div key={currentIndex} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-slideIn">
                         {/* Compact prompt */}
                         <div className="bg-white/90 backdrop-blur px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-lg border border-white/60 flex items-center gap-2 sm:gap-3 w-full max-w-md">
@@ -264,9 +285,10 @@ const QuizScreen = ({ quizData }) => {
 
                         <button
                             onClick={handleFinish}
-                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 sm:py-3.5 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                            disabled={isSubmitting}
+                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 sm:py-3.5 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-wait"
                         >
-                            {scorePercent >= 70 ? "Continue Adventure! →" : "Try Again →"}
+                            {isSubmitting ? "Saving…" : (scorePercent >= 70 ? "Continue Adventure! →" : "Try Again →")}
                         </button>
                     </div>
                 </main>

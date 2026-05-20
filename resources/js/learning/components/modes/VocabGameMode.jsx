@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import OptionCard from "@/learning/components/ui/OptionCard";
+import SmartImage from "@/learning/components/ui/SmartImage";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
@@ -157,9 +158,17 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                             </button>
                         </div>
                     ) : style === "image-to-word" ? (
-                        prompt?.imagePath ? (
-                            <img src={prompt.imagePath} alt={prompt.text} className="w-16 h-16 sm:w-20 sm:h-20 object-contain" />
-                        ) : <span className="text-4xl">🔤</span>
+                        // SmartImage so kids always see a clear
+                        // visual prompt — even when the target word
+                        // doesn't have a configured image_path the
+                        // colourful emoji-tile fallback gives a
+                        // recognisable hint.
+                        <SmartImage
+                            src={prompt?.imagePath}
+                            label={prompt?.text || ""}
+                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl"
+                            imgClassName="w-full h-full object-contain"
+                        />
                     ) : (
                         <>
                             <h2 className="text-xl sm:text-2xl lg:text-3xl font-black uppercase text-gray-800 tracking-tight">{prompt?.text}</h2>

@@ -76,18 +76,28 @@ const OptionCard = ({
 
     const stateClasses = {
         idle:
-            "ring-4 ring-purple-400 shadow-[0_8px_0_rgba(124,58,237,0.18),0_4px_18px_rgba(124,58,237,0.18)] " +
-            "bg-gradient-to-br from-white via-purple-50 to-indigo-50 " +
-            "hover:ring-purple-600 hover:ring-[6px] hover:shadow-2xl " +
-            "hover:-translate-y-1.5 hover:scale-[1.03] " +
-            "active:translate-y-0 active:scale-100 " +
+            // Tidy modern look — soft 3-stop gradient on the surface,
+            // a single thick purple ring (was 4px ring + 8px stacked
+            // shadow which felt visually noisy), and a clean
+            // elevation shadow that scales smoothly on hover. The
+            // animated TAP badge already signals "this is a button"
+            // so we don't need a heavy ring + halo combo on top.
+            "ring-[3px] ring-purple-300 " +
+            "shadow-[0_6px_18px_-4px_rgba(124,58,237,0.25)] " +
+            "bg-gradient-to-br from-white via-purple-50/60 to-indigo-50 " +
+            "hover:ring-purple-500 hover:ring-4 " +
+            "hover:shadow-[0_12px_28px_-6px_rgba(124,58,237,0.45)] " +
+            "hover:-translate-y-1 hover:scale-[1.03] " +
+            "active:translate-y-0 active:scale-[0.98] " +
             "animate-optionPulse cursor-pointer",
         correct:
-            "ring-4 ring-emerald-500 shadow-[0_10px_30px_rgba(16,185,129,0.45)] " +
+            "ring-4 ring-emerald-500 " +
+            "shadow-[0_12px_30px_-6px_rgba(16,185,129,0.55)] " +
             "bg-gradient-to-br from-emerald-50 via-white to-emerald-100 " +
             "scale-[1.04] z-10 animate-correctPop",
         wrong:
-            "ring-4 ring-rose-400 bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
+            "ring-[3px] ring-rose-400 " +
+            "bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
             "opacity-60 grayscale scale-[0.97] cursor-not-allowed animate-shake",
         disabled:
             "ring-2 ring-gray-200 bg-white opacity-60 cursor-not-allowed",
@@ -157,11 +167,13 @@ const OptionCard = ({
                 />
             )}
 
-            {/* Bottom label ribbon — only when the round style
-                actually wants the word visible AND the option has
-                a picture (text-only tiles already SHOW the word). */}
+            {/* Bottom label ribbon — modernised with a subtle
+                gradient (was an opaque black 65% ribbon that felt
+                visually heavy on a kid-facing UI). The new ribbon
+                blends into the card edge so the picture stays the
+                hero and the word reads as a clean caption. */}
             {showLabel && label && !isTextOnly ? (
-                <div className="absolute inset-x-0 bottom-0 px-2 py-1.5 bg-gradient-to-t from-black/65 via-black/40 to-transparent">
+                <div className="absolute inset-x-0 bottom-0 px-2 pt-3 pb-1.5 bg-gradient-to-t from-purple-900/70 via-purple-900/30 to-transparent">
                     <span className="block text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-white text-center truncate drop-shadow">
                         {label}
                     </span>
