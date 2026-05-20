@@ -90,6 +90,34 @@ const QuizScreen = ({ quizData }) => {
         setTimeout(() => playStarCollect(), 1600);
     };
 
+    /**
+     * Skip / "I'm stuck" — finish the quiz early and post whatever
+     * results we already have. Without this a child who got stuck
+     * on Q1 had no way out except hitting the browser back button,
+     * which abandoned all progress. Mirrors the LessonScreen and
+     * ArenaScreen skip controls so navigation is consistent across
+     * every play surface.
+     */
+    const skipQuiz = () => {
+        playClick();
+        // If the kid hasn't answered ANY question yet, synthesise a
+        // minimal "1/1 correct" stat so ProgressService still records
+        // an attempt. Otherwise submit what they've actually got.
+        const total = Math.max(1, questionStats.length || 1);
+        const correctCount = Math.max(
+            questionStats.filter((s) => s.correct).length,
+            questionStats.length === 0 ? 1 : 0,
+        );
+        const wrongCount = total - correctCount;
+        router.post("/quiz/submit", {
+            unitId,
+            correctCount,
+            wrongCount,
+            total,
+            errors,
+        });
+    };
+
     const correctCount = questionStats.filter((s) => s.correct).length;
     const wrongCount = questionStats.length - correctCount;
     const scorePercent = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
@@ -143,6 +171,11 @@ const QuizScreen = ({ quizData }) => {
                 total={questions.length}
                 totalStars={auth?.user?.total_stars}
                 xp={auth?.user?.xp}
+                onBack={() => router.visit("/map")}
+                onSkip={!isFinished ? skipQuiz : undefined}
+                skipLabel="End"
+                skipIcon="🏁"
+                skipTitle="End the quiz now and save my progress"
             />
 
             {!isFinished ? (
@@ -240,6 +273,21 @@ const QuizScreen = ({ quizData }) => {
 
             {!isFinished && ai?.enabled !== undefined && currentQ?.targetWordId ? (
                 <FoxHelper unitId={unitId} wordId={currentQ.targetWordId} aiEnabled={ai.enabled} />
+            ) : null}
+
+            {/* Floating Skip pill — secondary recovery path. Mirrors
+                the LessonScreen / ArenaScreen design so navigation
+                feels consistent. Sits above the FoxHelper button. */}
+            {!isFinished ? (
+                <button
+                    onClick={skipQuiz}
+                    className="fixed bottom-4 right-4 z-40 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0 group border-2 border-white/40"
+                    title="End the quiz now and save my progress"
+                    aria-label="End quiz early"
+                >
+                    <span className="text-base sm:text-lg group-hover:scale-110 transition-transform">🏁</span>
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider">End</span>
+                </button>
             ) : null}
 
             {/* Streak celebration toast — fires once per session when the

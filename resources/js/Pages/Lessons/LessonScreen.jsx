@@ -253,6 +253,14 @@ const LessonScreen = (props) => {
                 totalStars={totalStars}
                 xp={xp}
                 onBack={goToMap}
+                onSkip={stage === LESSON_STAGES.PLAY ? skipLesson : undefined}
+                skipLabel={currentLesson >= totalLessons ? "Quiz" : "Next"}
+                skipIcon={currentLesson >= totalLessons ? "🏆" : "➡"}
+                skipTitle={
+                    currentLesson >= totalLessons
+                        ? "Skip ahead to the unit quiz"
+                        : `Skip to lesson ${currentLesson + 1} of ${totalLessons}`
+                }
             />
 
             {/* Play surface — fills remaining viewport. Uses an inner
@@ -282,21 +290,27 @@ const LessonScreen = (props) => {
                 </div>
             </main>
 
-            {/* Floating "Skip / I'm stuck" pill — sits in the bottom-
-                right of every PLAY stage. Tapping it counts as a
-                completion (1/1) so progression doesn't dead-end on a
-                child who can't pass a particular round. We hide it
-                during the REWARD stage to keep the celebration clean. */}
+            {/* Floating "Skip / Next" pill — secondary nav button
+                anchored to the bottom-right of the play surface so
+                even a child whose eyes never reach the header sees
+                a clear way forward. Sits above the FoxHelper (which
+                lives at bottom-24) and always shows its label. */}
             {stage === LESSON_STAGES.PLAY ? (
                 <button
                     onClick={skipLesson}
-                    className="fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur-md hover:bg-white border border-gray-200 hover:border-amber-300 text-gray-600 hover:text-amber-700 px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition-all hover:-translate-y-0.5 group"
-                    title="Skip this lesson — your stars stay safe"
-                    aria-label="Skip this lesson"
+                    className="fixed bottom-4 right-4 z-40 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0 group border-2 border-white/40"
+                    title={
+                        currentLesson >= totalLessons
+                            ? "Skip ahead to the unit quiz"
+                            : `Continue to lesson ${currentLesson + 1}`
+                    }
+                    aria-label="Skip this lesson and continue"
                 >
-                    <span className="text-base group-hover:scale-110 transition-transform">⏭️</span>
-                    <span className="text-[11px] font-black uppercase tracking-wider hidden sm:inline">
-                        Skip
+                    <span className="text-base sm:text-lg group-hover:scale-110 transition-transform">
+                        {currentLesson >= totalLessons ? "🏆" : "➡"}
+                    </span>
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider">
+                        {currentLesson >= totalLessons ? "Quiz" : "Next"}
                     </span>
                 </button>
             ) : null}

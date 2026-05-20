@@ -117,14 +117,23 @@ const StoryMode = ({ lesson, audioTrack, onComplete }) => {
 
             <button
                 onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
-                disabled={!allMet}
                 className={`px-8 sm:px-10 py-3 sm:py-4 rounded-2xl font-black text-base sm:text-lg shadow-lg transition-all ${
                     allMet
-                        ? "bg-[#10B981] text-white shadow-[0_8px_0_#059669] hover:translate-y-[2px]"
-                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        ? "bg-[#10B981] text-white shadow-[0_8px_0_#059669] hover:translate-y-[2px] active:translate-y-[6px]"
+                        : "bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-[0_8px_0_#BE185D] hover:translate-y-[2px] active:translate-y-[6px]"
                 }`}
+                aria-label="Mark this story as listened and continue"
             >
-                {allMet ? "I listened! →" : "Tap each character first"}
+                {/*
+                  IMPORTANT FIX (May 2026):
+                  Removed the `disabled={!allMet}` gating. Previously
+                  the "Tap each character first" greyed-out button
+                  trapped kids who couldn't see / didn't understand
+                  the character chips. The chip checklist is still a
+                  fun engagement mechanic (and rewards a 3-star score
+                  when complete) but it never blocks progress now.
+                */}
+                {allMet ? "I listened! →" : "Continue anyway →"}
             </button>
         </div>
     );

@@ -42,6 +42,7 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
     };
 
     const allTapped = cards.length > 0 && tapped.size >= cards.length;
+    const someTapped = tapped.size > 0;
 
     return (
         <div className="w-full max-w-5xl xl:max-w-6xl flex flex-col gap-4 sm:gap-6 animate-fade-in-up">
@@ -70,11 +71,12 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                     <button
                         key={card.id}
                         onClick={() => handleCardTap(card, idx)}
-                        className={`relative aspect-square w-full rounded-2xl border-2 sm:border-4 transition-all shadow-sm overflow-hidden group ${
+                        className={`relative aspect-square w-full rounded-2xl border-2 sm:border-4 transition-all shadow-md overflow-hidden group ${
                             tapped.has(idx)
-                                ? "border-emerald-300 bg-emerald-50"
-                                : "border-white bg-white/95 hover:border-purple-300 hover:-translate-y-1"
+                                ? "border-emerald-300 bg-emerald-50 scale-[0.97]"
+                                : "border-purple-200 bg-white/95 hover:border-purple-400 hover:-translate-y-1 hover:shadow-xl ring-2 ring-purple-100 animate-introPulse"
                         }`}
+                        aria-label={`Tap to hear ${card.word}`}
                     >
                         <div className="absolute inset-0">
                             <SmartImage
@@ -89,43 +91,83 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                                 {card.word}
                             </span>
                         </div>
+                        {/* Tap hint badge — disappears once the kid
+                            has tapped this card. Makes it crystal
+                            clear that the card is a button, not just
+                            decoration. The previous design only had
+                            a static 🔊 chip in the corner which read
+                            as decorative on every layout. */}
                         <div className="absolute top-2 right-2 pointer-events-none">
-                            {/* Decorative speaker chip — the parent
-                                <button> already plays the audio on
-                                tap. Rendering AudioClipButton (which
-                                is itself a <button>) here would be
-                                invalid HTML (button-in-button) and
-                                Firefox lifts the inner button out of
-                                the outer one in the DOM, breaking
-                                layout. We keep the visual cue with
-                                `pointer-events-none` so the wrap
-                                stays a single click target. */}
-                            <span className="w-9 h-9 rounded-full bg-[#10B981] text-white text-base shadow-md flex items-center justify-center">
-                                🔊
-                            </span>
+                            {tapped.has(idx) ? (
+                                <span className="w-9 h-9 rounded-full bg-emerald-500 text-white text-base shadow-md flex items-center justify-center border-2 border-white">
+                                    ✓
+                                </span>
+                            ) : (
+                                <span className="w-9 h-9 rounded-full bg-[#10B981] text-white text-base shadow-md flex items-center justify-center border-2 border-white animate-introBounce">
+                                    🔊
+                                </span>
+                            )}
                         </div>
                     </button>
                 ))}
             </div>
 
             <div className="flex flex-col items-center gap-2 pt-2">
-                <p className="text-xs sm:text-sm font-bold text-gray-500">
+                <p className={`text-xs sm:text-sm font-bold transition-colors ${
+                    allTapped ? "text-emerald-600" : "text-gray-500"
+                }`}>
                     {allTapped
-                        ? "Nice work! Tap Continue."
-                        : `Tap each card to hear it (${tapped.size}/${cards.length})`}
+                        ? "🎉 Nice work! Tap Continue."
+                        : someTapped
+                        ? `Great — ${tapped.size}/${cards.length} cards tapped. Tap more or hit Continue.`
+                        : `👆 Tap each card to hear it (or hit Continue any time)`}
                 </p>
+                {/*
+                  IMPORTANT FIX (May 2026):
+                  Continue is now ALWAYS enabled. Previously this was
+                  `disabled={!allTapped}` which meant a child who saw
+                  only the audio button (because the cards looked like
+                  decorations and the disabled grey button looked
+                  unclickable) had no path forward — the lesson dead-
+                  ended on the very first screen. Even the floating
+                  Skip pill was too small/hidden on phones to act as
+                  a recovery. The new behaviour: tapping cards is
+                  rewarded with stars (3 vs 1), but Continue ALWAYS
+                  works. We compute a partial-credit "correct" count
+                  from how many cards were actually tapped so the
+                  reward stays motivating without ever blocking
+                  progression.
+                */}
                 <button
-                    onClick={() => onComplete({ correct: cards.length, total: Math.max(1, cards.length), rounds: [] })}
-                    disabled={!allTapped}
+                    onClick={() =>
+                        onComplete({
+                            correct: Math.max(1, tapped.size),
+                            total: Math.max(1, cards.length),
+                            rounds: [],
+                        })
+                    }
                     className={`px-8 sm:px-10 py-3 sm:py-4 rounded-2xl font-black text-base sm:text-lg shadow-lg transition-all ${
                         allTapped
-                            ? "bg-emerald-500 text-white shadow-[0_6px_0_#059669] hover:translate-y-[2px]"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            ? "bg-emerald-500 text-white shadow-[0_6px_0_#059669] hover:translate-y-[2px] active:translate-y-[6px]"
+                            : "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-[0_6px_0_#4F46E5] hover:translate-y-[2px] active:translate-y-[6px]"
                     }`}
                 >
                     Continue →
                 </button>
             </div>
+
+            <style>{`
+                @keyframes introPulse {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.0); }
+                    50%      { box-shadow: 0 0 0 6px rgba(124, 58, 237, 0.12); }
+                }
+                .animate-introPulse { animation: introPulse 2.4s ease-in-out infinite; }
+                @keyframes introBounce {
+                    0%, 100% { transform: translateY(0); }
+                    50%      { transform: translateY(-3px); }
+                }
+                .animate-introBounce { animation: introBounce 1.8s ease-in-out infinite; }
+            `}</style>
         </div>
     );
 };
