@@ -166,6 +166,30 @@ option {
 }
 .animate-tapBadge { animation: tapBadge 1.6s ease-in-out infinite; }
 
+/* ── OptionCard "correct!" celebration pop ─────────────────
+ * Plays once when a card transitions into the `correct` state.
+ * Subtle bounce + green glow that telegraphs success without
+ * stealing attention from the next round. Pairs with the ✓
+ * badge that the OptionCard places in the top-right corner. */
+@keyframes correctPop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.18); }
+    100% { transform: scale(1.04); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.45); }
+}
+.animate-correctPop { animation: correctPop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+/* Shake — used by OptionCard when a card is in the wrong state.
+ * Already declared inline in some pages; centralising the
+ * animation here avoids three slightly-different copies in the
+ * various LessonScreen / MatchConnect / SequenceBuild styles. */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-5px); }
+    50%      { transform: translateX(5px); }
+    75%      { transform: translateX(-3px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out; }
+
 /* ── Better scrollbar for all pages ───────────────────────── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

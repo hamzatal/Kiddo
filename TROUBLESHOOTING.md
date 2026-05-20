@@ -165,3 +165,94 @@ npm run build
 ```
 
 …and reload with cache-bust (Ctrl-Shift-R / Cmd-Shift-R).
+
+
+## The Fox helper / AI feature stopped giving smart answers
+
+**Symptom**: The Fox helper inside Lesson / Quiz pages opens, but
+every quick-prompt button returns one of the same four canned
+sentences ("Great! Try saying: 'I can see a friend.'", "You're doing
+great! Keep going and have fun.", etc.) and the parent insight on
+`/progress` reads like a generic template.
+
+**Cause**: This is by design. `OpenAiService::isConfigured()` returns
+`false` when `OPENAI_API_KEY` is missing or blank in `.env`, and every
+public method (`foxHelper`, `parentInsight`, `helpCenterReply`) routes
+straight to the `fallback()` keyword-matched canned response. Kids
+never see an error — but you also never get a smart answer.
+
+`AudioSegmentationService::WHISPER_ENDPOINT` (the admin auto-segment
+button) shares the same `OPENAI_API_KEY`, so when Whisper "stops
+working" the fix is the same.
+
+**Fix**:
+
+1. Get an OpenAI API key from <https://platform.openai.com/api-keys>.
+2. Edit `.env` in the project root and set:
+
+   ```env
+   OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxx
+   OPENAI_MODEL=gpt-4o-mini
+   ```
+
+3. Clear Laravel's config cache so the new value is picked up:
+
+   ```bash
+   php artisan config:clear
+   ```
+
+4. Reload any open lesson page. The Fox helper now shows a small
+   "Offline" badge ONLY when the key is missing — once it's set,
+   the badge disappears and answers come from the real model.
+
+**How to verify it's working**:
+
+- Visit any lesson page. Open the Fox helper. Tap "Explain this
+  word". You should see a tailored, lesson-specific response (e.g.
+  "Mum is the lady who loves you the most at home.") rather than
+  the canned line.
+- Visit `/admin/words` and click "✨ Auto-find this word" on any
+  word that's already linked to an audio track. A success toast
+  with `mode: "track"` confirms Whisper is reaching the API.
+
+**Cost note**: All AI endpoints are throttled per-IP (`throttle:20,1`)
+and the parent insight strips PII before calling OpenAI. Typical cost
+for a class of 30 children using the Fox helper a few times per
+session is < $0.50/day with `gpt-4o-mini`.
+
+## Audio doesn't mute when I tap the speaker icon in the header
+
+**Symptom**: The 🔊/🔇 chip in the lesson / quiz / map header changes
+its icon when tapped but audio keeps playing.
+
+**Cause (now fixed)**: Earlier the icon was a purely-cosmetic local
+state on `MapScreen.jsx`. Every audio source (`playAudio.js`,
+`soundEffects.js`, `TrackPlayer.jsx`) ignored it and played at full
+volume.
+
+**Fix**: This was rebuilt in the May 2026 audio-control refactor.
+Every play call now goes through `audioSettings.js`'s
+`getEffectiveVolume()` — toggling the chip silences the WHOLE app
+(including Web Audio beeps, browser TTS, NCCD tracks, and the Fox
+helper). The chip lives in `AppHeader` so it appears on every play
+surface, plus the map. Settings persist in `localStorage` and sync
+across browser tabs.
+
+If you're seeing audio after a mute on the current branch, hard-
+reload the browser (Ctrl+Shift+R) and check the browser console for
+any `[Kiddo]` warning. The most common cause is a third-party
+extension intercepting `localStorage` writes — disable them and try
+again.
+
+## Map pins don't appear / appear in the wrong spot
+
+See [MAP_GUIDE.md](MAP_GUIDE.md) for the full how-to. Quick sanity
+checklist:
+
+1. The unit must have `map_x` AND `map_y` saved (either non-null).
+   Brand-new units default to NULL → invisible until placed.
+2. The hardcoded fallback dictionary in `MapScreen.jsx` only covers
+   five units (`UNIT_VISUAL` keys 1-5). Beyond that, you MUST set
+   `map_x` / `map_y` from `/admin/units` or the pin won't render.
+3. The Arena pin is auto-positioned 18% to the LEFT of Unit 2. Move
+   Unit 2 and the Arena follows.

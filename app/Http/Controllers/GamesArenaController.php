@@ -178,12 +178,26 @@ class GamesArenaController extends Controller
      * of:
      *   [
      *     'roundId'   => 'arena-3',
-     *     'style'     => 'word-to-image' | 'audio-to-image' | 'image-to-word' | 'listen-then-spell',
+     *     'style'     => 'word-to-image' | 'audio-to-image' | 'image-to-word' | 'listen-then-spell' | 'odd-one-out' | 'spot-the-decoy',
      *     'wordId'    => 12,
      *     'unitTitle' => 'Family',
      *     'prompt'    => ['text','imagePath','audioClip'],
      *     'options'   => [ ['id','word','imagePath','audioClip','isCorrect'] ],
      *   ]
+     *
+     * v2 round styles — May 2026:
+     *   • odd-one-out:    show 4 cards, 3 from the target's category +
+     *                      1 sibling from a different category. Kid taps
+     *                      the odd one out. Trains categorisation, not
+     *                      just word recognition.
+     *   • spot-the-decoy: same shape as word-to-image but with two
+     *                      pictures that LOOK alike (e.g. apple/orange)
+     *                      forcing the kid to read the word, not just
+     *                      guess from the picture.
+     *
+     * Both styles fall back to plain word-to-image when the unit
+     * doesn't have enough material to populate them — the kid
+     * never gets a broken round.
      */
     private function buildDeck($words, int $rounds): array
     {
@@ -197,7 +211,17 @@ class GamesArenaController extends Controller
         // tiebreaker so the early-unit words appear at least once.
         $pool = $words->shuffle()->values();
         $deck = [];
-        $styles = ['word-to-image', 'audio-to-image', 'image-to-word', 'listen-then-spell'];
+        // v2 (May 2026): added odd-one-out + spot-the-decoy to the
+        // round-robin so the arena has 6 distinct round shapes
+        // instead of 4. Operator request "بدي تنوع بالألعاب".
+        $styles = [
+            'word-to-image',
+            'audio-to-image',
+            'image-to-word',
+            'listen-then-spell',
+            'odd-one-out',
+            'spot-the-decoy',
+        ];
 
         $count = min($rounds, $pool->count());
         for ($i = 0; $i < $count; $i++) {

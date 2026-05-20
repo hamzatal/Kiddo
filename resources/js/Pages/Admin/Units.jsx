@@ -3,11 +3,28 @@ import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
 import PageHead from "@/learning/components/ui/PageHead";
 import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
+import MapPositionEditor from "@/learning/components/admin/MapPositionEditor";
 
 /**
  * Inline-editable list of units. Each row is a small form that PATCHes
  * /admin/units/{id} on blur; the UI shows a check mark for 1s after a
  * successful save so the admin knows it went through.
+ *
+ * v3 (May 2026) — operator-friendly map editor.
+ *   The previous version exposed map_x / map_y as bare number inputs
+ *   and asked the admin to type "35.5" / "42". That works but it's
+ *   not how anyone naturally thinks about positioning a pin. The new
+ *   `<MapPositionEditor />` adds:
+ *     • Four arrow buttons (◀ ▲ ▼ ▶) so the admin can NUDGE the pin
+ *       in any direction without touching the keyboard.
+ *     • A configurable step (1% / 2% / 5%) so big moves and tiny
+ *       polish moves are both one-click.
+ *     • A live miniature preview of the map background with the
+ *       pin overlaid at the current x/y, so the admin SEES the pin
+ *       move instead of guessing from the percentages.
+ *     • A drag-to-position interaction on that miniature.
+ *   The bare number inputs stay (for power users who want exact
+ *   coords) but they're below the visual editor now.
  */
 const UnitRow = ({ u, onRemoved }) => {
     const [row, setRow] = useState(u);
@@ -217,13 +234,38 @@ const UnitRow = ({ u, onRemoved }) => {
                 {error && <span className="text-rose-500 text-[10px]">{error}</span>}
             </div>
 
-            {/* ── Map placement (inline-editable, no code changes
-                 needed to move a pin) ── */}
+            {/* ── Map placement (visual editor + power-user inputs) ── */}
             <div className="col-span-12 mt-2 pt-2 border-t border-gray-50">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                    Map placement
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <MapPositionEditor
+                    x={row.map_x}
+                    y={row.map_y}
+                    pinLabel={u.code}
+                    pinTint={
+                        // The unit's brand colour, mapped to a hex.
+                        // Falls back to the brand purple if color_key
+                        // is unset or unknown.
+                        ({
+                            purple: "#7C3AED",
+                            blue: "#2563EB",
+                            pink: "#DB2777",
+                            amber: "#D97706",
+                            green: "#16A34A",
+                            cyan: "#0EA5E9",
+                            rose: "#E11D48",
+                            indigo: "#4F46E5",
+                            teal: "#0D9488",
+                            orange: "#EA580C",
+                        }[row.color_key] || "#7C3AED")
+                    }
+                    imageSrc={row.map_image_path || row.image_path}
+                    onChange={(nx, ny) => setRow({ ...row, map_x: nx, map_y: ny })}
+                    onCommit={save}
+                />
+
+                {/* Power-user inputs kept beneath the visual editor —
+                    they let admins type EXACT coords or paste them
+                    from a spec sheet without dragging a pin. */}
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
                         <label className="text-[10px] font-bold text-gray-500">Map X (%)</label>
                         <input
@@ -277,9 +319,6 @@ const UnitRow = ({ u, onRemoved }) => {
                         />
                     </div>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5 italic">
-                    Tip: X &amp; Y are 0–100% of the map area. Lower X = farther left, lower Y = higher up.
-                </p>
             </div>
 
             <div className="col-span-12 flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-50">

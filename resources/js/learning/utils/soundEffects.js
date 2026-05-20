@@ -14,9 +14,24 @@
  *   playLevelUp()    - Achievement/level up fanfare
  *   playBounce()     - Bouncy interaction sound
  *   playStarCollect() - Star collection ding
+ *
+ * Master volume / mute
+ * ────────────────────
+ * Every tone passes through a single master GainNode whose value is
+ * driven by `audioSettings.js`. Toggling mute from the header
+ * AudioControl chip drops the master gain to 0 in one step, which
+ * silences the next beep — even if the call had been queued before
+ * the mute happened. This way the kid hears a perfectly clean
+ * silence the moment a parent reaches for the mute button.
  */
 
+import {
+    getEffectiveVolume,
+    subscribe as subscribeToAudioSettings,
+} from "./audioSettings";
+
 let audioCtx = null;
+let masterGain = null;
 
 const ctx = () => {
   if (typeof window === 'undefined') return null;
@@ -24,12 +39,40 @@ const ctx = () => {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     audioCtx = new AC();
+    // Single shared master gain. Every oscillator & noise buffer
+    // routes through this node, so a settings change updates ONE
+    // value instead of each beep doing its own multiplication.
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = getEffectiveVolume();
+    masterGain.connect(audioCtx.destination);
+
+    // Subscribe once — keep the master gain in lock-step with the
+    // user's preferences for the rest of the session.
+    subscribeToAudioSettings(({ muted, volume }) => {
+      if (!masterGain) return;
+      try {
+        masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        // 30ms ramp avoids a click on abrupt mute toggles.
+        masterGain.gain.linearRampToValueAtTime(
+          muted ? 0 : volume,
+          audioCtx.currentTime + 0.03,
+        );
+      } catch (_) {
+        masterGain.gain.value = muted ? 0 : volume;
+      }
+    });
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume().catch(() => {});
   }
   return audioCtx;
 };
+
+/**
+ * Internal — every helper now connects to `masterGain` instead of
+ * `audioCtx.destination` so the master volume affects every beep.
+ */
+const destination = () => masterGain || audioCtx?.destination;
 
 const playTone = (freq, startOffset = 0, duration = 0.18, volume = 0.12, type = 'sine') => {
   const ac = ctx();
@@ -43,7 +86,7 @@ const playTone = (freq, startOffset = 0, duration = 0.18, volume = 0.12, type = 
   gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t0 + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   osc.connect(gain);
-  gain.connect(ac.destination);
+  gain.connect(destination());
   osc.start(t0);
   osc.stop(t0 + duration + 0.05);
 };
@@ -61,7 +104,7 @@ const playGlide = (fromFreq, toFreq, startOffset = 0, duration = 0.2, volume = 0
   gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.0002), t0 + 0.015);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   osc.connect(gain);
-  gain.connect(ac.destination);
+  gain.connect(destination());
   osc.start(t0);
   osc.stop(t0 + duration + 0.05);
 };
@@ -86,7 +129,7 @@ const playNoise = (startOffset = 0, duration = 0.05, volume = 0.03) => {
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   source.connect(filter);
   filter.connect(gain);
-  gain.connect(ac.destination);
+  gain.connect(destination());
   source.start(t0);
   source.stop(t0 + duration + 0.01);
 };

@@ -1,11 +1,13 @@
 import React from "react";
 import { router } from "@inertiajs/react";
+import AudioControl from "@/learning/components/ui/AudioControl";
 
 /**
  * AppHeader — unified header for every lesson / quiz / arena page.
  *
  * Layout: back button · title block (unit · lesson chip · type pill
- * · progress bar) · stars · XP. Always one row, never wraps.
+ * · progress bar) · stars · XP · audio control. Always one row,
+ * never wraps.
  *
  * v3 polish:
  *  • Slimmer height (h-12 / h-14) so games get more vertical room.
@@ -13,6 +15,8 @@ import { router } from "@inertiajs/react";
  *  • Truncated unit titles get a tooltip via title attribute.
  *  • Lesson chip + type pill are coloured the same as the active
  *    mode so the kid recognises where they are at a glance.
+ *  • AudioControl chip — global mute + volume slider so a parent
+ *    can silence the room without leaving the lesson page.
  */
 const AppHeader = ({
     unitTitle = "",
@@ -133,6 +137,13 @@ const AppHeader = ({
                         <span className="font-black text-purple-600 text-[11px]">{xp}</span>
                     </div>
                 )}
+
+                {/* Audio control — global mute + volume slider. Sits
+                    BEFORE the Skip button so the parent always finds
+                    the silencer in the same place across every play
+                    surface (lesson / quiz / arena). The popover
+                    auto-closes on outside-click and Escape. */}
+                <AudioControl size="sm" placement="bottom" className="shrink-0" />
 
                 {/* Skip / Next button — primary recovery path so the
                     learner is NEVER stranded on a lesson. Always
