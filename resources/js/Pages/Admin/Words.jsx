@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import PageHead from "@/learning/components/ui/PageHead";
 import SegmentEditor from "@/learning/components/admin/SegmentEditor";
 import AudioPanel from "@/learning/components/admin/AudioPanel";
 import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
@@ -662,6 +663,10 @@ function Words({ units, tracks, words, selected, search }) {
 
     return (
         <AdminLayout active="words">
+            <PageHead
+                title="Words & Segments"
+                description="Edit Kiddo vocabulary, attach images, and trim per-word audio segments."
+            />
             <div className="max-w-6xl mx-auto">
                 <header className="mb-5 flex items-start justify-between gap-3 flex-wrap">
                     <div>

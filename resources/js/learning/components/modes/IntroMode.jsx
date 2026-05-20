@@ -14,6 +14,26 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
     const cards = intro?.cards || [];
     const [tapped, setTapped] = useState(new Set());
 
+    if (!cards.length) {
+        return (
+            <div className="text-center p-6 sm:p-10 max-w-sm mx-auto">
+                <span className="text-5xl block mb-3">👋</span>
+                <h3 className="text-lg sm:text-xl font-black text-gray-700 mb-1">
+                    No words yet for this intro
+                </h3>
+                <p className="text-sm text-gray-500 font-bold mb-5">
+                    Your teacher hasn't added the listen-and-point cards yet.
+                </p>
+                <button
+                    onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl font-black shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                    Continue →
+                </button>
+            </div>
+        );
+    }
+
     const handleCardTap = async (card, idx) => {
         playClick();
         const next = new Set(tapped);

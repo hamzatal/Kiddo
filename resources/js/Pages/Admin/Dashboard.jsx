@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { router } from "@inertiajs/react";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import PageHead from "@/learning/components/ui/PageHead";
 
 const StatCard = ({ label, value, icon, color, hint, onClick }) => (
     <button
@@ -96,6 +97,10 @@ const Dashboard = ({ counts }) => {
 
     return (
         <AdminLayout active="dashboard">
+            <PageHead
+                title="Admin Dashboard"
+                description="Curriculum stats and ingestion controls for the Kiddo learning platform."
+            />
             <div className="max-w-5xl mx-auto">
                 <header className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-black text-[#1E293B]">

@@ -12,6 +12,27 @@ const ProjectMode = ({ lesson, audioTrack, onComplete, deck }) => {
     const words = cfg.word_filter || [];
     const title = cfg.project_title || lesson?.title;
 
+    const hasContent = steps.length > 0 || words.length > 0 || audioTrack;
+    if (!hasContent) {
+        return (
+            <div className="text-center p-6 sm:p-10 max-w-sm mx-auto">
+                <span className="text-5xl block mb-3">✂️</span>
+                <h3 className="text-lg sm:text-xl font-black text-gray-700 mb-1">
+                    No project steps yet
+                </h3>
+                <p className="text-sm text-gray-500 font-bold mb-5">
+                    Your teacher hasn't added the make-and-show steps for this lesson.
+                </p>
+                <button
+                    onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
+                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-2xl font-black shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                    Continue →
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full max-w-3xl flex flex-col items-center gap-6 animate-fade-in-up">
             <header className="text-center">

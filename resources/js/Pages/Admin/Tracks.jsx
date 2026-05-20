@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import PageHead from "@/learning/components/ui/PageHead";
 
 const TrackRow = ({ t, onDelete }) => {
     const [row, setRow] = useState(t);
@@ -205,6 +206,10 @@ const Tracks = ({ tracks, search }) => {
 
     return (
         <AdminLayout active="tracks">
+            <PageHead
+                title="Audio Tracks"
+                description="Browse and manage the NCCD audio track catalogue powering Kiddo lessons."
+            />
             <div className="max-w-7xl mx-auto">
                 <header className="mb-5 flex items-center justify-between gap-3 flex-wrap">
                     <div>
