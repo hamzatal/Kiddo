@@ -230,9 +230,29 @@ const SequenceBuildMode = ({ lesson, deck = [], onComplete }) => {
             <button
                 type="button"
                 onClick={validate}
-                disabled={placed.length !== expectedLen}
-                className="px-10 py-4 rounded-[2rem] font-black text-base lg:text-lg shadow-[0_8px_0_#059669] hover:translate-y-[2px] active:translate-y-[6px] transition-all bg-[#10B981] text-white disabled:bg-gray-300 disabled:shadow-[0_4px_0_#9CA3AF] disabled:cursor-not-allowed"
+                className="px-10 py-4 rounded-[2rem] font-black text-base lg:text-lg shadow-[0_8px_0_#059669] hover:translate-y-[2px] active:translate-y-[6px] transition-all bg-[#10B981] text-white"
+                aria-label="Check the sentence"
+                title={
+                    placed.length === expectedLen
+                        ? "Check the sentence"
+                        : `Place ${expectedLen - placed.length} more word(s) — or press Done to try anyway`
+                }
             >
+                {/*
+                  FIX (May 2026):
+                  Removed the `disabled={placed.length !== expectedLen}`
+                  gating. Previously a child who couldn't figure out
+                  the sequence had no path forward — the only Done
+                  button was greyed out, the floating Skip pill was
+                  tiny on phones, and the kid just stared at the
+                  page. Now Done always works:
+                    - Complete sequence: success path (cheer + advance).
+                    - Incomplete sequence: fail path (shake + record
+                      a wrong attempt + let them keep trying or hit
+                      the global Skip).
+                  Result is identical telemetry but the UI never
+                  dead-ends.
+                */}
                 Done →
             </button>
 
