@@ -7,18 +7,25 @@ import { playAudio } from "@/learning/utils/playAudio";
 /**
  * VocabGameMode — multi-round picture/word matching game.
  *
- * Layout v4 (2026-05) — fixes "the page only shows the audio button"
- * complaint:
- *  • Compact prompt header. Word always visible for `word-to-image`
- *    so the child sees what they're looking for.
- *  • For `audio-to-image` rounds the word stays hidden as a pure
- *    listening challenge, but a "Show word" hint pill reveals it
- *    after a wrong attempt (or whenever the child taps the pill).
- *    Without this hint stuck kids had no path forward — they'd see
- *    only a 🔊 button and bland fallback tiles below.
- *  • Grid is 3 columns on every breakpoint so all three same-
- *    category cards are visible above the fold on a 360px phone
- *    (was 2 cols on phone, putting the third option below the fold).
+ * Layout v5 (May 2026) — visibility overhaul.
+ *
+ * Operator complaint round 2: "kid sees only the audio button at
+ * the top and the words 'Blue', 'Red' as plain text below — page
+ * looks empty, can't progress". Two contributing factors:
+ *
+ *   1. The OptionCard previously rendered as a near-white tile on
+ *      a near-white page so kids didn't recognise it as a button.
+ *      Fixed in OptionCard.jsx v7 (tinted gradient + thick purple
+ *      ring + animated TAP badge + min-h fallback).
+ *
+ *   2. THIS file's prompt header buried the "what to do" message
+ *      in a tiny 10px purple chip ("Find the colour or number!")
+ *      that was easy to skip. The audio-to-image branch was the
+ *      worst offender — just a button, a hint pill, and nothing
+ *      pointing the kid at the cards below. So we now surface a
+ *      bold, eye-catching "👇 Tap a picture below!" instruction
+ *      under the prompt, and bump the prompt-card padding so the
+ *      whole header reads like a single confident block.
  */
 const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     const rounds = useMemo(() => deck || [], [deck]);
@@ -79,7 +86,6 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
-            // Telemetry: kid's FIRST chronological wrong tap (wrong[0]).
             const firstWrongOpt = round.options?.find((o) => o.id === wrong[0]);
             const next = [...results, {
                 roundId: round.roundId,
@@ -114,11 +120,12 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
 
     const label = promptText || lesson?.config?.prompt || "Find the correct picture!";
     const progressPct = Math.round((idx / rounds.length) * 100);
+    const optionsCount = round?.options?.length || 0;
 
     return (
         <div className="w-full max-w-4xl flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-fade-in-up px-2">
             {/* Compact progress + prompt header */}
-            <div className="w-full max-w-xl bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-white px-4 py-2 flex flex-col gap-2">
+            <div className="w-full max-w-xl bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border-2 border-purple-100 px-4 py-3 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />
@@ -136,8 +143,6 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                                 className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl shadow-lg hover:scale-105 active:scale-95 transition-transform"
                                 aria-label="Play target audio"
                             >🔊</button>
-                            {/* Hint pill — reveals the word for audio-style
-                                rounds. Auto-shown after a wrong attempt. */}
                             <button
                                 onClick={() => setShowHint((h) => !h)}
                                 aria-label={showHint ? "Hide hint" : "Show hint"}
@@ -164,10 +169,39 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                 </div>
             </div>
 
-            {/* Options grid — 3 columns on every breakpoint so all three
-                same-category siblings stay visible above the fold even
-                on a 360px phone. Larger screens get 4-up. */}
-            <div className="grid grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 w-full max-w-2xl lg:max-w-3xl mx-auto justify-items-center">
+            {/*
+              "👇 Tap a picture below!" arrow — the single most
+              important UX fix from May 2026. Without this, kids
+              were staring at the audio button at the top wondering
+              what to do; the option cards below were too subtle to
+              register as the next step. The arrow + bold call-to-
+              action makes the relationship between the prompt and
+              the cards obvious.
+            */}
+            <div className="flex flex-col items-center gap-0.5 -mb-1">
+                <span className="text-2xl animate-bounceArrow leading-none">👇</span>
+                <span className="text-[11px] sm:text-xs font-black text-purple-600 uppercase tracking-widest">
+                    {isAudioStyle
+                        ? "Tap the picture you heard!"
+                        : style === "image-to-word"
+                        ? "Tap the matching word!"
+                        : "Tap the matching picture!"}
+                </span>
+            </div>
+
+            {/* Options grid — 3 columns on every breakpoint so all
+                three same-category siblings stay visible above the
+                fold even on a 360px phone. Wider max-width and
+                gap so cards have proper breathing room. */}
+            <div
+                className={`grid gap-3 sm:gap-4 lg:gap-5 w-full max-w-3xl mx-auto justify-items-stretch ${
+                    optionsCount === 2
+                        ? "grid-cols-2"
+                        : optionsCount === 4
+                        ? "grid-cols-2 sm:grid-cols-4"
+                        : "grid-cols-3"
+                }`}
+            >
                 {(round.options || []).map((opt) => {
                     let state = "idle";
                     if (correctId === opt.id) state = "correct";
@@ -175,10 +209,6 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                     else if (correctId !== null) state = "disabled";
 
                     const useText = style === "image-to-word";
-                    // Show the word label only for the image-to-word
-                    // round (where the option IS a word). Every other
-                    // style hides the label so the child can't read
-                    // their way to the answer.
                     const showLabel = useText;
                     return (
                         <OptionCard
@@ -200,6 +230,14 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                     Not quite — try another one!
                 </p>
             ) : null}
+
+            <style>{`
+                @keyframes bounceArrow {
+                    0%, 100% { transform: translateY(0); }
+                    50%      { transform: translateY(4px); }
+                }
+                .animate-bounceArrow { animation: bounceArrow 1.2s ease-in-out infinite; }
+            `}</style>
         </div>
     );
 };
