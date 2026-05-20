@@ -57,6 +57,16 @@ export default function AppLayout({
     const [scrolled, setScrolled] = useState(false);
     const [policy, setPolicy] = useState(null); // 'privacy' | 'terms' | null
 
+    // When the title-logo PNG 404s we fall back to a styled wordmark.
+    // Tracking this in React state — instead of imperatively appending
+    // a <span> to the DOM from inside onError — keeps the DOM under
+    // React's control. The previous version called
+    // `document.createElement("span")` and `appendChild` on the parent,
+    // which broke during strict-mode double mounts (the wordmark would
+    // duplicate) and during Inertia <Link> navigations (the appended
+    // span survived component unmount because React never tracked it).
+    const [logoFailed, setLogoFailed] = useState(false);
+
     const userMenuRef = useRef(null);
     const scrollContainerRef = useRef(null);
 
@@ -137,19 +147,18 @@ export default function AppLayout({
                         className="flex items-center"
                         aria-label="Kiddo home"
                     >
-                        <img
-                            src="/assets/ui/hero/title-logo.png"
-                            alt="Kiddo"
-                            className="h-8 object-contain drop-shadow-sm sm:h-9"
-                            onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                const span = document.createElement("span");
-                                span.className =
-                                    "font-extrabold text-2xl bg-gradient-to-r from-purple-600 to-sky-500 bg-clip-text text-transparent";
-                                span.textContent = "Kiddo";
-                                e.currentTarget.parentElement?.appendChild(span);
-                            }}
-                        />
+                        {logoFailed ? (
+                            <span className="font-extrabold text-2xl bg-gradient-to-r from-purple-600 to-sky-500 bg-clip-text text-transparent">
+                                Kiddo
+                            </span>
+                        ) : (
+                            <img
+                                src="/assets/ui/hero/title-logo.png"
+                                alt="Kiddo"
+                                className="h-8 object-contain drop-shadow-sm sm:h-9"
+                                onError={() => setLogoFailed(true)}
+                            />
+                        )}
                     </Link>
 
                     {/* Desktop nav */}

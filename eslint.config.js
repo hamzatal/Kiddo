@@ -25,7 +25,6 @@ export default [
             "storage/**",
             "bootstrap/cache/**",
             "scripts/**",
-            "resources/js/learning/utils/localProgress.js", // intentionally empty placeholder
         ],
     },
     js.configs.recommended,

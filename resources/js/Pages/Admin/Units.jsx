@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import PageHead from "@/learning/components/ui/PageHead";
 import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
 
 /**
@@ -356,6 +357,10 @@ const Units = ({ units }) => {
 
     return (
         <AdminLayout active="units">
+            <PageHead
+                title="Manage Units"
+                description="Create, edit and reorder Kiddo curriculum units."
+            />
             <div className="max-w-6xl mx-auto">
                 <header className="mb-5 flex items-start justify-between gap-3 flex-wrap">
                     <div>

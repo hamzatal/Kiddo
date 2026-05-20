@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import axios from "axios";
 import AdminLayout from "@/learning/components/admin/AdminLayout";
+import PageHead from "@/learning/components/ui/PageHead";
 import { shrinkForAdminUpload, isSupportedImage, MAX_INPUT_BYTES } from "@/learning/utils/imageUpload";
 
 const LESSON_TYPES = [
@@ -366,6 +367,10 @@ const Lessons = ({ units, lessons, selected, tracks = [] }) => {
 
     return (
         <AdminLayout active="lessons">
+            <PageHead
+                title="Manage Lessons"
+                description="Create, edit and reorder lessons inside each Kiddo unit."
+            />
             <div className="max-w-6xl mx-auto">
                 <header className="mb-5 flex items-center justify-between gap-3 flex-wrap">
                     <div>

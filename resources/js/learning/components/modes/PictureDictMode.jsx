@@ -12,6 +12,26 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
     const cards = intro?.cards || [];
     const [seen, setSeen] = useState(new Set());
 
+    if (!cards.length) {
+        return (
+            <div className="text-center p-6 sm:p-10 max-w-sm mx-auto">
+                <span className="text-5xl block mb-3">📖</span>
+                <h3 className="text-lg sm:text-xl font-black text-gray-700 mb-1">
+                    Dictionary is empty
+                </h3>
+                <p className="text-sm text-gray-500 font-bold mb-5">
+                    No words have been added to this dictionary page yet.
+                </p>
+                <button
+                    onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
+                    className="px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-2xl font-black shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                    Continue →
+                </button>
+            </div>
+        );
+    }
+
     const onTap = async (c, i) => {
         playClick();
         const next = new Set(seen);
