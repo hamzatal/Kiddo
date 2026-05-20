@@ -154,13 +154,22 @@ const SpeedTapMode = ({ lesson, deck = [], onComplete }) => {
             advanceRound(next);
         } else {
             playFail();
-            setHearts((h) => Math.max(0, h - 1));
+            // Decrement hearts AND decide if the run should end —
+            // both inside the functional updater so a burst of three
+            // wrong taps in the same render frame all read fresh
+            // values. Previously the post-`setHearts` `if (hearts - 1
+            // <= 0)` check used the closed-over value, so three
+            // rapid misses each saw `hearts === 3` and the
+            // end-of-game branch never fired.
+            let endNow = false;
+            setHearts((h) => {
+                const next = Math.max(0, h - 1);
+                if (next === 0 && h > 0) endNow = true;
+                return next;
+            });
             setFeedback("miss");
             setTimeout(() => setFeedback(null), 500);
-            // If hearts hit zero, end the game on a kind note: log
-            // the remaining rounds as missed so the score reflects
-            // the run honestly.
-            if (hearts - 1 <= 0) {
+            if (endNow) {
                 const next = [
                     ...results,
                     { roundId: target._rid, correct: false, wordId: target.wordId, style: "speed-tap" },
@@ -175,9 +184,10 @@ const SpeedTapMode = ({ lesson, deck = [], onComplete }) => {
     // the CSS animationend event on the target bubble.
     const handleBubbleExit = (b) => {
         if (phase !== "play") return;
-        if (b.id !== target?._rid && !b.isTarget) return;
+        // Only the target bubble's exit should count as a miss —
+        // decoy bubbles drift off-screen all the time and don't
+        // affect the score.
         if (!b.isTarget) return;
-        // Target left the screen → miss
         playFail();
         const next = [
             ...results,

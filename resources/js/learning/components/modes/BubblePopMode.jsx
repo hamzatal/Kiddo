@@ -161,7 +161,19 @@ const BubblePopMode = ({ lesson, deck = [], onComplete }) => {
                 {roundData.options.map((o, i) => {
                     const isWrong = wrongIds.includes(o.id);
                     const isPopped = popped === o.id;
-                    const left = 8 + ((i * 17) % 80);
+                    // Bubble layout: each bubble is 26% wide, so the
+                    // furthest its left edge can sit and still keep
+                    // the right edge inside the stage is 100 - 26 -
+                    // 2 (small inner pad) = 72%. The previous formula
+                    // `8 + ((i*17) % 80)` produced left=76% for i=4,
+                    // pushing the bubble's right edge 2% past the
+                    // stage and clipping its hit-area. We clamp the
+                    // calculated left into [4, 72] so every bubble's
+                    // tap target stays fully visible regardless of i.
+                    const BUBBLE_WIDTH_PCT = 26;
+                    const MAX_LEFT_PCT = 100 - BUBBLE_WIDTH_PCT - 2; // 72
+                    const rawLeft = 4 + ((i * 17) % (MAX_LEFT_PCT - 4));
+                    const left = Math.min(MAX_LEFT_PCT, Math.max(4, rawLeft));
                     const top = 10 + ((i * 23) % 65);
                     const delay = (i * 0.4).toFixed(1);
                     return (

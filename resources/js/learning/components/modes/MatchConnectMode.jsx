@@ -282,7 +282,15 @@ const MatchConnectMode = ({ lesson, deck = [], onComplete }) => {
                 >
                     {matchedLines.map(({ pid, coords }) => (
                         <line
-                            key={`m-${pid}-${tick}`}
+                            // Stable key (no tick suffix) so React
+                            // re-uses the same DOM node when coords
+                            // change. Previously every resize/scroll
+                            // bumped `tick`, the key changed, and
+                            // every matched line unmounted+remounted
+                            // — replaying the `mc-draw` keyframe and
+                            // making the lines blink back in from
+                            // zero on every page scroll.
+                            key={`m-${pid}`}
                             x1={coords.x1} y1={coords.y1}
                             x2={coords.x2} y2={coords.y2}
                             stroke="#10B981" strokeWidth="5" strokeLinecap="round"
