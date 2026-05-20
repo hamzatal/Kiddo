@@ -79,7 +79,8 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
-            const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
+            // Telemetry: kid's FIRST chronological wrong tap (wrong[0]).
+            const firstWrongOpt = round.options?.find((o) => o.id === wrong[0]);
             const next = [...results, {
                 roundId: round.roundId,
                 wordId: round.wordId,
@@ -139,6 +140,8 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
                                 rounds. Auto-shown after a wrong attempt. */}
                             <button
                                 onClick={() => setShowHint((h) => !h)}
+                                aria-label={showHint ? "Hide hint" : "Show hint"}
+                                aria-pressed={showHint}
                                 className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
                                     showHint
                                         ? "bg-amber-100 text-amber-700 border border-amber-300"

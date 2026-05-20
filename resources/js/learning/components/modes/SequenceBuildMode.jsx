@@ -70,14 +70,25 @@ const SequenceBuildMode = ({ lesson, deck = [], onComplete }) => {
     }, [idx, rounds]);
 
     const round = rounds[idx];
-    if (!round) {
+    // Friendly empty state — also fires when the deck is empty and
+    // we'd otherwise fall back to the hardcoded "I have a cat"
+    // template (DEFAULT_TEMPLATE), which is a confusing
+    // experience for the kid because it doesn't match the lesson.
+    if (!round || !deck?.length) {
         return (
-            <div className="text-center p-10">
+            <div className="text-center p-6 sm:p-10 max-w-sm mx-auto">
+                <span className="text-5xl block mb-3">📝</span>
+                <h3 className="text-lg sm:text-xl font-black text-gray-700 mb-1">
+                    No sentences yet
+                </h3>
+                <p className="text-sm text-gray-500 font-bold mb-5">
+                    Your teacher hasn't added the build-a-sentence task for this lesson yet.
+                </p>
                 <button
-                    onClick={() => onComplete({ correct: 0, total: 1, rounds: [] })}
-                    className="mt-4 px-6 py-2 bg-[#7C3AED] text-white rounded-full"
+                    onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl font-black shadow-md hover:-translate-y-0.5 transition-all"
                 >
-                    Skip
+                    Continue →
                 </button>
             </div>
         );

@@ -74,9 +74,17 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     }, [pairs.length]);
 
     useEffect(() => {
+        // Recompute SVG line endpoints on both resize AND scroll —
+        // matches MatchConnectMode. Without the scroll listener,
+        // scrolling the lesson page on small viewports leaves the
+        // already-drawn lines pointing at stale coordinates.
         const onResize = () => setTick((t) => t + 1);
         window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
+        window.addEventListener("scroll", onResize, true);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            window.removeEventListener("scroll", onResize, true);
+        };
     }, []);
 
     useEffect(() => {
@@ -237,7 +245,8 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 >
                     {matchedLines.map(({ pid, coords }) => (
                         <line
-                            key={`m-${pid}-${tick}`}
+                            // Stable key — see MatchConnectMode comment.
+                            key={`m-${pid}`}
                             x1={coords.x1} y1={coords.y1} x2={coords.x2} y2={coords.y2}
                             stroke="#10B981" strokeWidth="5" strokeLinecap="round"
                             className="wpc-line-correct"

@@ -5,6 +5,7 @@ import StreakCelebration from "@/learning/components/ui/StreakCelebration";
 
 import { resolveMode, modeMeta, LESSON_STAGES } from "@/learning/core/lessonEngine";
 import { playClick, playCheer, playStarCollect, playMagic } from "@/learning/utils/soundEffects";
+import { stopAllAudio } from "@/learning/utils/playAudio";
 import { launchConfetti } from "@/learning/utils/confetti";
 
 import IntroMode from "@/learning/components/modes/IntroMode";
@@ -74,6 +75,21 @@ const LessonScreen = (props) => {
         }
         return null;
     }, [_intro, _deck]);
+
+    /**
+     * Master audio cleanup — fires when the player navigates away
+     * from the lesson (Inertia route change, browser back, deep
+     * link, etc.). The 16 game modes don't all individually call
+     * `stopAllAudio()` because some use multi-step audio chains
+     * (auto-play → click for again → on-success cheer) and aborting
+     * mid-step would cut the kid off. Owning the cleanup here means
+     * one guarantee: leaving a lesson silences everything, no
+     * "ghost word" carries over to the next page. Mirrors the
+     * pattern already used by ArenaScreen and QuizScreen.
+     */
+    useEffect(() => {
+        return () => stopAllAudio();
+    }, []);
 
     const goToMap = () => {
         playClick();

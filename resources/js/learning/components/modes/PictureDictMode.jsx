@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import { playClick } from "@/learning/utils/soundEffects";
 import { playAudio } from "@/learning/utils/playAudio";
@@ -76,12 +75,13 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
                         <span className="font-black text-sm text-[#1E293B] uppercase tracking-wide">
                             {c.word}
                         </span>
-                        <AudioClipButton
-                            clip={c.audioClip}
-                            wordId={c.id}
-                            label={c.word}
-                            size="sm"
-                        />
+                        {/* Decorative speaker chip — see IntroMode
+                            comment. Parent <button> already plays
+                            the audio on tap; nesting another <button>
+                            here would be invalid HTML. */}
+                        <span className="pointer-events-none w-9 h-9 rounded-full bg-[#14B8A6] text-white text-base shadow-md flex items-center justify-center">
+                            🔊
+                        </span>
                     </button>
                 ))}
             </div>

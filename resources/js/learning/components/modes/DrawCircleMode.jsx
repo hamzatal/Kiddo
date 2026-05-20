@@ -91,7 +91,11 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
-            const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
+            // Telemetry attributes the kid's FIRST chronological
+            // wrong tap (wrong[0]) — not the first option that
+            // happens to be in the wrong-set, which would mis-
+            // attribute when wrong taps came out of option order.
+            const firstWrongOpt = round.options?.find((o) => o.id === wrong[0]);
             const next = [
                 ...results,
                 {

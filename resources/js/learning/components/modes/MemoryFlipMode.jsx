@@ -172,7 +172,12 @@ const MemoryFlipMode = ({ lesson, deck = [], onComplete }) => {
                                             <img
                                                 src={c.value.imagePath}
                                                 alt={c.value.word}
-                                                className="max-h-32 lg:max-h-40 xl:max-h-48 object-contain drop-shadow-md"
+                                                // Use percentage-based max-height so the image
+                                                // scales with the card on every breakpoint
+                                                // instead of clipping inside a fixed 128px box
+                                                // when the phone rotates or the parent grid
+                                                // collapses to a smaller column count.
+                                                className="max-h-[70%] max-w-full object-contain drop-shadow-md"
                                             />
                                         ) : (
                                             <span className="text-3xl text-gray-300">?</span>

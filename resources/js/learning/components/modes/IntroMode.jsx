@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import TrackPlayer from "@/learning/components/ui/TrackPlayer";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import { playAudio } from "@/learning/utils/playAudio";
@@ -90,13 +89,20 @@ const IntroMode = ({ lesson, intro, audioTrack, onComplete }) => {
                                 {card.word}
                             </span>
                         </div>
-                        <div className="absolute top-2 right-2">
-                            <AudioClipButton
-                                clip={card.audioClip}
-                                wordId={card.id}
-                                label={card.word}
-                                size="sm"
-                            />
+                        <div className="absolute top-2 right-2 pointer-events-none">
+                            {/* Decorative speaker chip — the parent
+                                <button> already plays the audio on
+                                tap. Rendering AudioClipButton (which
+                                is itself a <button>) here would be
+                                invalid HTML (button-in-button) and
+                                Firefox lifts the inner button out of
+                                the outer one in the DOM, breaking
+                                layout. We keep the visual cue with
+                                `pointer-events-none` so the wrap
+                                stays a single click target. */}
+                            <span className="w-9 h-9 rounded-full bg-[#10B981] text-white text-base shadow-md flex items-center justify-center">
+                                🔊
+                            </span>
                         </div>
                     </button>
                 ))}

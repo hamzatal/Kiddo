@@ -112,7 +112,8 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
-            const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
+            // Telemetry: kid's FIRST chronological wrong tap (wrong[0]).
+            const firstWrongOpt = round.options?.find((o) => o.id === wrong[0]);
             const next = [...results, {
                 roundId: round.roundId,
                 wordId: round.wordId,
