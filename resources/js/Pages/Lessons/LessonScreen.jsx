@@ -107,40 +107,65 @@ const LessonScreen = (props) => {
     };
 
     /**
-     * Pick the actual mode to render. For 'vocab-game' / 'review'
-     * we cycle through every kid-friendly game variant indexed by
-     * lesson number, so the same lesson always renders the same
-     * variant but the kid sees variety unit-by-unit.
+     * "I'm stuck" / Skip — let the kid bail out of any mode without
+     * losing their progress. We synthesise a minimal "1/1 correct"
+     * result so ProgressService still records the attempt and
+     * advances them to the next lesson. Used by the Skip control we
+     * render at the bottom of every play surface.
+     */
+    const skipLesson = () => {
+        playClick();
+        onModeComplete({ correct: 1, total: 1, rounds: [] });
+    };
+
+    /**
+     * Pick the actual mode to render.
+     *
+     * v3 (2026-05): we used to ROTATE 'vocab-game' across 10 game
+     * variants based on lesson number. That made the lesson-card
+     * label ("Play", "Vocab Game") wildly inconsistent with what
+     * actually rendered — kids would tap "Colours & Numbers"
+     * (vocab-game) and land in a listen-only round with no word
+     * visible. Authors lost control of the experience too.
+     *
+     * Now: vocab-game ALWAYS renders VocabGameMode (picture match
+     * with the prompt word visible), and we only use the rotation
+     * for explicitly-mixed lesson types ('review' or
+     * 'mixed-practice') that exist for variety on purpose. Authors
+     * who want a memory game / bubble pop / etc. simply set the
+     * lesson's mode to that exact value in the seeder/admin.
      */
     const renderMode = () => {
         const common = { lesson: safeLesson, audioTrack: _audioTrack, onComplete: onModeComplete };
         const VARIANTS = [
-            // Index → Component
-            VocabGameMode,        // 0
-            MemoryGameMode,       // 1
-            ListeningGameMode,    // 2
-            DragDropMode,         // 3
-            PictureMatchMode,     // 4
-            WordPicConnectMode,   // 5
-            BubblePopMode,        // 6
-            SpeedTapMode,         // 7
-            MemoryFlipMode,       // 8
-            MatchConnectMode,     // 9
+            VocabGameMode,
+            MemoryGameMode,
+            ListeningGameMode,
+            DragDropMode,
+            PictureMatchMode,
+            WordPicConnectMode,
+            BubblePopMode,
+            SpeedTapMode,
+            MemoryFlipMode,
+            MatchConnectMode,
         ];
 
-        if (resolvedMode === "vocab-game" || resolvedMode === "review") {
+        // Only review/mixed-practice rotate — every other mode
+        // renders exactly what the author asked for.
+        if (resolvedMode === "review" || resolvedMode === "mixed-practice") {
             const lessonNum = safeLesson?.number || safeLesson?.lesson_number || 1;
             const Variant = VARIANTS[lessonNum % VARIANTS.length];
             return <Variant {...common} deck={_deck} />;
         }
 
         switch (resolvedMode) {
+            case "vocab-game":      return <VocabGameMode {...common} deck={_deck} />;
             case "intro":           return <IntroMode {...common} intro={_intro} />;
             case "picture-dict":    return <PictureDictMode {...common} intro={_intro} />;
             case "story":           return <StoryMode {...common} />;
             case "project":         return <ProjectMode {...common} deck={_deck} />;
             case "song":            return <ListeningGameMode {...common} deck={_deck} />;
-            case "phonics-game":    return <DragDropMode {...common} deck={_deck} />;
+            case "phonics-game":    return <ListeningGameMode {...common} deck={_deck} />;
             case "draw-circle":     return <DrawCircleMode {...common} deck={_deck} />;
             case "match-connect":   return <MatchConnectMode {...common} deck={_deck} />;
             case "memory-game":     return <MemoryGameMode {...common} deck={_deck} />;
@@ -240,6 +265,25 @@ const LessonScreen = (props) => {
                     </div>
                 </div>
             </main>
+
+            {/* Floating "Skip / I'm stuck" pill — sits in the bottom-
+                right of every PLAY stage. Tapping it counts as a
+                completion (1/1) so progression doesn't dead-end on a
+                child who can't pass a particular round. We hide it
+                during the REWARD stage to keep the celebration clean. */}
+            {stage === LESSON_STAGES.PLAY ? (
+                <button
+                    onClick={skipLesson}
+                    className="fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur-md hover:bg-white border border-gray-200 hover:border-amber-300 text-gray-600 hover:text-amber-700 px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition-all hover:-translate-y-0.5 group"
+                    title="Skip this lesson — your stars stay safe"
+                    aria-label="Skip this lesson"
+                >
+                    <span className="text-base group-hover:scale-110 transition-transform">⏭️</span>
+                    <span className="text-[11px] font-black uppercase tracking-wider hidden sm:inline">
+                        Skip
+                    </span>
+                </button>
+            ) : null}
 
             {/* Big "Awesome!" overlay */}
             {showCelebration && (

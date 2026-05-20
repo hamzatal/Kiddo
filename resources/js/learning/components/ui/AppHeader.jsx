@@ -40,12 +40,12 @@ const AppHeader = ({
                 {/* Back to map */}
                 <button
                     onClick={handleBack}
-                    className="w-8 h-8 sm:w-9 sm:h-9 bg-white rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 shadow-sm border border-gray-200 transition-all shrink-0"
+                    className="w-8 h-8 sm:w-9 sm:h-9 bg-white rounded-xl flex items-center justify-center text-gray-500 hover:text-purple-600 hover:bg-purple-50 shadow-sm border border-gray-200 transition-all shrink-0"
                     aria-label="Back to map"
                     title="Back to map"
                 >
                     <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
 
