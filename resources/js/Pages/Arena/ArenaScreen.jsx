@@ -186,6 +186,10 @@ const ArenaScreen = ({ arena }) => {
                 totalStars={auth?.user?.total_stars}
                 xp={auth?.user?.xp}
                 onBack={() => router.visit("/map")}
+                onSkip={!finished ? skipArena : undefined}
+                skipLabel="Finish"
+                skipIcon="🏁"
+                skipTitle="End run early and see results"
             />
 
             {!finished ? (
@@ -292,17 +296,20 @@ const ArenaScreen = ({ arena }) => {
                 an arena round bumps today's streak counter. */}
             <StreakCelebration />
 
-            {/* Floating Skip pill — visible during play so a stuck
-                child can jump to results without abandoning the run. */}
+            {/* Floating Finish pill — secondary recovery path so a
+                stuck child can jump straight to results without
+                abandoning the run. Mirrors the LessonScreen and
+                QuizScreen designs. Always shows its label so phone
+                users see what it does. */}
             {!finished ? (
                 <button
                     onClick={skipArena}
-                    className="fixed bottom-4 right-4 z-40 bg-white/95 backdrop-blur-md hover:bg-white border border-gray-200 hover:border-amber-300 text-gray-600 hover:text-amber-700 px-3 py-2 rounded-full shadow-lg flex items-center gap-1.5 transition-all hover:-translate-y-0.5"
+                    className="fixed bottom-4 right-4 z-40 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-700 text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0 group border-2 border-white/40"
                     aria-label="End run early"
-                    title="End run early"
+                    title="End run early and see results"
                 >
-                    <span className="text-base">🏁</span>
-                    <span className="text-[11px] font-black uppercase tracking-wider hidden sm:inline">Finish</span>
+                    <span className="text-base sm:text-lg group-hover:scale-110 transition-transform">🏁</span>
+                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider">Finish</span>
                 </button>
             ) : null}
         </div>

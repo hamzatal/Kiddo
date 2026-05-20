@@ -88,15 +88,23 @@ const PictureDictMode = ({ lesson, intro, onComplete }) => {
 
             <div className="flex justify-center">
                 <button
-                    onClick={() => onComplete({ correct: cards.length, total: Math.max(1, cards.length), rounds: [] })}
-                    disabled={!allSeen}
+                    onClick={() => onComplete({ correct: Math.max(1, seen.size), total: Math.max(1, cards.length), rounds: [] })}
                     className={`px-10 py-4 rounded-[2rem] font-black text-lg shadow-lg transition-all ${
                         allSeen
-                            ? "bg-[#14B8A6] text-white shadow-[0_8px_0_#0F766E]"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            ? "bg-[#14B8A6] text-white shadow-[0_8px_0_#0F766E] hover:translate-y-[2px] active:translate-y-[6px]"
+                            : "bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-[0_8px_0_#0E7490] hover:translate-y-[2px] active:translate-y-[6px]"
                     }`}
+                    aria-label="Finish picture dictionary and continue"
                 >
-                    Finish →
+                    {/*
+                      FIX (May 2026):
+                      Removed the `disabled={!allSeen}` gating that
+                      was blocking children who didn't realise the
+                      tiles were tappable. Tapping each card still
+                      buys you a higher star rating (correct = seen
+                      count), but Finish always works.
+                    */}
+                    {allSeen ? "Finish →" : "Continue →"}
                 </button>
             </div>
         </div>

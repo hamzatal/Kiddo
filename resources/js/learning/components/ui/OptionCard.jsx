@@ -61,7 +61,14 @@ const OptionCard = ({
     const [speaking, setSpeaking] = useState(false);
 
     const stateBorder = {
-        idle:     "ring-2 ring-purple-200 ring-dashed shadow-md hover:ring-purple-400 hover:shadow-xl hover:-translate-y-1",
+        // v6 (May 2026) — operator complaint: "kids only see the
+        // audio button, the option cards look like decoration".
+        // Idle state now uses a SOLID purple ring (Tailwind has no
+        // `ring-dashed` so the previous attempt rendered as plain
+        // ring), a soft pulsing glow, and a stronger lift on hover
+        // so the card unambiguously reads as a tap target on every
+        // surface (real photo, SVG fallback, text-only).
+        idle:     "ring-2 ring-purple-300 shadow-md hover:ring-purple-500 hover:ring-4 hover:shadow-2xl hover:-translate-y-1.5 hover:scale-[1.02] animate-optionPulse cursor-pointer",
         correct:  "ring-4 ring-emerald-400 shadow-2xl shadow-emerald-200/60 scale-[1.04] z-10",
         wrong:    "ring-2 ring-rose-300 opacity-50 grayscale scale-[0.97] cursor-not-allowed",
         disabled: "ring-1 ring-gray-200 opacity-60 cursor-not-allowed",

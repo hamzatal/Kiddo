@@ -25,6 +25,10 @@ const AppHeader = ({
     totalStars,
     xp,
     onBack,
+    onSkip,           // NEW — when provided, renders a prominent "Next →" button
+    skipLabel = "Skip", // NEW — text shown next to the icon
+    skipIcon = "⏭",     // NEW — emoji icon (➡ for "next", ⏭ for "skip")
+    skipTitle,        // NEW — tooltip / aria-label
     rightContent,
 }) => {
     const progressPct = total > 0 ? Math.min(100, ((current - 1) / total) * 100) : 0;
@@ -128,6 +132,26 @@ const AppHeader = ({
                         <span className="text-sm">⚡</span>
                         <span className="font-black text-purple-600 text-[11px]">{xp}</span>
                     </div>
+                )}
+
+                {/* Skip / Next button — primary recovery path so the
+                    learner is NEVER stranded on a lesson. Always
+                    renders its label (no `hidden sm:inline` hack)
+                    so phone users see what it does. The colour
+                    matches the active mode so it doesn't compete
+                    visually with the mode pill, but it's prominent
+                    enough to find at a glance. */}
+                {typeof onSkip === "function" && (
+                    <button
+                        onClick={onSkip}
+                        className="shrink-0 inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                        style={{ background: `linear-gradient(135deg, ${modeColor}, ${modeColor}DD)` }}
+                        aria-label={skipTitle || `${skipLabel} — go to the next step`}
+                        title={skipTitle || `${skipLabel} — go to the next step`}
+                    >
+                        <span className="text-sm sm:text-base leading-none">{skipIcon}</span>
+                        <span>{skipLabel}</span>
+                    </button>
                 )}
 
                 {rightContent}
