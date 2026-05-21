@@ -135,7 +135,7 @@ const MemoryFlipMode = ({ lesson, deck = [], onComplete }) => {
 
     return (
         <div className="w-full flex flex-col items-center gap-6 animate-fade-in-up">
-            <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-md border border-white">
+            <div className="kiddo-surface px-6 py-3 rounded-full shadow-md border border-white">
                 <p className="text-[11px] font-black text-purple-500 uppercase tracking-widest">
                     {label}
                 </p>

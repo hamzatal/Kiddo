@@ -60,7 +60,7 @@ const StoryMode = ({ lesson, audioTrack, onComplete }) => {
             </header>
 
             {/* What to do */}
-            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl border-2 border-dashed border-pink-200 px-4 py-3 flex flex-col gap-2">
+            <div className="w-full max-w-md kiddo-surface rounded-2xl border-2 border-dashed border-pink-200 px-4 py-3 flex flex-col gap-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-pink-500">
                     What to do
                 </p>

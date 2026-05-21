@@ -383,7 +383,7 @@ const LessonScreen = (props) => {
             {/* Big "Awesome!" overlay */}
             {showCelebration && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none animate-fade-in">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 shadow-2xl border-4 border-yellow-300 animate-celebPop">
+                    <div className="kiddo-surface rounded-3xl p-6 sm:p-10 shadow-2xl border-4 border-yellow-300 animate-celebPop">
                         <div className="text-center">
                             <div className="text-5xl sm:text-7xl mb-2 animate-bounce">🎉</div>
                             <h2 className="text-2xl sm:text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
@@ -422,23 +422,6 @@ const LessonScreen = (props) => {
             <StreakCelebration />
 
             <style>{`
-                @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
-                @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-                .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-                @keyframes celebPop {
-                    0% { opacity: 0; transform: scale(0.5) translateY(40px); }
-                    50% { transform: scale(1.05); }
-                    100% { opacity: 1; transform: scale(1) translateY(0); }
-                }
-                .animate-celebPop { animation: celebPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-                @keyframes shake {
-                    0%, 100% { transform: translateX(0); }
-                    25% { transform: translateX(-5px); }
-                    50% { transform: translateX(5px); }
-                    75% { transform: translateX(-3px); }
-                }
-                .animate-shake { animation: shake 0.4s ease-in-out; }
                 @media (min-width: 400px) {
                     .xs\\:flex { display: flex; }
                     .xs\\:inline { display: inline; }
@@ -471,13 +454,13 @@ const CelebrationStage = ({ stars, accuracy, nextStep, unitTitle, lessonNumber, 
 
     return (
         <div className={`w-full max-w-md mx-auto transition-all duration-500 ${animateIn ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}>
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden">
+            <div className="kiddo-surface rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden animate-celebPop">
                 <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${message.color} opacity-10`} />
                 <div className="absolute top-0 right-0 w-20 h-20 bg-amber-100/50 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-16 h-16 bg-purple-100/50 rounded-full translate-y-1/2 -translate-x-1/2" />
 
                 <div className="relative z-10 flex flex-col items-center w-full">
-                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center shadow-xl border-4 border-white -mt-12 sm:-mt-16 mb-3">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center shadow-xl border-4 border-white -mt-12 sm:-mt-16 mb-3 animate-bounceIn">
                         <span className="text-4xl sm:text-6xl drop-shadow-lg">{message.emoji}</span>
                     </div>
 
@@ -497,7 +480,7 @@ const CelebrationStage = ({ stars, accuracy, nextStep, unitTitle, lessonNumber, 
                             <span
                                 key={s}
                                 className={`text-3xl sm:text-5xl lg:text-6xl transition-all duration-700 ${
-                                    s <= stars ? "opacity-100 scale-110 drop-shadow-xl" : "opacity-20 grayscale scale-75"
+                                    s <= stars ? "opacity-100 scale-110 drop-shadow-xl animate-starBurst" : "opacity-20 grayscale scale-75"
                                 }`}
                                 style={{ animationDelay: `${s * 0.2}s` }}
                             >⭐</span>

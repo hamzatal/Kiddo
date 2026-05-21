@@ -126,7 +126,7 @@ const VocabGameMode = ({ lesson, deck = [], onComplete, promptText }) => {
     return (
         <div className="w-full max-w-4xl flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-fade-in-up px-2">
             {/* Compact progress + prompt header */}
-            <div className="w-full max-w-xl bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border-2 border-purple-100 px-4 py-3 flex flex-col gap-2">
+            <div className="w-full max-w-xl kiddo-surface rounded-2xl shadow-lg border-2 border-purple-100 px-4 py-3 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />

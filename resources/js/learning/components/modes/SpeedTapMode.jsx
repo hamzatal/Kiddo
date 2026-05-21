@@ -212,7 +212,7 @@ const SpeedTapMode = ({ lesson, deck = [], onComplete }) => {
     return (
         <div className="w-full h-full flex flex-col items-center gap-3 sm:gap-4 animate-fade-in-up">
             {/* Header */}
-            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl shadow-md border border-white px-4 py-2 flex items-center gap-3">
+            <div className="w-full max-w-md kiddo-surface rounded-2xl shadow-md border border-white px-4 py-2 flex items-center gap-3">
                 <button
                     onClick={() => target?.prompt?.audioClip && playAudio(target.prompt.audioClip)}
                     className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white text-lg shadow-md flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shrink-0"

@@ -86,8 +86,9 @@ const visualFor = (unit) => {
 
 /* ─────────────────────────────────────────────────────────────
    UnitNode — one map pin (image + label + status badge)
-   The label sits ABOVE and the stars/lesson chip sit BELOW so
-   pins never overlap each other regardless of zoom level.
+   v1.1 (May 2026): cleaner number badge inside the title pill,
+   softer hover lift via shared transitions, stars row that
+   matches the LessonCard star ribbon, friendlier locked padlock.
    ───────────────────────────────────────────────────────────── */
 const UnitNode = ({ unit, onClick }) => {
     const v = visualFor(unit);
@@ -99,29 +100,34 @@ const UnitNode = ({ unit, onClick }) => {
 
     return (
         <div
-            className={`group flex flex-col items-center select-none ${isLocked ? "cursor-default" : "cursor-pointer"}`}
+            className={`group flex flex-col items-center select-none transition-transform duration-300 ${isLocked ? "cursor-default" : "cursor-pointer hover:-translate-y-1"}`}
             onClick={!isLocked ? onClick : undefined}
             style={{ filter: isLocked ? "grayscale(70%) brightness(0.85)" : "none" }}
         >
-            {/* Title pill (above) */}
-            <div className="relative z-30 -mb-1 flex flex-col items-center gap-1 pointer-events-none transition-transform duration-300 group-hover:-translate-y-1">
+            {/* Title pill (above) — modern: tighter padding, bigger
+                number circle that uses the kiddo-badge gradient,
+                white halo so it pops against any map background. */}
+            <div className="relative z-30 -mb-1 flex flex-col items-center gap-1 pointer-events-none">
                 {isActive && (
                     <span className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-orange-400 to-amber-500 rounded-full shadow-md border-2 border-white animate-bounce">
-                        Now playing!
+                        Now playing
                     </span>
                 )}
                 <span
-                    className="px-4 py-1.5 text-[11px] sm:text-xs font-black text-white rounded-full shadow-xl border-2 border-white/60 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
+                    className="px-3 py-1 text-[11px] sm:text-xs font-black text-white rounded-full shadow-xl border-2 border-white/70 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
                     style={{ backgroundColor: v.color }}
                 >
-                    <span className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-[9px] font-black shadow-inner">
+                    <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-white/95 shadow-inner"
+                        style={{ color: v.color }}
+                    >
                         {unit.number}
                     </span>
                     {unit.title}
                 </span>
             </div>
 
-            {/* The pin image */}
+            {/* The pin image — ping halo on active, drop-shadow */}
             <div className={`${v.size} relative flex items-center justify-center transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"} drop-shadow-2xl`}>
                 <img
                     src={v.image}
@@ -132,28 +138,49 @@ const UnitNode = ({ unit, onClick }) => {
 
                 {isLocked && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="bg-black/60 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center border-2 border-white/30 shadow-xl">
+                        <div className="bg-white/95 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center border-2 border-gray-200 shadow-xl">
                             <span className="text-2xl">🔒</span>
                         </div>
                     </div>
                 )}
 
+                {/* Active glow + ping. Two layered indicators so the
+                    eye lands on the active unit even at a glance. */}
                 {isActive && (
-                    <span className="absolute inset-0 rounded-full bg-white/25 animate-ping opacity-30 pointer-events-none" />
+                    <>
+                        <span
+                            className="absolute inset-0 rounded-full animate-ping opacity-30 pointer-events-none"
+                            style={{ backgroundColor: `${v.color}55` }}
+                        />
+                        <span
+                            className="absolute inset-[-8px] rounded-full opacity-30 pointer-events-none"
+                            style={{
+                                background:
+                                    `radial-gradient(closest-side, ${v.color}40, transparent 70%)`,
+                            }}
+                        />
+                    </>
                 )}
             </div>
 
-            {/* Stars / hint pill (below) */}
+            {/* Stars / hint pill (below) — uses the same star ribbon
+                shape as LessonCard so the kid's eye reads them as
+                one consistent system across surfaces. */}
             <div className="relative z-20 -mt-1 flex flex-col items-center gap-1 pointer-events-none">
                 {isDone && stars > 0 && (
-                    <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border border-amber-100 flex items-center gap-0.5">
-                        {stars <= 3 ? (
-                            Array.from({ length: stars }).map((_, i) => <span key={i} className="text-xs">⭐</span>)
-                        ) : (
-                            <>
-                                <span className="text-xs">⭐</span>
-                                <span className="text-[10px] font-black text-amber-600 ml-0.5">×{stars}</span>
-                            </>
+                    <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border-2 border-amber-100 flex items-center gap-0.5">
+                        {[1, 2, 3].map((s) => (
+                            <span
+                                key={s}
+                                className={`text-xs leading-none ${
+                                    s <= Math.min(3, stars) ? "drop-shadow" : "opacity-25 grayscale"
+                                }`}
+                            >⭐</span>
+                        ))}
+                        {stars > 3 && (
+                            <span className="text-[9px] font-black text-amber-600 ml-0.5">
+                                ×{stars}
+                            </span>
                         )}
                     </span>
                 )}
@@ -170,6 +197,7 @@ const UnitNode = ({ unit, onClick }) => {
 /* ─────────────────────────────────────────────────────────────
    ArenaNode — the Games Arena pin. Same visual language as
    UnitNode (image + pill + ping) so it feels native to the map.
+   v1.1 (May 2026) — modernised in lock-step with UnitNode.
    ───────────────────────────────────────────────────────────── */
 const ArenaNode = ({ unlocked, arena }) => {
     // Allow admin to override the Arena image via `arena.image_path`
@@ -184,21 +212,26 @@ const ArenaNode = ({ unlocked, arena }) => {
     };
     return (
         <div
-            className={`group flex flex-col items-center select-none ${unlocked ? "cursor-pointer" : "cursor-default"}`}
+            className={`group flex flex-col items-center select-none transition-transform duration-300 ${unlocked ? "cursor-pointer hover:-translate-y-1" : "cursor-default"}`}
             onClick={unlocked ? () => router.visit("/arena") : undefined}
             style={{ filter: unlocked ? "none" : "grayscale(60%) brightness(0.85)" }}
         >
-            <div className="relative z-30 -mb-1 flex flex-col items-center gap-1 pointer-events-none transition-transform duration-300 group-hover:-translate-y-1">
+            <div className="relative z-30 -mb-1 flex flex-col items-center gap-1 pointer-events-none">
                 {unlocked && (
                     <span className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-fuchsia-500 to-pink-500 rounded-full shadow-md border-2 border-white animate-bounce -rotate-2">
-                        Mixed practice!
+                        Mixed practice
                     </span>
                 )}
                 <span
-                    className="px-4 py-1.5 text-[11px] sm:text-xs font-black text-white rounded-full shadow-xl border-2 border-white/60 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
+                    className="px-3 py-1 text-[11px] sm:text-xs font-black text-white rounded-full shadow-xl border-2 border-white/70 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
                     style={{ backgroundColor: v.color }}
                 >
-                    <span className="text-sm leading-none">🏆</span>
+                    <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] bg-white/95 shadow-inner"
+                        style={{ color: v.color }}
+                    >
+                        🏆
+                    </span>
                     Games Arena
                 </span>
             </div>
@@ -212,13 +245,25 @@ const ArenaNode = ({ unlocked, arena }) => {
                 />
                 {!unlocked && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="bg-black/60 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center border-2 border-white/30 shadow-xl">
+                        <div className="bg-white/95 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center border-2 border-gray-200 shadow-xl">
                             <span className="text-2xl">🔒</span>
                         </div>
                     </div>
                 )}
                 {unlocked && (
-                    <span className="absolute inset-0 rounded-full bg-white/25 animate-ping opacity-30 pointer-events-none" />
+                    <>
+                        <span
+                            className="absolute inset-0 rounded-full animate-ping opacity-30 pointer-events-none"
+                            style={{ backgroundColor: `${v.color}55` }}
+                        />
+                        <span
+                            className="absolute inset-[-8px] rounded-full opacity-25 pointer-events-none"
+                            style={{
+                                background:
+                                    `radial-gradient(closest-side, ${v.color}40, transparent 70%)`,
+                            }}
+                        />
+                    </>
                 )}
             </div>
 

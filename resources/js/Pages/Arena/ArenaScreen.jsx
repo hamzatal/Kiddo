@@ -264,7 +264,7 @@ const ArenaScreen = ({ arena }) => {
                 </main>
             ) : (
                 <main className="flex-1 min-h-0 flex items-center justify-center p-3 sm:p-4 relative z-10 overflow-y-auto">
-                    <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-arena-pop">
+                    <div className="w-full max-w-md kiddo-surface rounded-3xl p-5 sm:p-8 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-arena-pop">
                         <div className="w-20 h-20 sm:w-28 sm:h-28 bg-gradient-to-br from-purple-100 to-pink-200 rounded-full flex items-center justify-center shadow-inner border-4 border-white -mt-12 sm:-mt-16 mb-3">
                             <span className="text-4xl sm:text-6xl">🏆</span>
                         </div>

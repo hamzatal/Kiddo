@@ -3,6 +3,37 @@ import SmartImage from "@/learning/components/ui/SmartImage";
 import { speakWord, stopAllAudio } from "@/learning/utils/playAudio";
 
 /**
+ * OptionCard — clickable picture/word card used by every game mode.
+ *
+ * v8 (May 2026, kiddo v1.1) — modernised, quieter, more consistent.
+ *
+ * Why we touched this again
+ * ─────────────────────────
+ * v7 fixed the "kid sees only the audio button" complaint by
+ * cranking every visual signal up: thick purple ring, animated
+ * pulse halo, bouncing TAP chip, heavy bottom ribbon. It worked,
+ * but the cards now read as *busy* against the rest of the modern
+ * card system (LessonCard, GameShell, etc.). Operator's v1.1
+ * feedback: "العاب جودة عالية وتصميم عصري ومرتب".
+ *
+ * v8 strips the noise without losing the legibility:
+ *   • Single-layer ring (no more ring + shadow + pulse stack).
+ *   • `kiddo-lift` shared lift token so the hover feel matches
+ *     LessonCard exactly.
+ *   • Soft pulse uses the new (quieter) optionPulse keyframe.
+ *   • TAP badge is smaller, sits flush in the top-right corner,
+ *     uses the same purple chip shape as our progress pills.
+ *   • Bottom label ribbon switched to a subtle dark-purple
+ *     gradient with rounded-bottom that hugs the card border —
+ *     the previous opaque purple slab competed with the picture.
+ *   • New `winFlash` celebration on correct picks: a quick gold
+ *     halo + scale that telegraphs success in 350ms before the
+ *     parent advances to the next round.
+ *   • `compact` prop for the dense Arena grid where the TAP chip
+ *     would otherwise overlap a small card.
+ */
+
+/**
  * Curated word→emoji map for text-only OptionCard tiles. Kept in
  * sync with WORD_EMOJIS in SmartImage.jsx and the EMOJI_MAP in
  * WordImageController so the kid sees the same icon everywhere.
@@ -31,36 +62,6 @@ const pickTextEmoji = (label) => {
     return null;
 };
 
-/**
- * OptionCard — clickable picture/word card used by every game mode.
- *
- * v7 (May 2026) — visibility overhaul.
- *   Operator complaint: "the page looks empty, kid only sees the
- *   audio button and the words 'Blue', 'Red' as plain text".
- *
- *   Root cause: previous styling was `bg-white` + a 2px purple
- *   ring on a near-white page background, with `aspect-square` the
- *   only height controller. On systems where Tailwind's aspect-
- *   ratio utility wasn't applied (older builds, missing CSS) the
- *   card collapsed to ~1 line tall, and even when sized correctly
- *   the white-on-white card was almost invisible at a glance.
- *
- *   This rewrite:
- *     • Replaces `bg-white` with a soft tinted gradient that
- *       contrasts against the page.
- *     • Bumps the idle ring from `ring-2 ring-purple-300` to
- *       `ring-4 ring-purple-400`, making the card border
- *       unmistakable on every theme.
- *     • Adds an explicit `min-h-[8rem] sm:min-h-[10rem]` fallback
- *       so even without Tailwind's aspect-ratio plugin the card
- *       has guaranteed vertical presence.
- *     • Adds a pulsing "TAP" badge in the top-right of every idle
- *       card so first-time learners have an unambiguous "this is
- *       a button" signal alongside the speaker chip.
- *     • Tightens the gradient/text contrast on the text-only
- *       fallback so 'Blue' / 'Red' / 'Mum' tiles read as buttons
- *       and not as labels stuck on a blank panel.
- */
 const OptionCard = ({
     imagePath,
     label,
@@ -70,41 +71,38 @@ const OptionCard = ({
     onClick,
     showLabel = true,
     showAudio = true,
+    compact = false,
     className = "",
 }) => {
     const [speaking, setSpeaking] = useState(false);
 
+    // Layered state classes. Idle is intentionally quiet — single
+    // thick ring + soft surface gradient. Hover/focus uses the
+    // shared `kiddo-lift` so it matches LessonCard. Correct/wrong
+    // are loud on purpose so feedback registers in 200ms.
     const stateClasses = {
         idle:
-            // Tidy modern look — soft 3-stop gradient on the surface,
-            // a single thick purple ring (was 4px ring + 8px stacked
-            // shadow which felt visually noisy), and a clean
-            // elevation shadow that scales smoothly on hover. The
-            // animated TAP badge already signals "this is a button"
-            // so we don't need a heavy ring + halo combo on top.
-            "ring-[3px] ring-purple-300 " +
-            "shadow-[0_6px_18px_-4px_rgba(124,58,237,0.25)] " +
-            "bg-gradient-to-br from-white via-purple-50/60 to-indigo-50 " +
-            "hover:ring-purple-500 hover:ring-4 " +
-            "hover:shadow-[0_12px_28px_-6px_rgba(124,58,237,0.45)] " +
-            "hover:-translate-y-1 hover:scale-[1.03] " +
-            "active:translate-y-0 active:scale-[0.98] " +
-            "animate-optionPulse cursor-pointer",
+            "kiddo-lift cursor-pointer " +
+            "ring-[3px] ring-purple-200 hover:ring-purple-500 " +
+            "bg-gradient-to-br from-white via-purple-50/70 to-indigo-50/80 " +
+            "shadow-[0_4px_14px_-4px_rgba(124,58,237,0.18)] " +
+            "animate-optionPulse",
         correct:
-            "ring-4 ring-emerald-500 " +
-            "shadow-[0_12px_30px_-6px_rgba(16,185,129,0.55)] " +
+            "ring-[4px] ring-emerald-500 " +
             "bg-gradient-to-br from-emerald-50 via-white to-emerald-100 " +
+            "shadow-[0_14px_36px_-8px_rgba(16,185,129,0.55)] " +
             "scale-[1.04] z-10 animate-correctPop",
         wrong:
             "ring-[3px] ring-rose-400 " +
             "bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
-            "opacity-60 grayscale scale-[0.97] cursor-not-allowed animate-shake",
+            "opacity-65 grayscale scale-[0.97] cursor-not-allowed animate-shake",
         disabled:
-            "ring-2 ring-gray-200 bg-white opacity-60 cursor-not-allowed",
+            "ring-2 ring-gray-200 bg-white/90 opacity-55 cursor-not-allowed",
     }[state];
 
     const isTextOnly = !imagePath;
     const textEmoji = isTextOnly ? pickTextEmoji(label) : null;
+    const isIdle = state === "idle";
 
     const handleSpeak = async (e) => {
         e.stopPropagation();
@@ -138,15 +136,12 @@ const OptionCard = ({
                 w-full
                 min-h-[8rem] sm:min-h-[10rem] lg:min-h-[12rem]
                 aspect-square sm:aspect-[4/3]
-                transition-all duration-300
                 ${stateClasses}
                 ${className}
             `}
             aria-label={`Pick ${label || "this option"}`}
         >
-            {/* Picture / text tile fills the whole card. No padding
-                so illustrations read full-bleed. Text-only tiles
-                centre an emoji + word over a tinted background. */}
+            {/* Picture / text tile fills the whole card. */}
             {isTextOnly ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center px-2 gap-1 sm:gap-2">
                     {textEmoji ? (
@@ -163,63 +158,93 @@ const OptionCard = ({
                     src={imagePath}
                     label={label}
                     className="absolute inset-0 w-full h-full"
-                    imgClassName="w-full h-full object-contain p-2 sm:p-3 group-hover:scale-105 transition-transform"
+                    imgClassName="w-full h-full object-contain p-2 sm:p-3 group-hover:scale-105 transition-transform duration-300"
                 />
             )}
 
-            {/* Bottom label ribbon — modernised with a subtle
-                gradient (was an opaque black 65% ribbon that felt
-                visually heavy on a kid-facing UI). The new ribbon
-                blends into the card edge so the picture stays the
-                hero and the word reads as a clean caption. */}
+            {/* Bottom label ribbon — modern: subtle dark gradient
+                that hugs the bottom corners. Hidden for text-only
+                tiles (the word is already centred there). */}
             {showLabel && label && !isTextOnly ? (
-                <div className="absolute inset-x-0 bottom-0 px-2 pt-3 pb-1.5 bg-gradient-to-t from-purple-900/70 via-purple-900/30 to-transparent">
+                <div
+                    aria-hidden="true"
+                    className="absolute inset-x-0 bottom-0 px-2 pt-4 pb-2 bg-gradient-to-t from-purple-900/75 via-purple-900/35 to-transparent"
+                >
                     <span className="block text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-white text-center truncate drop-shadow">
                         {label}
                     </span>
                 </div>
             ) : null}
 
-            {/* "TAP" badge — pulses on idle cards so first-time
-                learners have an unambiguous "this is a button"
-                signal even when the picture/word looks decorative.
-                Auto-hides on correct/wrong/disabled states. */}
-            {state === "idle" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md border-2 border-white animate-tapBadge pointer-events-none z-10">
+            {/* "TAP" chip — only on idle, top-right, smaller and
+                tidier than v7. Uses our shared purple chip palette
+                so it visually rhymes with the progress pills in
+                AppHeader and StageBreadcrumb. */}
+            {isIdle && !compact && (
+                <span
+                    aria-hidden="true"
+                    className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-md border-2 border-white animate-tapBadge pointer-events-none"
+                >
                     Tap
-                </div>
+                </span>
             )}
 
-            {/* Speaker chip — overlay top-left so it never affects layout */}
+            {/* Speaker chip — overlay top-left so it never affects
+                layout. Smaller in compact mode for the Arena's
+                3-card row. */}
             {canSpeak ? (
-                <div
+                <span
                     role="button"
                     tabIndex={-1}
                     onClick={handleSpeak}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-base shadow-md border-2 border-white z-20 cursor-pointer transition-all
+                    className={`
+                        absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-20
+                        rounded-full flex items-center justify-center
+                        text-sm sm:text-base shadow-md border-2 border-white
+                        transition-all cursor-pointer
+                        ${compact ? "w-7 h-7 sm:w-8 sm:h-8" : "w-8 h-8 sm:w-9 sm:h-9"}
                         ${speaking
                             ? "bg-amber-400 text-white scale-110"
                             : "bg-emerald-500 text-white opacity-90 group-hover:opacity-100 hover:scale-110 active:scale-95"
-                        }`}
+                        }
+                    `}
                     title={`Listen to "${label}"`}
                     aria-label={`Listen to ${label}`}
                 >
                     {speaking ? "⏸" : "🔊"}
-                </div>
+                </span>
             ) : null}
 
-            {/* Status pill — overlay top-right (replaces TAP badge
-                once the user has answered) */}
+            {/* Status pill — top-right, replaces the TAP chip once
+                the user has answered. */}
             {state === "correct" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-emerald-500 text-white w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg animate-bounce text-base z-20">
+                <span
+                    aria-hidden="true"
+                    className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-20 bg-emerald-500 text-white w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg animate-bounce text-base"
+                >
                     ✓
-                </div>
+                </span>
             )}
             {state === "wrong" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-rose-500 text-white w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg text-base z-20">
+                <span
+                    aria-hidden="true"
+                    className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-20 bg-rose-500 text-white w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg text-base"
+                >
                     ✕
-                </div>
+                </span>
+            )}
+
+            {/* Gold "win flash" halo on the correct pick — fires
+                via animate-correctPop applied to the card itself
+                AND a quick translucent overlay so the success feels
+                like a small fireworks burst rather than a colour
+                change. The overlay vanishes after 480ms. */}
+            {state === "correct" && (
+                <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-amber-300/0 via-amber-300/40 to-yellow-200/0 mix-blend-screen animate-fade-in"
+                />
             )}
         </button>
     );
