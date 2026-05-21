@@ -7,25 +7,19 @@ import PageHead from "@/learning/components/ui/PageHead";
 import JuicyButton from "@/learning/components/ui/JuicyButton";
 import HeroMascot from "@/learning/components/ui/HeroMascot";
 import HomeAISection from "@/learning/components/ai/HomeAISection";
+import LessonCard from "@/learning/components/ui/LessonCard";
 import { useAuthUser } from "@/lib/usePageProps";
 import { cn } from "@/lib/cn";
 
 /**
  * HomeScreen / landing page.
  *
- * Rewrite highlights vs the previous version:
- *   - The inline PolicyModal + JuicyButton + ABC-mascot CSS got
- *     extracted to shared components in learning/components/ui.
- *     HomeScreen is now ~250 lines instead of ~700, and the legal
- *     modal is the same one the AppLayout footer opens (single
- *     source of truth for the copy).
- *   - <PageHead> emits a real title + description for SEO.
- *   - Inertia <Link> replaces router.visit() for inter-page links so
- *     the 'Continue learning' click is instant + prefetched.
- *   - Hardcoded hex shades replaced with Tailwind palette tokens.
- *   - LessonCard + FeatureCard remain local because they're tightly
- *     coupled to this page's marketing visuals; they aren't reused
- *     elsewhere yet.
+ * v1.1 (May 2026): switched from the local copy-paste LessonCard
+ * to the shared <LessonCard /> in learning/components/ui. The
+ * marketing surface and the in-app surfaces (map sidebar, admin
+ * lesson lists) now render the SAME card, so a kid scanning the
+ * home page already recognises the visual language they'll see
+ * once signed in. Single source of truth = no more drift.
  */
 export default function HomeScreen({ units }) {
     const user = useAuthUser();
@@ -236,9 +230,16 @@ export default function HomeScreen({ units }) {
                             <div
                                 key={l.id}
                                 className="w-[calc(50%-0.75rem)] sm:w-[200px] lg:w-[240px] xl:w-[260px]"
-                                style={{ height: "clamp(150px, 18vw, 260px)" }}
                             >
-                                <LessonCard {...l} onClick={() => goToLesson(l.id)} />
+                                <LessonCard
+                                    number={l.number}
+                                    title={l.title}
+                                    imagePath={l.imagePath}
+                                    colorKey={l.colorKey}
+                                    size="md"
+                                    status={l.isLocked ? "locked" : "active"}
+                                    onClick={() => goToLesson(l.id)}
+                                />
                             </div>
                         ))}
                     </div>
@@ -271,89 +272,6 @@ export default function HomeScreen({ units }) {
                 </div>
             </section>
         </AppLayout>
-    );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Local LessonCard — a marketing-only card. The real "play this
-   lesson" cards on /map use a richer component (LessonHero).
-═══════════════════════════════════════════════════════════════ */
-
-const LESSON_TINT = {
-    purple: { bg: "bg-purple-100", badge: "bg-purple-700", ring: "hover:ring-purple-300", star: "text-purple-700" },
-    green:  { bg: "bg-emerald-100", badge: "bg-emerald-600", ring: "hover:ring-emerald-300", star: "text-emerald-600" },
-    blue:   { bg: "bg-sky-100",     badge: "bg-sky-600",     ring: "hover:ring-sky-300",     star: "text-sky-600" },
-    pink:   { bg: "bg-rose-100",    badge: "bg-rose-600",    ring: "hover:ring-rose-300",    star: "text-rose-600" },
-    amber:  { bg: "bg-amber-100",   badge: "bg-amber-600",   ring: "hover:ring-amber-300",   star: "text-amber-600" },
-};
-
-function LessonCard({ number, title, imagePath, colorKey = "purple", isLocked = false, onClick }) {
-    const tint = LESSON_TINT[colorKey] ?? LESSON_TINT.purple;
-
-    return (
-        <button
-            type="button"
-            onClick={!isLocked ? onClick : undefined}
-            aria-disabled={isLocked}
-            className={cn(
-                "group relative flex h-full w-full flex-col overflow-hidden rounded-3xl border-2 border-white text-left shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 ease-out",
-                tint.bg,
-                isLocked
-                    ? "cursor-not-allowed opacity-60 grayscale-[40%]"
-                    : `cursor-pointer ring-2 ring-transparent hover:-translate-y-1.5 hover:shadow-xl ${tint.ring}`,
-            )}
-        >
-            <span
-                className={cn(
-                    "absolute left-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-black text-white shadow-md",
-                    tint.badge,
-                )}
-                aria-hidden="true"
-            >
-                {number}
-            </span>
-
-            {isLocked && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/70 shadow-sm backdrop-blur-[2px]">
-                        <span aria-label="Locked" className="text-2xl">
-                            🔒
-                        </span>
-                    </div>
-                </div>
-            )}
-
-            <div className="flex flex-1 items-center justify-center overflow-hidden p-3 pt-10">
-                <img
-                    src={imagePath}
-                    alt={title}
-                    loading="lazy"
-                    className="h-full w-full object-contain drop-shadow-md"
-                    style={{ maxHeight: "8rem" }}
-                    onError={(e) => {
-                        e.currentTarget.style.opacity = "0.3";
-                    }}
-                />
-            </div>
-
-            <div className="px-3 pb-3 text-center">
-                <p className="line-clamp-2 text-[11px] font-black leading-tight text-slate-900 sm:text-xs">
-                    {title}
-                </p>
-            </div>
-
-            {!isLocked && (
-                <span
-                    className={cn(
-                        "absolute bottom-2 right-2.5 text-[11px] opacity-0 transition-opacity group-hover:opacity-100",
-                        tint.star,
-                    )}
-                    aria-hidden="true"
-                >
-                    ⭐
-                </span>
-            )}
-        </button>
     );
 }
 

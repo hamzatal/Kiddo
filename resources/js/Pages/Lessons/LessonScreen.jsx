@@ -64,39 +64,86 @@ const LessonScreen = (props) => {
     const resolvedMode = useMemo(() => _mode || resolveMode(_lesson), [_mode, _lesson]);
 
     /**
-     * Pick the actual variant to render for review/mixed-practice
-     * lessons — same lookup as renderMode() below uses, exposed up
-     * here so the AppHeader chip and the StageBreadcrumb pill can
-     * SHOW the actual game name (Memory, Bubble Pop, Connect, etc.)
-     * rather than a generic "Review" label that confused kids when
-     * they tapped a "Review" lesson and landed in a 3-D flip board.
+     * Mixed-game rotation pool — every "playable" lesson now picks a
+     * deterministic game variant from this list based on the lesson
+     * + unit ids, so a child sees a DIFFERENT mini-game on every
+     * lesson within a unit and a DIFFERENT rotation across units.
      *
-     * For non-review modes we just pass through resolvedMode so the
-     * label always matches what the kid sees.
+     * Operator request v1.2 (May 2026):
+     *   "بدي الالعاب هاي تكون مخلوطة داخل الدروس كامل
+     *    وداخل كل المراحل كاملة"
+     *   = "I want these games mixed inside ALL the lessons and
+     *      across all the stages."
+     *
+     * Before: only `review` / `mixed-practice` lessons rotated. Every
+     * other lesson was locked to its `type` column — so a unit with
+     * three vocab-game lessons looked like the same game three times.
+     *
+     * Now: ALL playable lesson types rotate through the 14-variant
+     * pool below. Content-only lessons (intro, picture-dict, story,
+     * project, draw-circle, song, phonics-game) stay on their
+     * authored type because their UX is content-specific. The
+     * Lesson `config.fixed_mode = true` flag opts a single lesson
+     * out of the rotation if the operator wants to lock it.
      */
     const VARIANT_KEYS = useMemo(() => [
         "vocab-game",
         "memory-game",
+        "memory-flip",
         "listening-game",
         "drag-drop",
         "picture-match",
         "word-pic-connect",
         "bubble-pop",
         "speed-tap",
-        "memory-flip",
         "match-connect",
         "odd-one-out",
         "word-rain",
         "color-tap",
+        "sequence-build",
     ], []);
 
+    /**
+     * Lesson types that should NEVER be mixed — they each provide
+     * unique non-game UX or rely on a content-specific deck shape
+     * (intro cards, picture-dict layout, story prose, project
+     * canvas, draw-circle hit-zones, song player, phonics decoy
+     * pairing logic). Anything not in this set is considered a
+     * "game" and will be rotated through VARIANT_KEYS.
+     */
+    const FIXED_MODES = useMemo(() => new Set([
+        "intro",
+        "picture-dict",
+        "story",
+        "project",
+        "draw-circle",
+        "song",
+        "phonics-game",
+    ]), []);
+
     const effectiveMode = useMemo(() => {
-        if (resolvedMode !== "review" && resolvedMode !== "mixed-practice") {
+        // Honour the operator's explicit "do not mix" flag — set on
+        // a per-lesson basis when the curriculum author wants to
+        // lock that lesson to its authored type.
+        if (_lesson?.config?.fixed_mode === true) {
             return resolvedMode;
         }
+
+        // Content lessons stay on their authored type.
+        if (FIXED_MODES.has(resolvedMode)) {
+            return resolvedMode;
+        }
+
+        // Everything else rotates. We mix the unit id into the seed
+        // so unit 1 lesson 3 picks a different game than unit 2
+        // lesson 3 — a child playing the whole curriculum sees
+        // genuinely varied games, not the same 13-cycle repeated
+        // five times.
         const lessonNum = _lesson?.number || _lesson?.lesson_number || 1;
-        return VARIANT_KEYS[lessonNum % VARIANT_KEYS.length];
-    }, [resolvedMode, _lesson, VARIANT_KEYS]);
+        const unitNum   = _unit?.number   || _unit?.unit_number   || 0;
+        const seed = (Number(unitNum) * 31 + Number(lessonNum) * 7) % VARIANT_KEYS.length;
+        return VARIANT_KEYS[seed];
+    }, [resolvedMode, _lesson, _unit, VARIANT_KEYS, FIXED_MODES]);
 
     const meta = modeMeta(effectiveMode);
 
@@ -189,77 +236,66 @@ const LessonScreen = (props) => {
     /**
      * Pick the actual mode to render.
      *
-     * v3 (2026-05): we used to ROTATE 'vocab-game' across 10 game
-     * variants based on lesson number. That made the lesson-card
-     * label ("Play", "Vocab Game") wildly inconsistent with what
-     * actually rendered — kids would tap "Colours & Numbers"
-     * (vocab-game) and land in a listen-only round with no word
-     * visible. Authors lost control of the experience too.
+     * v1.2 (May 2026 — operator request): every "playable" lesson now
+     * routes through the VARIANT_BY_KEY rotation (driven by
+     * `effectiveMode`, which itself was computed from a lesson+unit
+     * seed at the top of this component). Content lessons (intro,
+     * picture-dict, story, project, draw-circle, song, phonics-game)
+     * stay on their authored type because their UX is content-
+     * specific. Operators can pin any single lesson to a fixed game
+     * with `lesson.config.fixed_mode = true`.
      *
-     * Now: vocab-game ALWAYS renders VocabGameMode (picture match
-     * with the prompt word visible), and we only use the rotation
-     * for explicitly-mixed lesson types ('review' or
-     * 'mixed-practice') that exist for variety on purpose. Authors
-     * who want a memory game / bubble pop / etc. simply set the
-     * lesson's mode to that exact value in the seeder/admin.
+     * Result: a child playing through the whole curriculum sees a
+     * different mini-game on every lesson, instead of three Vocab
+     * games in a row inside one unit.
      */
     const renderMode = () => {
         const common = { lesson: safeLesson, audioTrack: _audioTrack, onComplete: onModeComplete };
 
-        // Map the variant key strings (used by VARIANT_KEYS above
-        // for AppHeader / StageBreadcrumb labels) to their actual
-        // React components. Keep the order identical to VARIANT_KEYS
-        // so `lessonNum % N` picks the same variant in both places.
+        // Map every game variant key to its React component. Used by
+        // the rotation path below AND as the canonical lookup for
+        // the AppHeader chip + StageBreadcrumb pill so the displayed
+        // game label always matches what's rendered.
         const VARIANT_BY_KEY = {
             "vocab-game":       VocabGameMode,
             "memory-game":      MemoryGameMode,
+            "memory-flip":      MemoryFlipMode,
             "listening-game":   ListeningGameMode,
             "drag-drop":        DragDropMode,
             "picture-match":    PictureMatchMode,
             "word-pic-connect": WordPicConnectMode,
             "bubble-pop":       BubblePopMode,
             "speed-tap":        SpeedTapMode,
-            "memory-flip":      MemoryFlipMode,
             "match-connect":    MatchConnectMode,
             "odd-one-out":      OddOneOutMode,
             "word-rain":        WordRainMode,
             "color-tap":        ColorTapMode,
+            "sequence-build":   SequenceBuildMode,
         };
 
-        // Only review/mixed-practice rotate — every other mode
-        // renders exactly what the author asked for. We use the
-        // already-computed `effectiveMode` so the rendered component
-        // always matches the AppHeader chip and breadcrumb label.
-        if (resolvedMode === "review" || resolvedMode === "mixed-practice") {
-            const Variant = VARIANT_BY_KEY[effectiveMode] || VocabGameMode;
+        // Content modes — render verbatim, never rotated.
+        switch (resolvedMode) {
+            case "intro":         return <IntroMode {...common} intro={_intro} />;
+            case "picture-dict":  return <PictureDictMode {...common} intro={_intro} />;
+            case "story":         return <StoryMode {...common} />;
+            case "project":       return <ProjectMode {...common} deck={_deck} />;
+            case "song":          return <ListeningGameMode {...common} deck={_deck} />;
+            case "phonics-game":  return <ListeningGameMode {...common} deck={_deck} />;
+            case "draw-circle":   return <DrawCircleMode {...common} deck={_deck} />;
+        }
+
+        // Honour an explicit "fixed_mode" lesson config — render the
+        // authored type without rotation.
+        if (_lesson?.config?.fixed_mode === true && VARIANT_BY_KEY[resolvedMode]) {
+            const Variant = VARIANT_BY_KEY[resolvedMode];
             return <Variant {...common} deck={_deck} />;
         }
 
-        switch (resolvedMode) {
-            case "vocab-game":      return <VocabGameMode {...common} deck={_deck} />;
-            case "intro":           return <IntroMode {...common} intro={_intro} />;
-            case "picture-dict":    return <PictureDictMode {...common} intro={_intro} />;
-            case "story":           return <StoryMode {...common} />;
-            case "project":         return <ProjectMode {...common} deck={_deck} />;
-            case "song":            return <ListeningGameMode {...common} deck={_deck} />;
-            case "phonics-game":    return <ListeningGameMode {...common} deck={_deck} />;
-            case "draw-circle":     return <DrawCircleMode {...common} deck={_deck} />;
-            case "match-connect":   return <MatchConnectMode {...common} deck={_deck} />;
-            case "memory-game":     return <MemoryGameMode {...common} deck={_deck} />;
-            case "memory-flip":     return <MemoryFlipMode {...common} deck={_deck} />;
-            case "listening-game":  return <ListeningGameMode {...common} deck={_deck} />;
-            case "drag-drop":       return <DragDropMode {...common} deck={_deck} />;
-            case "picture-match":   return <PictureMatchMode {...common} deck={_deck} />;
-            case "word-pic-connect":return <WordPicConnectMode {...common} deck={_deck} />;
-            case "bubble-pop":      return <BubblePopMode {...common} deck={_deck} />;
-            case "sequence-build":  return <SequenceBuildMode {...common} deck={_deck} />;
-            case "speed-tap":       return <SpeedTapMode {...common} deck={_deck} />;
-            // ── New game modes ─────────────────────────────────
-            case "odd-one-out":     return <OddOneOutMode {...common} deck={_deck} />;
-            case "word-rain":       return <WordRainMode {...common} deck={_deck} />;
-            case "color-tap":       return <ColorTapMode {...common} deck={_deck} />;
-            default:                return <VocabGameMode {...common} deck={_deck} />;
-        }
+        // Default: every playable lesson rotates through the full
+        // 14-variant pool. `effectiveMode` was computed at the top
+        // of this component from a lesson+unit seed.
+        const Variant = VARIANT_BY_KEY[effectiveMode] || VocabGameMode;
+        return <Variant {...common} deck={_deck} />;
     };
 
     const starsEarned = useMemo(() => {
@@ -383,7 +419,7 @@ const LessonScreen = (props) => {
             {/* Big "Awesome!" overlay */}
             {showCelebration && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none animate-fade-in">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-10 shadow-2xl border-4 border-yellow-300 animate-celebPop">
+                    <div className="bg-white/95 backdrop-blur rounded-3xl p-6 sm:p-10 shadow-2xl border-4 border-yellow-300 animate-celebPop">
                         <div className="text-center">
                             <div className="text-5xl sm:text-7xl mb-2 animate-bounce">🎉</div>
                             <h2 className="text-2xl sm:text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
@@ -422,23 +458,6 @@ const LessonScreen = (props) => {
             <StreakCelebration />
 
             <style>{`
-                @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
-                @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-                .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-                @keyframes celebPop {
-                    0% { opacity: 0; transform: scale(0.5) translateY(40px); }
-                    50% { transform: scale(1.05); }
-                    100% { opacity: 1; transform: scale(1) translateY(0); }
-                }
-                .animate-celebPop { animation: celebPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-                @keyframes shake {
-                    0%, 100% { transform: translateX(0); }
-                    25% { transform: translateX(-5px); }
-                    50% { transform: translateX(5px); }
-                    75% { transform: translateX(-3px); }
-                }
-                .animate-shake { animation: shake 0.4s ease-in-out; }
                 @media (min-width: 400px) {
                     .xs\\:flex { display: flex; }
                     .xs\\:inline { display: inline; }
@@ -471,13 +490,13 @@ const CelebrationStage = ({ stars, accuracy, nextStep, unitTitle, lessonNumber, 
 
     return (
         <div className={`w-full max-w-md mx-auto transition-all duration-500 ${animateIn ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}>
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden">
+            <div className="bg-white/95 backdrop-blur rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden animate-celebPop">
                 <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${message.color} opacity-10`} />
                 <div className="absolute top-0 right-0 w-20 h-20 bg-amber-100/50 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-16 h-16 bg-purple-100/50 rounded-full translate-y-1/2 -translate-x-1/2" />
 
                 <div className="relative z-10 flex flex-col items-center w-full">
-                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center shadow-xl border-4 border-white -mt-12 sm:-mt-16 mb-3">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-amber-100 to-yellow-200 flex items-center justify-center shadow-xl border-4 border-white -mt-12 sm:-mt-16 mb-3 animate-bounceIn">
                         <span className="text-4xl sm:text-6xl drop-shadow-lg">{message.emoji}</span>
                     </div>
 
@@ -497,7 +516,7 @@ const CelebrationStage = ({ stars, accuracy, nextStep, unitTitle, lessonNumber, 
                             <span
                                 key={s}
                                 className={`text-3xl sm:text-5xl lg:text-6xl transition-all duration-700 ${
-                                    s <= stars ? "opacity-100 scale-110 drop-shadow-xl" : "opacity-20 grayscale scale-75"
+                                    s <= stars ? "opacity-100 scale-110 drop-shadow-xl animate-starBurst" : "opacity-20 grayscale scale-75"
                                 }`}
                                 style={{ animationDelay: `${s * 0.2}s` }}
                             >⭐</span>
