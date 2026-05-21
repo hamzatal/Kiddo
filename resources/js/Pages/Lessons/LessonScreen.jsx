@@ -64,66 +64,38 @@ const LessonScreen = (props) => {
     const resolvedMode = useMemo(() => _mode || resolveMode(_lesson), [_mode, _lesson]);
 
     /**
-     * Pick the actual variant to render for the rotating modes
-     * (vocab-game, review, mixed-practice). Same lookup is used
-     * down in renderMode() so the AppHeader chip + StageBreadcrumb
+     * Pick the actual variant to render for review/mixed-practice
+     * lessons — same lookup as renderMode() below uses, exposed up
+     * here so the AppHeader chip and the StageBreadcrumb pill can
      * SHOW the actual game name (Memory, Bubble Pop, Connect, etc.)
-     * — kids see "Memory 🧠" / "Pop 🫧" / "Connect 🔗" pills, not a
-     * generic "Play 🎮" that doesn't match what they're playing.
+     * rather than a generic "Review" label that confused kids when
+     * they tapped a "Review" lesson and landed in a 3-D flip board.
      *
-     * v4 (May 2026) — operator complaint: "I played every lesson
-     * and never saw a single different game". Root cause: every
-     * lesson in the seeders is `mode: 'vocab-game'`, and PR #41
-     * had pinned vocab-game to ALWAYS render VocabGameMode. So
-     * the kid only ever saw the same picture-matching screen,
-     * even though we shipped 13 game components.
-     *
-     * Fix: vocab-game now rotates through all 9 robust variants
-     * (every game that works on a generic deck of any shape).
-     * Specialty games that need targeted data (color-tap needs
-     * colour words, word-rain has its own pacing) are kept OUT
-     * of the rotation so they only render when an author picks
-     * them explicitly. The rotation is deterministic per
-     * lesson_number, so a given lesson ALWAYS shows the same
-     * variant — kids learn "Lesson 3 is Drag-Drop, Lesson 4 is
-     * Connect" instead of getting a new surprise every visit.
-     *
-     * Authors who set an explicit mode (memory-game, bubble-pop,
-     * word-rain, color-tap, etc.) still get exactly that mode
-     * via the renderMode() switch below.
+     * For non-review modes we just pass through resolvedMode so the
+     * label always matches what the kid sees.
      */
     const VARIANT_KEYS = useMemo(() => [
-        // Round 1: classic word-to-image matching (familiar entry)
         "vocab-game",
-        // Round 2: pair memory cards
         "memory-game",
-        // Round 3: pop bubbles by listening
-        "bubble-pop",
-        // Round 4: drag-drop pictures into the right bucket
-        "drag-drop",
-        // Round 5: pictures-only match
-        "picture-match",
-        // Round 6: connect words to pictures with lines
-        "word-pic-connect",
-        // Round 7: 3D flip board memory
-        "memory-flip",
-        // Round 8: connect dots match
-        "match-connect",
-        // Round 9: listening-only quiz
         "listening-game",
+        "drag-drop",
+        "picture-match",
+        "word-pic-connect",
+        "bubble-pop",
+        "speed-tap",
+        "memory-flip",
+        "match-connect",
+        "odd-one-out",
+        "word-rain",
+        "color-tap",
     ], []);
 
     const effectiveMode = useMemo(() => {
-        const ROTATING = ["vocab-game", "review", "mixed-practice"];
-        if (!ROTATING.includes(resolvedMode)) {
+        if (resolvedMode !== "review" && resolvedMode !== "mixed-practice") {
             return resolvedMode;
         }
         const lessonNum = _lesson?.number || _lesson?.lesson_number || 1;
-        // Use the lesson's id as a tiebreaker so two lessons that
-        // happen to share lesson_number=1 in different units still
-        // pick different variants. Falls back to lessonNum alone.
-        const seed = (Number(_lesson?.id) || 0) * 7 + lessonNum;
-        return VARIANT_KEYS[seed % VARIANT_KEYS.length];
+        return VARIANT_KEYS[lessonNum % VARIANT_KEYS.length];
     }, [resolvedMode, _lesson, VARIANT_KEYS]);
 
     const meta = modeMeta(effectiveMode);
@@ -217,29 +189,19 @@ const LessonScreen = (props) => {
     /**
      * Pick the actual mode to render.
      *
-     * v4 (2026-05): operator reported they played every lesson
-     * and never saw a single different game. Root cause: the
-     * seeders set every lesson to `vocab-game` and PR #41 had
-     * pinned vocab-game to ALWAYS render VocabGameMode, so 13
-     * game components were sitting unused.
+     * v3 (2026-05): we used to ROTATE 'vocab-game' across 10 game
+     * variants based on lesson number. That made the lesson-card
+     * label ("Play", "Vocab Game") wildly inconsistent with what
+     * actually rendered — kids would tap "Colours & Numbers"
+     * (vocab-game) and land in a listen-only round with no word
+     * visible. Authors lost control of the experience too.
      *
-     * Now: vocab-game / review / mixed-practice all rotate
-     * through 9 generic-deck variants picked deterministically
-     * by lesson id + number — the kid sees Memory on lesson 1,
-     * Bubble Pop on lesson 2, Drag-Drop on lesson 3, etc., and
-     * the SAME lesson always shows the SAME variant on every
-     * visit. The AppHeader chip and StageBreadcrumb labels are
-     * driven from the same `effectiveMode` so the pill ALWAYS
-     * matches the rendered game (no more "Play" pill above a
-     * Memory board).
-     *
-     * Authors who pin a specific mode in the seeder/admin (e.g.
-     * `mode: 'memory-flip'`, `mode: 'word-rain'`,
-     * `mode: 'color-tap'`) still bypass the rotation entirely
-     * via the switch below — they get exactly what they asked
-     * for. This includes the new specialty games (color-tap,
-     * word-rain, odd-one-out) that we kept OUT of the rotation
-     * because they need targeted data.
+     * Now: vocab-game ALWAYS renders VocabGameMode (picture match
+     * with the prompt word visible), and we only use the rotation
+     * for explicitly-mixed lesson types ('review' or
+     * 'mixed-practice') that exist for variety on purpose. Authors
+     * who want a memory game / bubble pop / etc. simply set the
+     * lesson's mode to that exact value in the seeder/admin.
      */
     const renderMode = () => {
         const common = { lesson: safeLesson, audioTrack: _audioTrack, onComplete: onModeComplete };
@@ -247,7 +209,7 @@ const LessonScreen = (props) => {
         // Map the variant key strings (used by VARIANT_KEYS above
         // for AppHeader / StageBreadcrumb labels) to their actual
         // React components. Keep the order identical to VARIANT_KEYS
-        // so seed % N picks the same variant in both places.
+        // so `lessonNum % N` picks the same variant in both places.
         const VARIANT_BY_KEY = {
             "vocab-game":       VocabGameMode,
             "memory-game":      MemoryGameMode,
@@ -264,17 +226,17 @@ const LessonScreen = (props) => {
             "color-tap":        ColorTapMode,
         };
 
-        // Rotating modes — vocab-game, review, mixed-practice all
-        // pick their variant from `effectiveMode` so the kid sees
-        // Memory, Bubble Pop, Connect, etc. across the unit
-        // instead of the same picture-matching every time.
-        const ROTATING = ["vocab-game", "review", "mixed-practice"];
-        if (ROTATING.includes(resolvedMode)) {
+        // Only review/mixed-practice rotate — every other mode
+        // renders exactly what the author asked for. We use the
+        // already-computed `effectiveMode` so the rendered component
+        // always matches the AppHeader chip and breadcrumb label.
+        if (resolvedMode === "review" || resolvedMode === "mixed-practice") {
             const Variant = VARIANT_BY_KEY[effectiveMode] || VocabGameMode;
             return <Variant {...common} deck={_deck} />;
         }
 
         switch (resolvedMode) {
+            case "vocab-game":      return <VocabGameMode {...common} deck={_deck} />;
             case "intro":           return <IntroMode {...common} intro={_intro} />;
             case "picture-dict":    return <PictureDictMode {...common} intro={_intro} />;
             case "story":           return <StoryMode {...common} />;
