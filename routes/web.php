@@ -27,7 +27,9 @@ Route::get('/help', [HelpCenterController::class, 'index'])->name('help');
 // `/contact` was the v1 link; keep the redirect so any printed
 // stickers / emails out in the wild still resolve.
 Route::redirect('/contact', '/help');
-
+// routes/web.php — أضف هذين السطرين إذا لم يكونا موجودَين
+Route::get('/arena',        [GamesArenaController::class, 'show'])->name('arena');
+Route::post('/arena/submit',[GamesArenaController::class, 'submit'])->name('arena.submit');
 // ─────────────────────────────────────────────────────────────
 // Audio + media APIs
 // ─────────────────────────────────────────────────────────────

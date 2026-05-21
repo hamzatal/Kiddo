@@ -2,24 +2,106 @@ import React, { useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import { speakWord, stopAllAudio } from "@/learning/utils/playAudio";
 
-/**
- * Curated word→emoji map for text-only OptionCard tiles. Kept in
- * sync with WORD_EMOJIS in SmartImage.jsx and the EMOJI_MAP in
- * WordImageController so the kid sees the same icon everywhere.
- */
 const TEXT_EMOJIS = {
-    mum: "👩", mom: "👩", dad: "👨", brother: "🧒", sister: "👧",
-    boy: "👦", girl: "👧", friend: "🤝", family: "👨‍👩‍👧‍👦",
-    one: "1️⃣", two: "2️⃣", three: "3️⃣", four: "4️⃣", five: "5️⃣",
-    six: "6️⃣", seven: "7️⃣", eight: "8️⃣", nine: "9️⃣", ten: "🔟",
-    red: "🟥", blue: "🟦", green: "🟩", yellow: "🟨",
-    orange: "🟧", purple: "🟪", pink: "🌸", brown: "🟫",
-    book: "📖", pen: "🖊️", pencil: "✏️", ruler: "📏", crayon: "🖍️",
-    bag: "🎒", eraser: "🧽",
-    cat: "🐱", dog: "🐶", apple: "🍎",
-    hello: "👋", hi: "👋", goodbye: "👋",
-    sun: "☀️", star: "⭐",
+    mum: "👩",
+    mom: "👩",
+    dad: "👨",
+    brother: "🧒",
+    sister: "👧",
+    boy: "👦",
+    girl: "👧",
+    friend: "🤝",
+    family: "👨‍👩‍👧‍👦",
+    one: "1️⃣",
+    two: "2️⃣",
+    three: "3️⃣",
+    four: "4️⃣",
+    five: "5️⃣",
+    six: "6️⃣",
+    seven: "7️⃣",
+    eight: "8️⃣",
+    nine: "9️⃣",
+    ten: "🔟",
+    red: "🟥",
+    blue: "🟦",
+    green: "🟩",
+    yellow: "🟨",
+    orange: "🟧",
+    purple: "🟪",
+    pink: "🌸",
+    brown: "🟫",
+    book: "📖",
+    pen: "🖊️",
+    pencil: "✏️",
+    ruler: "📏",
+    crayon: "🖍️",
+    bag: "🎒",
+    eraser: "🧽",
+    cat: "🐱",
+    dog: "🐶",
+    apple: "🍎",
+    hello: "👋",
+    hi: "👋",
+    goodbye: "👋",
+    sun: "☀️",
+    star: "⭐",
+    bird: "🐦",
+    fish: "🐠",
+    rabbit: "🐰",
+    horse: "🐴",
+    cow: "🐄",
+    banana: "🍌",
+    grape: "🍇",
+    bread: "🍞",
+    milk: "🥛",
+    egg: "🥚",
+    head: "🗣️",
+    eye: "👁️",
+    nose: "👃",
+    mouth: "👄",
+    hand: "✋",
+    happy: "😊",
+    sad: "😢",
+    run: "🏃",
+    jump: "🤸",
+    swim: "🏊",
+    house: "🏠",
+    door: "🚪",
+    bed: "🛏️",
+    chair: "🪑",
+    table: "🪑",
+    shirt: "👕",
+    shoes: "👟",
+    hat: "👒",
+    dress: "👗",
+    tree: "🌳",
+    flower: "🌸",
+    cloud: "☁️",
+    rain: "🌧️",
+    moon: "🌙",
 };
+
+const CARD_COLORS = [
+    { from: "#EDE9FE", to: "#DDD6FE", text: "#5B21B6" },
+    { from: "#DBEAFE", to: "#BFDBFE", text: "#1E40AF" },
+    { from: "#D1FAE5", to: "#A7F3D0", text: "#065F46" },
+    { from: "#FEF3C7", to: "#FDE68A", text: "#92400E" },
+    { from: "#FCE7F3", to: "#FBCFE8", text: "#9D174D" },
+    { from: "#CFFAFE", to: "#A5F3FC", text: "#164E63" },
+    { from: "#FFE4E6", to: "#FECDD3", text: "#9F1239" },
+    { from: "#E0E7FF", to: "#C7D2FE", text: "#3730A3" },
+    { from: "#CCFBF1", to: "#99F6E4", text: "#134E4A" },
+    { from: "#FFEDD5", to: "#FED7AA", text: "#9A3412" },
+];
+
+function hashStr(str) {
+    let h = 0;
+    for (let i = 0; i < (str || "").length; i++) {
+        h = (h << 5) - h + str.charCodeAt(i);
+        h |= 0;
+    }
+    return Math.abs(h);
+}
 
 const pickTextEmoji = (label) => {
     if (!label) return "✨";
@@ -32,34 +114,14 @@ const pickTextEmoji = (label) => {
 };
 
 /**
- * OptionCard — clickable picture/word card used by every game mode.
+ * OptionCard v8 — unified card for all game modes.
  *
- * v7 (May 2026) — visibility overhaul.
- *   Operator complaint: "the page looks empty, kid only sees the
- *   audio button and the words 'Blue', 'Red' as plain text".
- *
- *   Root cause: previous styling was `bg-white` + a 2px purple
- *   ring on a near-white page background, with `aspect-square` the
- *   only height controller. On systems where Tailwind's aspect-
- *   ratio utility wasn't applied (older builds, missing CSS) the
- *   card collapsed to ~1 line tall, and even when sized correctly
- *   the white-on-white card was almost invisible at a glance.
- *
- *   This rewrite:
- *     • Replaces `bg-white` with a soft tinted gradient that
- *       contrasts against the page.
- *     • Bumps the idle ring from `ring-2 ring-purple-300` to
- *       `ring-4 ring-purple-400`, making the card border
- *       unmistakable on every theme.
- *     • Adds an explicit `min-h-[8rem] sm:min-h-[10rem]` fallback
- *       so even without Tailwind's aspect-ratio plugin the card
- *       has guaranteed vertical presence.
- *     • Adds a pulsing "TAP" badge in the top-right of every idle
- *       card so first-time learners have an unambiguous "this is
- *       a button" signal alongside the speaker chip.
- *     • Tightens the gradient/text contrast on the text-only
- *       fallback so 'Blue' / 'Red' / 'Mum' tiles read as buttons
- *       and not as labels stuck on a blank panel.
+ * - Image cards: full-bleed picture with word ribbon at bottom.
+ * - Text-only cards: emoji + bold word on a deterministic gradient.
+ * - Speaker chip: always visible top-left.
+ * - State ring/shadow system: idle → correct → wrong → disabled.
+ * - Removed "TAP" badge — hover lift is sufficient affordance.
+ * - Aspect ratio: always square for consistent grid alignment.
  */
 const OptionCard = ({
     imagePath,
@@ -74,37 +136,47 @@ const OptionCard = ({
 }) => {
     const [speaking, setSpeaking] = useState(false);
 
-    const stateClasses = {
-        idle:
-            // Tidy modern look — soft 3-stop gradient on the surface,
-            // a single thick purple ring (was 4px ring + 8px stacked
-            // shadow which felt visually noisy), and a clean
-            // elevation shadow that scales smoothly on hover. The
-            // animated TAP badge already signals "this is a button"
-            // so we don't need a heavy ring + halo combo on top.
-            "ring-[3px] ring-purple-300 " +
-            "shadow-[0_6px_18px_-4px_rgba(124,58,237,0.25)] " +
-            "bg-gradient-to-br from-white via-purple-50/60 to-indigo-50 " +
-            "hover:ring-purple-500 hover:ring-4 " +
-            "hover:shadow-[0_12px_28px_-6px_rgba(124,58,237,0.45)] " +
-            "hover:-translate-y-1 hover:scale-[1.03] " +
-            "active:translate-y-0 active:scale-[0.98] " +
-            "animate-optionPulse cursor-pointer",
-        correct:
-            "ring-4 ring-emerald-500 " +
-            "shadow-[0_12px_30px_-6px_rgba(16,185,129,0.55)] " +
-            "bg-gradient-to-br from-emerald-50 via-white to-emerald-100 " +
-            "scale-[1.04] z-10 animate-correctPop",
-        wrong:
-            "ring-[3px] ring-rose-400 " +
-            "bg-gradient-to-br from-rose-50 via-white to-rose-50 " +
-            "opacity-60 grayscale scale-[0.97] cursor-not-allowed animate-shake",
-        disabled:
-            "ring-2 ring-gray-200 bg-white opacity-60 cursor-not-allowed",
-    }[state];
-
+    const colorScheme = CARD_COLORS[hashStr(label || "") % CARD_COLORS.length];
     const isTextOnly = !imagePath;
     const textEmoji = isTextOnly ? pickTextEmoji(label) : null;
+
+    const stateStyles = {
+        idle: {
+            ring: "ring-[3px] ring-purple-300/80 hover:ring-purple-500 hover:ring-4",
+            shadow: "shadow-[0_4px_14px_rgba(124,58,237,0.18),0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(124,58,237,0.32)]",
+            transform:
+                "hover:-translate-y-1 hover:scale-[1.03] active:scale-[0.97] active:translate-y-0",
+            bg: "",
+            cursor: "cursor-pointer",
+            overlay: null,
+        },
+        correct: {
+            ring: "ring-4 ring-emerald-500",
+            shadow: "shadow-[0_0_0_6px_rgba(16,185,129,0.18),0_8px_24px_rgba(16,185,129,0.28)] scale-[1.04] z-10",
+            transform: "",
+            bg: "",
+            cursor: "",
+            overlay: "absolute inset-0 bg-emerald-400/15 z-0",
+        },
+        wrong: {
+            ring: "ring-[3px] ring-rose-400",
+            shadow: "",
+            transform: "scale-[0.96]",
+            bg: "",
+            cursor: "cursor-not-allowed",
+            overlay: "absolute inset-0 bg-rose-400/10 z-0",
+        },
+        disabled: {
+            ring: "ring-2 ring-gray-200/80",
+            shadow: "",
+            transform: "",
+            bg: "",
+            cursor: "cursor-not-allowed",
+            overlay: null,
+        },
+    };
+
+    const s = stateStyles[state] || stateStyles.idle;
 
     const handleSpeak = async (e) => {
         e.stopPropagation();
@@ -116,108 +188,116 @@ const OptionCard = ({
         }
         setSpeaking(true);
         try {
-            await speakWord({
-                wordId: wordId || audioClip?.wordId || null,
-                label,
-                audioClip,
-            });
-        } catch (_) { /* ignore */ }
+            await speakWord({ wordId: wordId || audioClip?.wordId || null, label, audioClip });
+        } catch (_) {}
         setSpeaking(false);
     };
 
     const canSpeak = showAudio && (audioClip?.src || audioClip?.tts || label);
+
+    const cardBg = isTextOnly
+        ? { background: `linear-gradient(145deg, ${colorScheme.from}, ${colorScheme.to})` }
+        : { background: "linear-gradient(145deg, #ffffff, #faf5ff)" };
 
     return (
         <button
             type="button"
             disabled={state === "wrong" || state === "disabled" || state === "correct"}
             onClick={onClick}
-            className={`
-                group relative overflow-hidden select-none
-                rounded-2xl sm:rounded-3xl
-                w-full
-                min-h-[8rem] sm:min-h-[10rem] lg:min-h-[12rem]
-                aspect-square sm:aspect-[4/3]
-                transition-all duration-300
-                ${stateClasses}
-                ${className}
-            `}
+            style={cardBg}
+            className={[
+                "group relative select-none overflow-hidden",
+                "aspect-square w-full rounded-2xl",
+                "transition-all duration-200",
+                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-400",
+                s.ring,
+                s.shadow,
+                s.transform,
+                s.cursor,
+                state === "wrong" || state === "disabled" ? "opacity-55" : "opacity-100",
+                className,
+            ]
+                .filter(Boolean)
+                .join(" ")}
             aria-label={`Pick ${label || "this option"}`}
         >
-            {/* Picture / text tile fills the whole card. No padding
-                so illustrations read full-bleed. Text-only tiles
-                centre an emoji + word over a tinted background. */}
+            {/* State colour overlay */}
+            {s.overlay && <div className={s.overlay} aria-hidden="true" />}
+
+            {/* Text-only tile */}
             {isTextOnly ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center px-2 gap-1 sm:gap-2">
-                    {textEmoji ? (
-                        <span className="text-4xl sm:text-5xl lg:text-6xl drop-shadow-sm leading-none">
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 px-2">
+                    {textEmoji && (
+                        <span
+                            className="select-none leading-none drop-shadow-sm"
+                            style={{ fontSize: "clamp(1.75rem, 8vw, 2.75rem)" }}
+                        >
                             {textEmoji}
                         </span>
-                    ) : null}
-                    <span className="text-base sm:text-lg lg:text-xl font-black uppercase tracking-tight text-[#1E293B] text-center break-words leading-tight">
+                    )}
+                    <span
+                        className="break-words text-center font-black uppercase leading-tight tracking-wide"
+                        style={{ fontSize: "clamp(0.7rem, 3vw, 1rem)", color: colorScheme.text }}
+                    >
                         {label}
                     </span>
                 </div>
             ) : (
+                /* Image tile */
                 <SmartImage
                     src={imagePath}
                     label={label}
-                    className="absolute inset-0 w-full h-full"
-                    imgClassName="w-full h-full object-contain p-2 sm:p-3 group-hover:scale-105 transition-transform"
+                    className="absolute inset-0 z-10 h-full w-full"
+                    imgClassName="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-[1.06] transition-transform duration-300"
                 />
             )}
 
-            {/* Bottom label ribbon — modernised with a subtle
-                gradient (was an opaque black 65% ribbon that felt
-                visually heavy on a kid-facing UI). The new ribbon
-                blends into the card edge so the picture stays the
-                hero and the word reads as a clean caption. */}
-            {showLabel && label && !isTextOnly ? (
-                <div className="absolute inset-x-0 bottom-0 px-2 pt-3 pb-1.5 bg-gradient-to-t from-purple-900/70 via-purple-900/30 to-transparent">
-                    <span className="block text-xs sm:text-sm lg:text-base font-black uppercase tracking-wide text-white text-center truncate drop-shadow">
+            {/* Word ribbon — image cards only */}
+            {showLabel && label && !isTextOnly && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[#160035]/75 via-[#160035]/25 to-transparent px-2 pb-1.5 pt-4">
+                    <span
+                        className="block truncate text-center font-black uppercase tracking-wide text-white drop-shadow"
+                        style={{ fontSize: "clamp(0.6rem, 2.4vw, 0.85rem)" }}
+                    >
                         {label}
                     </span>
                 </div>
-            ) : null}
-
-            {/* "TAP" badge — pulses on idle cards so first-time
-                learners have an unambiguous "this is a button"
-                signal even when the picture/word looks decorative.
-                Auto-hides on correct/wrong/disabled states. */}
-            {state === "idle" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-md border-2 border-white animate-tapBadge pointer-events-none z-10">
-                    Tap
-                </div>
             )}
 
-            {/* Speaker chip — overlay top-left so it never affects layout */}
-            {canSpeak ? (
+            {/* Speaker chip — always visible top-left */}
+            {canSpeak && (
                 <div
                     role="button"
                     tabIndex={-1}
                     onClick={handleSpeak}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className={`absolute top-1.5 left-1.5 sm:top-2 sm:left-2 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-base shadow-md border-2 border-white z-20 cursor-pointer transition-all
-                        ${speaking
-                            ? "bg-amber-400 text-white scale-110"
-                            : "bg-emerald-500 text-white opacity-90 group-hover:opacity-100 hover:scale-110 active:scale-95"
-                        }`}
+                    aria-label={`Listen to "${label}"`}
                     title={`Listen to "${label}"`}
-                    aria-label={`Listen to ${label}`}
+                    className={[
+                        "absolute left-1.5 top-1.5 z-30 sm:left-2 sm:top-2",
+                        "h-7 w-7 rounded-full sm:h-8 sm:w-8",
+                        "flex items-center justify-center text-xs sm:text-sm",
+                        "cursor-pointer border-2 border-white shadow-md",
+                        "transition-all duration-150",
+                        speaking
+                            ? "scale-110 bg-amber-400 text-white"
+                            : "bg-emerald-500 text-white hover:scale-110 hover:bg-emerald-600 active:scale-95",
+                    ].join(" ")}
                 >
                     {speaking ? "⏸" : "🔊"}
                 </div>
-            ) : null}
+            )}
 
-            {/* Status pill — overlay top-right (replaces TAP badge
-                once the user has answered) */}
+            {/* Correct tick */}
             {state === "correct" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-emerald-500 text-white w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg animate-bounce text-base z-20">
+                <div className="absolute right-1.5 top-1.5 z-30 flex h-7 w-7 animate-bounce items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-sm font-black text-white shadow-lg sm:right-2 sm:top-2 sm:h-8 sm:w-8">
                     ✓
                 </div>
             )}
+
+            {/* Wrong cross */}
             {state === "wrong" && (
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-rose-500 text-white w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg text-base z-20">
+                <div className="absolute right-1.5 top-1.5 z-30 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-rose-500 text-sm font-black text-white shadow-lg sm:right-2 sm:top-2 sm:h-8 sm:w-8">
                     ✕
                 </div>
             )}

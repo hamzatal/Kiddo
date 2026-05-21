@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageHead from "@/learning/components/ui/PageHead";
 import StreakCelebration from "@/learning/components/ui/StreakCelebration";
@@ -7,28 +7,160 @@ import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import AppHeader from "@/learning/components/ui/AppHeader";
 import StageBreadcrumb from "@/learning/components/ui/StageBreadcrumb";
+import MemoryFlipRound from "@/learning/components/games/MemoryFlipRound";
+import ShadowMatchRound from "@/learning/components/games/ShadowMatchRound";
+import RevealGuessRound from "@/learning/components/games/RevealGuessRound";
+import BalloonPopRound from "@/learning/components/games/BalloonPopRound";
+import TrueOrFalseRound from "@/learning/components/games/TrueOrFalseRound";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
-import { playSuccess, playFail, playClick, playCheer, playStarCollect } from "@/learning/utils/soundEffects";
+import {
+    playSuccess,
+    playFail,
+    playClick,
+    playCheer,
+    playStarCollect,
+} from "@/learning/utils/soundEffects";
 import { launchConfetti, launchStars } from "@/learning/utils/confetti";
 
 /**
- * ArenaScreen v3 — mixed-review Games Arena.
+ * ArenaScreen v4 — 11-style mixed-review arena.
  *
- * Same content as v2 but every section now fits a 720p tablet
- * viewport without internal scroll. Compact header card, denser
- * 3-column option grid, smaller celebration card.
+ * Architecture: every style maps to either a specialised game
+ * component (ROUND_COMPONENTS) or falls through to the standard
+ * prompt+options layout. Adding a new game = one file + one line.
  */
 
+// ── Style metadata ─────────────────────────────────────────────────────────
 const STYLE_META = {
-    "word-to-image":     { label: "Spot it!",     icon: "🔎", color: "#7C3AED" },
-    "audio-to-image":    { label: "Listen!",      icon: "🎧", color: "#0EA5E9" },
-    "image-to-word":     { label: "Name it!",     icon: "🏷️", color: "#10B981" },
+    "word-to-image": { label: "Spot it!", icon: "🔎", color: "#7C3AED" },
+    "audio-to-image": { label: "Listen!", icon: "🎧", color: "#0EA5E9" },
+    "image-to-word": { label: "Name it!", icon: "🏷️", color: "#10B981" },
     "listen-then-spell": { label: "Tap the word", icon: "📝", color: "#F59E0B" },
-    // v2 — May 2026 — new round shapes for variety.
-    "odd-one-out":       { label: "Odd one out",  icon: "🔍", color: "#F59E0B" },
-    "spot-the-decoy":    { label: "Read it!",     icon: "📖", color: "#EC4899" },
+    "odd-one-out": { label: "Odd one out", icon: "🔍", color: "#F59E0B" },
+    "spot-the-decoy": { label: "Read it!", icon: "📖", color: "#EC4899" },
+    "memory-flip": { label: "Match it!", icon: "🧠", color: "#8B5CF6" },
+    "shadow-match": { label: "Who's this?", icon: "🕶️", color: "#334155" },
+    "reveal-guess": { label: "Guess fast!", icon: "✨", color: "#14B8A6" },
+    "balloon-pop": { label: "Pop it!", icon: "🎈", color: "#EF4444" },
+    "true-or-false": { label: "True or false?", icon: "🤔", color: "#6366F1" },
 };
 
+// ── Specialised game registry ──────────────────────────────────────────────
+const ROUND_COMPONENTS = {
+    "memory-flip": MemoryFlipRound,
+    "shadow-match": ShadowMatchRound,
+    "reveal-guess": RevealGuessRound,
+    "balloon-pop": BalloonPopRound,
+    "true-or-false": TrueOrFalseRound,
+};
+
+// ── Sub-components ─────────────────────────────────────────────────────────
+function UnitChip({ title }) {
+    if (!title) return null;
+    return (
+        <div className="flex items-center gap-1.5 rounded-full border border-white/60 bg-white/85 px-3 py-1 shadow backdrop-blur">
+            <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">
+                From
+            </span>
+            <span className="text-[11px] font-black text-[#1E293B]">{title}</span>
+        </div>
+    );
+}
+
+function StandardPrompt({ style, round, disabled }) {
+    const prompt = round?.prompt;
+    if (!prompt) return null;
+
+    if (style === "audio-to-image" || style === "listen-then-spell") {
+        return (
+            <div className="flex w-full max-w-xs flex-col items-center gap-2 rounded-2xl border border-white/50 bg-white/90 px-5 py-4 shadow-lg backdrop-blur sm:px-8">
+                <p className="text-[9px] font-black uppercase tracking-wider text-blue-500">
+                    Listen carefully
+                </p>
+                <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => playAudio(prompt.audioClip)}
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 text-2xl text-white shadow-xl transition-transform hover:scale-110 active:scale-95 disabled:opacity-60 sm:h-20 sm:w-20 sm:text-3xl"
+                >
+                    🔊
+                </button>
+                <p className="text-[10px] font-bold text-gray-400">Tap to listen again</p>
+            </div>
+        );
+    }
+
+    if (style === "image-to-word") {
+        return (
+            <div className="flex w-full max-w-xs flex-col items-center gap-2 rounded-2xl border border-white/50 bg-white/90 px-5 py-3 shadow-lg backdrop-blur">
+                <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600">
+                    What is this?
+                </p>
+                <SmartImage
+                    src={prompt.imagePath}
+                    label={prompt.text}
+                    className="overflow-hidden rounded-xl"
+                    style={{ width: "clamp(6rem,20vw,8rem)", height: "clamp(6rem,20vw,8rem)" }}
+                    imgClassName="w-full h-full object-contain"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex w-full max-w-md items-center gap-2 rounded-2xl border border-white/60 bg-white/90 px-4 py-3 shadow-lg backdrop-blur sm:gap-3 sm:px-6">
+            <AudioClipButton
+                clip={prompt.audioClip}
+                wordId={round?.wordId}
+                label={prompt.text}
+                size="md"
+            />
+            <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-purple-400 sm:text-[10px]">
+                    Find the picture for
+                </p>
+                <h2
+                    className="truncate font-black text-gray-800"
+                    style={{ fontSize: "clamp(1.125rem, 5vw, 2rem)" }}
+                >
+                    {prompt.text}
+                </h2>
+            </div>
+        </div>
+    );
+}
+
+function StandardOptions({ round, style, correctId, wrong, onPick }) {
+    const options = round?.options || [];
+    const useText = style === "image-to-word" || style === "listen-then-spell";
+    const wantLabel = useText || style === "spot-the-decoy" || style === "odd-one-out";
+
+    return (
+        <div className="mx-auto grid w-full max-w-2xl grid-cols-3 justify-items-center gap-2 sm:gap-3 lg:gap-4">
+            {options.map((opt) => {
+                let cardState = "idle";
+                if (correctId === opt.id) cardState = "correct";
+                else if (wrong.includes(opt.id)) cardState = "wrong";
+                else if (correctId !== null) cardState = "disabled";
+
+                return (
+                    <OptionCard
+                        key={opt.id}
+                        imagePath={useText ? null : opt.imagePath}
+                        label={opt.word}
+                        audioClip={opt.audioClip}
+                        wordId={opt.wordId || null}
+                        showLabel={wantLabel}
+                        state={cardState}
+                        onClick={() => onPick(opt)}
+                    />
+                );
+            })}
+        </div>
+    );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
 const ArenaScreen = ({ arena }) => {
     const { auth } = usePage().props || {};
     const rounds = arena?.rounds || [];
@@ -46,8 +178,8 @@ const ArenaScreen = ({ arena }) => {
     const round = rounds[idx];
     const style = round?.style || "word-to-image";
     const meta = STYLE_META[style] || STYLE_META["word-to-image"];
+    const SpecialRound = ROUND_COMPONENTS[style] || null;
 
-    /** Reset session state when a new deck is loaded ("Play again"). */
     const sessionKey = (rounds[0]?.roundId || "") + ":" + rounds.length;
     useEffect(() => {
         setIdx(0);
@@ -57,7 +189,6 @@ const ArenaScreen = ({ arena }) => {
         setFinished(false);
         setSubmitting(false);
         startedAtRef.current = Date.now();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionKey]);
 
     useEffect(() => {
@@ -71,15 +202,20 @@ const ArenaScreen = ({ arena }) => {
 
     useEffect(() => () => stopAllAudio(), []);
 
+    // ── Empty state ──────────────────────────────────────────────────────────
     if (!rounds.length) {
         return (
-            <div className="h-[100dvh] w-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-amber-50 px-4">
-                <div className="text-center max-w-sm">
-                    <span className="text-6xl block mb-4">🎮</span>
-                    <h2 className="text-2xl font-black text-gray-800 mb-2">No words yet!</h2>
-                    <p className="text-gray-500 mb-6 font-bold">Finish your first lesson to unlock the Games Arena.</p>
-                    <button onClick={() => router.visit("/map")}
-                        className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-2xl font-black shadow-md">
+            <div className="flex h-[100dvh] w-screen items-center justify-center bg-gradient-to-br from-purple-50 via-white to-amber-50 px-4">
+                <div className="max-w-sm text-center">
+                    <span className="mb-4 block text-6xl">🎮</span>
+                    <h2 className="mb-2 text-2xl font-black text-gray-800">No words yet!</h2>
+                    <p className="mb-6 font-bold text-gray-500">
+                        Finish your first lesson to unlock the Games Arena.
+                    </p>
+                    <button
+                        onClick={() => router.visit("/map")}
+                        className="rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-3 font-black text-white shadow-md"
+                    >
                         ← Back to Map
                     </button>
                 </div>
@@ -87,6 +223,7 @@ const ArenaScreen = ({ arena }) => {
         );
     }
 
+    // ── Advance ──────────────────────────────────────────────────────────────
     function handleAdvance() {
         if (idx + 1 >= rounds.length) {
             setFinished(true);
@@ -103,35 +240,37 @@ const ArenaScreen = ({ arena }) => {
     }
 
     function recordResult(option, firstTry, firstWrongOpt) {
-        const next = [...results, {
-            roundId: round.roundId,
-            wordId: round.wordId || null,
-            word: round.prompt?.text || null,
-            style,
-            correct: firstTry,
-            timeMs: Date.now() - startedAtRef.current,
-            wrongChoice: firstWrongOpt?.word || null,
-        }];
+        const next = [
+            ...results,
+            {
+                roundId: round.roundId,
+                wordId: round.wordId || null,
+                word: round.prompt?.text || null,
+                style,
+                correct: firstTry,
+                timeMs: Date.now() - startedAtRef.current,
+                wrongChoice: firstWrongOpt?.word || null,
+            },
+        ];
         setResults(next);
         return next;
     }
 
+    // ── Pick handler (standard choice rounds) ────────────────────────────────
     function handlePick(option) {
         if (correctId !== null) return;
         playClick();
-
         if (option.isCorrect) {
             setCorrectId(option.id);
             playSuccess();
             const firstTry = wrong.length === 0;
             const firstWrongOpt = round.options?.find((o) => wrong.includes(o.id));
             recordResult(option, firstTry, firstWrongOpt);
-
             setTimeout(() => {
                 const el = containerRef.current;
                 if (el) {
-                    const rect = el.getBoundingClientRect();
-                    launchStars(rect.left + rect.width / 2, rect.top + rect.height / 2.5, 6);
+                    const r = el.getBoundingClientRect();
+                    launchStars(r.left + r.width / 2, r.top + r.height / 2.5, 6);
                 }
             }, 100);
             setTimeout(handleAdvance, 950);
@@ -141,37 +280,74 @@ const ArenaScreen = ({ arena }) => {
         }
     }
 
-    function handleFinish() {
-        if (submitting) return;
-        setSubmitting(true);
-        playClick();
-
-        // Safety net: if the server never responds (offline,
-        // dropped wifi, validation 422 silently rolling back),
-        // re-enable the button after 8 seconds so the kid is
-        // never stuck on "Saving…" forever. This matches the
-        // pattern used by every long-running button in the app.
-        const stuckTimer = setTimeout(() => setSubmitting(false), 8000);
-
-        router.post(
-            "/arena/submit",
-            {
-                rounds: results,
-                durationMs: Date.now() - startedAtRef.current,
-            },
-            {
-                onError:   () => { clearTimeout(stuckTimer); setSubmitting(false); },
-                onFinish:  () => { clearTimeout(stuckTimer); setSubmitting(false); },
-                onSuccess: () => { clearTimeout(stuckTimer); /* redirect handles state */ },
-            }
-        );
+    // ── Specialised round complete ────────────────────────────────────────────
+    function handleSpecialComplete({ correct = true } = {}) {
+        recordResult({ id: "special" }, correct, null);
+        setTimeout(handleAdvance, 600);
     }
 
-    /**
-     * "I'm stuck" — finish the arena early without losing the rounds
-     * the kid already played. We synthesise a partial submit so the
-     * map / parent dashboard still gets the data.
-     */
+    // ── Submit ───────────────────────────────────────────────────────────────
+function handleFinish() {
+    if (submitting) return;
+
+    // إذا ما في نتائج أبداً، ارجع للخريطة مباشرة بدون submit
+    if (!results || results.length === 0) {
+        playClick();
+        router.visit("/map");
+        return;
+    }
+
+    setSubmitting(true);
+    playClick();
+
+    const stuckTimer = setTimeout(() => {
+        setSubmitting(false);
+    }, 8000);
+
+    router.post(
+        "/arena/submit",
+        {
+            rounds: results,
+            durationMs: Date.now() - startedAtRef.current,
+        },
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                console.warn("Arena submit errors:", errors);
+                clearTimeout(stuckTimer);
+                setSubmitting(false);
+                // ارجع للخريطة حتى لو فشل الحفظ
+                router.visit("/map");
+            },
+            onFinish: () => {
+                clearTimeout(stuckTimer);
+                setSubmitting(false);
+            },
+            onSuccess: () => {
+                clearTimeout(stuckTimer);
+                router.visit("/map");
+            },
+        },
+    );
+}
+
+function skipArena() {
+    playClick();
+    setFinished(true);
+}
+
+// زر "Play again" — أعد تحميل الصفحة بشكل صحيح
+function handlePlayAgain() {
+    playClick();
+    setIdx(0);
+    setResults([]);
+    setWrong([]);
+    setCorrectId(null);
+    setFinished(false);
+    setSubmitting(false);
+    startedAtRef.current = Date.now();
+    router.reload({ only: ["arena"] });
+}
     function skipArena() {
         playClick();
         setFinished(true);
@@ -182,17 +358,25 @@ const ArenaScreen = ({ arena }) => {
     const scorePct = total ? Math.round((correctCount / total) * 100) : 0;
     const stars = scorePct >= 90 ? 3 : scorePct >= 70 ? 2 : 1;
 
+    // ── Render ───────────────────────────────────────────────────────────────
     return (
-        <div ref={containerRef}
-            className="h-[100dvh] w-screen font-sans flex flex-col overflow-hidden relative bg-gradient-to-br from-purple-50 via-white to-amber-50">
+        <div
+            ref={containerRef}
+            className="relative flex h-[100dvh] w-screen flex-col overflow-hidden bg-gradient-to-br from-purple-50 via-white to-amber-50 font-sans"
+        >
             <PageHead
                 title="Games Arena"
                 description="Mixed-review games drawn from every Kiddo unit you've unlocked."
             />
-            <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                <div className="absolute top-[-5%] left-[-5%] w-72 h-72 bg-purple-200/40 rounded-full blur-3xl" />
-                <div className="absolute bottom-[-5%] right-[-5%] w-64 h-64 bg-amber-200/40 rounded-full blur-3xl" />
-                <div className="absolute top-[40%] left-[60%] w-56 h-56 bg-cyan-200/40 rounded-full blur-2xl" />
+
+            {/* Background blobs */}
+            <div
+                className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+                aria-hidden="true"
+            >
+                <div className="absolute left-[-5%] top-[-5%] h-72 w-72 rounded-full bg-purple-200/40 blur-3xl" />
+                <div className="absolute bottom-[-5%] right-[-5%] h-64 w-64 rounded-full bg-amber-200/40 blur-3xl" />
+                <div className="absolute left-[60%] top-[40%] h-56 w-56 rounded-full bg-cyan-200/40 blur-2xl" />
             </div>
 
             <AppHeader
@@ -212,95 +396,109 @@ const ArenaScreen = ({ arena }) => {
                 skipTitle="End run early and see results"
             />
 
+            {/* ── Active round ─────────────────────────────────────────────── */}
             {!finished ? (
-                <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
-                    <div className="min-h-full w-full flex items-center justify-center p-2 sm:p-3 lg:p-4 pb-20 sm:pb-24">
-                        <div key={idx} className="w-full max-w-3xl mx-auto flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-arena-slide">
-                        <UnitChip title={round?.unitTitle} colorKey={round?.unitColor} />
+                <main className="relative z-10 min-h-0 flex-1 overflow-y-auto">
+                    <div className="flex min-h-full w-full items-center justify-center p-2 pb-20 sm:p-3 sm:pb-24 lg:p-4">
+                        <div
+                            key={idx}
+                            className="animate-arena-slide mx-auto flex w-full max-w-3xl flex-col items-center gap-3 sm:gap-4 lg:gap-5"
+                        >
+                            <UnitChip title={round?.unitTitle} />
 
-                        <Prompt style={style} round={round} disabled={correctId !== null} />
-
-                        <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
-                            {(round?.options || []).map((opt) => {
-                                const isCorrectPick = correctId === opt.id;
-                                const isWrong = wrong.includes(opt.id);
-                                let cardState = "idle";
-                                if (isCorrectPick) cardState = "correct";
-                                else if (isWrong) cardState = "wrong";
-                                else if (correctId !== null) cardState = "disabled";
-
-                                const useText = style === "image-to-word" || style === "listen-then-spell";
-                                // Hide the word label for ALL listening / word-to-image
-                                // styles so the child has to use the picture or the
-                                // audio. Only image-to-word & listen-then-spell ever
-                                // show the word, because the word IS the answer.
-                                //
-                                // For the new spot-the-decoy / odd-one-out styles we
-                                // KEEP the picture (so the kid still uses visual
-                                // recognition) AND show the word ribbon (so the kid
-                                // verifies by reading) — this is intentional, the
-                                // round teaches read-and-match together.
-                                const wantLabel =
-                                    useText ||
-                                    style === "spot-the-decoy" ||
-                                    style === "odd-one-out";
-
-                                return (
-                                    <OptionCard
-                                        key={opt.id}
-                                        imagePath={useText ? null : opt.imagePath}
-                                        label={opt.word}
-                                        audioClip={opt.audioClip}
-                                        wordId={opt.wordId || null}
-                                        showLabel={wantLabel}
-                                        state={cardState}
-                                        onClick={() => handlePick(opt)}
+                            {SpecialRound ? (
+                                <SpecialRound
+                                    round={round}
+                                    onPick={handlePick}
+                                    onComplete={handleSpecialComplete}
+                                    correctId={correctId}
+                                    wrong={wrong}
+                                    disabled={correctId !== null}
+                                />
+                            ) : (
+                                <>
+                                    <StandardPrompt
+                                        style={style}
+                                        round={round}
+                                        disabled={correctId !== null}
                                     />
-                                );
-                            })}
-                        </div>
+                                    <StandardOptions
+                                        round={round}
+                                        style={style}
+                                        correctId={correctId}
+                                        wrong={wrong}
+                                        onPick={handlePick}
+                                    />
+                                </>
+                            )}
                         </div>
                     </div>
                 </main>
             ) : (
-                <main className="flex-1 min-h-0 flex items-center justify-center p-3 sm:p-4 relative z-10 overflow-y-auto">
-                    <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-5 sm:p-8 flex flex-col items-center text-center shadow-2xl border border-white/60 animate-arena-pop">
-                        <div className="w-20 h-20 sm:w-28 sm:h-28 bg-gradient-to-br from-purple-100 to-pink-200 rounded-full flex items-center justify-center shadow-inner border-4 border-white -mt-12 sm:-mt-16 mb-3">
+                /* ── Results card ───────────────────────────────────────────── */
+                <main className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-3 sm:p-4">
+                    <div className="animate-arena-pop flex w-full max-w-md flex-col items-center rounded-3xl border border-white/60 bg-white/95 p-5 text-center shadow-2xl backdrop-blur-xl sm:p-8">
+                        <div className="-mt-12 mb-3 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-purple-100 to-pink-200 shadow-inner sm:-mt-16 sm:h-28 sm:w-28">
                             <span className="text-4xl sm:text-6xl">🏆</span>
                         </div>
 
-                        <h1 className="text-2xl sm:text-4xl font-black text-gray-800 mb-1">
-                            {scorePct >= 90 ? "Brilliant!" : scorePct >= 70 ? "Awesome!" : "Good job!"}
+                        <h1 className="mb-1 text-2xl font-black text-gray-800 sm:text-4xl">
+                            {scorePct >= 90
+                                ? "Brilliant!"
+                                : scorePct >= 70
+                                  ? "Awesome!"
+                                  : "Good job!"}
                         </h1>
-                        <p className="text-xs sm:text-base text-gray-500 font-bold mb-4">
-                            You got <span className="text-emerald-500 font-black">{correctCount}</span> / <span className="font-black">{total}</span> right.
+                        <p className="mb-4 text-xs font-bold text-gray-500 sm:text-base">
+                            You got{" "}
+                            <span className="font-black text-emerald-500">{correctCount}</span>
+                            {" / "}
+                            <span className="font-black">{total}</span> right.
                         </p>
 
-                        <div className="flex items-center gap-2 sm:gap-3 mb-4">
+                        <div className="mb-4 flex items-center gap-2 sm:gap-3">
                             {[1, 2, 3].map((s) => (
-                                <span key={s} className={`text-3xl sm:text-5xl transition-all duration-500 ${s <= stars ? "opacity-100 scale-110 animate-arena-star" : "opacity-20 grayscale scale-75"}`}
-                                    style={{ animationDelay: `${s * 0.18}s` }}>⭐</span>
+                                <span
+                                    key={s}
+                                    className={`text-3xl transition-all duration-500 sm:text-5xl ${s <= stars ? "animate-arena-star scale-110 opacity-100" : "scale-75 opacity-20 grayscale"}`}
+                                    style={{ animationDelay: `${s * 0.18}s` }}
+                                >
+                                    ⭐
+                                </span>
                             ))}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 w-full mb-4">
-                            <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-2xl text-center">
-                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider mb-0.5">Correct</p>
-                                <p className="text-lg sm:text-2xl font-black text-emerald-600">{correctCount}</p>
+                        <div className="mb-4 grid w-full grid-cols-2 gap-2">
+                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-2.5 text-center">
+                                <p className="mb-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-600">
+                                    Correct
+                                </p>
+                                <p className="text-lg font-black text-emerald-600 sm:text-2xl">
+                                    {correctCount}
+                                </p>
                             </div>
-                            <div className="bg-purple-50 border border-purple-100 p-2.5 rounded-2xl text-center">
-                                <p className="text-[9px] font-black text-purple-600 uppercase tracking-wider mb-0.5">Bonus XP</p>
-                                <p className="text-lg sm:text-2xl font-black text-purple-600">+{Math.min(50, correctCount * 5)}</p>
+                            <div className="rounded-2xl border border-purple-100 bg-purple-50 p-2.5 text-center">
+                                <p className="mb-0.5 text-[9px] font-black uppercase tracking-wider text-purple-600">
+                                    Bonus XP
+                                </p>
+                                <p className="text-lg font-black text-purple-600 sm:text-2xl">
+                                    +{Math.min(50, correctCount * 5)}
+                                </p>
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 w-full">
-                            <button onClick={handleFinish} disabled={submitting}
-                                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50">
+                        <div className="flex w-full flex-col gap-2">
+                            <button
+                                onClick={handleFinish}
+                                disabled={submitting}
+                                className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 py-3 text-sm font-black text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0 disabled:opacity-50 sm:text-base"
+                            >
                                 {submitting ? "Saving…" : "Save & back to map →"}
                             </button>
-                            <button onClick={() => router.reload({ only: ["arena"] })}
-                                className="w-full bg-white border border-gray-200 text-gray-700 py-2.5 rounded-2xl font-black text-xs sm:text-sm hover:bg-gray-50">
+                            <button
+                                onClick={() => router.reload({ only: ["arena"] })}
+                                className="w-full rounded-2xl border border-gray-200 bg-white py-2.5 text-xs font-black text-gray-700 transition-colors hover:bg-gray-50 sm:text-sm"
+                            >
                                 Play again
                             </button>
                         </div>
@@ -308,28 +506,31 @@ const ArenaScreen = ({ arena }) => {
                 </main>
             )}
 
+            {/* ── Keyframes ────────────────────────────────────────────────── */}
             <style>{`
-                @keyframes arena-slide { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes arena-slide {
+                    from { opacity:0; transform:translateY(20px); }
+                    to   { opacity:1; transform:translateY(0); }
+                }
                 .animate-arena-slide { animation: arena-slide .35s cubic-bezier(.16,1,.3,1) forwards; }
+
                 @keyframes arena-pop {
-                    0% { opacity: 0; transform: scale(.85) translateY(15px); }
-                    60% { transform: scale(1.04) translateY(-4px); }
-                    100% { opacity: 1; transform: scale(1) translateY(0); }
+                    0%   { opacity:0; transform:scale(.85) translateY(15px); }
+                    60%  { transform:scale(1.04) translateY(-4px); }
+                    100% { opacity:1; transform:scale(1) translateY(0); }
                 }
                 .animate-arena-pop { animation: arena-pop .55s cubic-bezier(.34,1.56,.64,1) forwards; }
-                @keyframes arena-star { 0% { transform: scale(0); } 60% { transform: scale(1.3); } 100% { transform: scale(1.1); } }
+
+                @keyframes arena-star {
+                    0%   { transform:scale(0); }
+                    60%  { transform:scale(1.3); }
+                    100% { transform:scale(1.1); }
+                }
                 .animate-arena-star { animation: arena-star .4s cubic-bezier(.34,1.56,.64,1) forwards; }
             `}</style>
 
-            {/* Streak celebration toast — fires once per session whenever
-                an arena round bumps today's streak counter. */}
             <StreakCelebration />
 
-            {/* "You are here" pill — pinned to bottom-center like on
-                LessonScreen and QuizScreen. Arena rounds rotate
-                through every unlocked unit, so the unit chip shows
-                the CURRENT round's source ("From Family") and the
-                lesson chip shows the round number out of total. */}
             {!finished && (
                 <StageBreadcrumb
                     unitTitle={round?.unitTitle || "Games Arena"}
@@ -343,78 +544,23 @@ const ArenaScreen = ({ arena }) => {
                 />
             )}
 
-            {/* Floating Finish pill — secondary recovery path so a
-                stuck child can jump straight to results without
-                abandoning the run. Mirrors the LessonScreen and
-                QuizScreen designs. Always shows its label so phone
-                users see what it does. */}
-            {!finished ? (
+            {!finished && (
                 <button
                     onClick={skipArena}
-                    className="fixed bottom-4 right-4 z-40 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-600 hover:to-fuchsia-700 text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 transition-all hover:-translate-y-0.5 active:translate-y-0 group border-2 border-white/40"
+                    className="group fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border-2 border-white/40 bg-gradient-to-r from-purple-500 to-fuchsia-600 px-4 py-2.5 text-white shadow-xl transition-all hover:-translate-y-0.5 hover:from-purple-600 hover:to-fuchsia-700 active:translate-y-0"
                     aria-label="End run early"
                     title="End run early and see results"
                 >
-                    <span className="text-base sm:text-lg group-hover:scale-110 transition-transform">🏁</span>
-                    <span className="text-xs sm:text-sm font-black uppercase tracking-wider">Finish</span>
+                    <span className="text-base transition-transform group-hover:scale-110 sm:text-lg">
+                        🏁
+                    </span>
+                    <span className="text-xs font-black uppercase tracking-wider sm:text-sm">
+                        Finish
+                    </span>
                 </button>
-            ) : null}
+            )}
         </div>
     );
 };
-
-function UnitChip({ title, colorKey }) {
-    if (!title) return null;
-    return (
-        <div className="bg-white/85 backdrop-blur px-3 py-1 rounded-full shadow border border-white/60 flex items-center gap-1.5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-purple-500">From</span>
-            <span className="text-[11px] font-black text-[#1E293B]">{title}</span>
-        </div>
-    );
-}
-
-function Prompt({ style, round, disabled }) {
-    const prompt = round?.prompt;
-    if (!prompt) return null;
-
-    if (style === "audio-to-image" || style === "listen-then-spell") {
-        return (
-            <div className="bg-white/90 backdrop-blur px-5 sm:px-8 py-4 rounded-2xl shadow-lg border border-white/50 flex flex-col items-center gap-2 w-full max-w-xs">
-                <p className="text-[9px] font-black text-blue-500 uppercase tracking-wider">Listen carefully</p>
-                <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => playAudio(prompt.audioClip)}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl shadow-xl bg-gradient-to-br from-blue-500 to-cyan-600 hover:scale-110 active:scale-95 transition-transform disabled:opacity-60"
-                >🔊</button>
-                <p className="text-[10px] text-gray-400 font-bold">Tap to listen again</p>
-            </div>
-        );
-    }
-
-    if (style === "image-to-word") {
-        return (
-            <div className="bg-white/90 backdrop-blur px-5 py-3 rounded-2xl shadow-lg border border-white/50 flex flex-col items-center gap-2 w-full max-w-xs">
-                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">What is this?</p>
-                <SmartImage
-                    src={prompt.imagePath}
-                    label={prompt.text}
-                    className="w-24 h-24 sm:w-32 sm:h-32"
-                    imgClassName="w-full h-full object-contain"
-                />
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-white/90 backdrop-blur px-4 sm:px-6 py-3 rounded-2xl shadow-lg border border-white/60 flex items-center gap-2 sm:gap-3 w-full max-w-md">
-            <AudioClipButton clip={prompt.audioClip} wordId={round?.wordId} label={prompt.text} size="md" />
-            <div className="flex-1 min-w-0">
-                <p className="text-[9px] sm:text-[10px] font-bold text-purple-400 uppercase tracking-wider">Find the picture for</p>
-                <h2 className="text-lg sm:text-2xl lg:text-3xl font-black text-gray-800 truncate">{prompt.text}</h2>
-            </div>
-        </div>
-    );
-}
 
 export default ArenaScreen;

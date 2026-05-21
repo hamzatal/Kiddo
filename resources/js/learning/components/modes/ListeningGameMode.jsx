@@ -1,26 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import SmartImage from "@/learning/components/ui/SmartImage";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
+import GameShell from "@/learning/components/ui/GameShell";
+import GamePromptCard from "@/learning/components/ui/GamePromptCard";
+import GameChoiceCard from "@/learning/components/ui/GameChoiceCard";
 
-/**
- * ListeningGameMode — audio-first matching game.
- *
- * Layout v4 (2026-05) — fixes the "page only shows the audio button"
- * complaint on phones:
- *  • Compact prompt header (≈40% smaller) so the option grid is
- *    visible without scrolling on a 360×640 phone.
- *  • Grid is 3 columns on every breakpoint (was 2 on phones), which
- *    keeps three same-category cards visible above the fold.
- *  • Cards have an explicit "Tap me!" affordance — a thick dashed
- *    purple ring on idle so the kid recognises them as buttons even
- *    when they fall back to the SVG image.
- *  • New "Show word" hint button reveals the prompt text after the
- *    first wrong answer (or any time the kid taps the hint pill).
- *    Stuck kids can still progress; the round is still scored from
- *    their first attempt so cheating doesn't pay off.
- *  • Empty-deck state actually says what to do next.
- */
 const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
     const rounds = useMemo(() => deck || [], [deck]);
     const maxRounds = Math.min(rounds.length, lesson?.config?.rounds || 6);
@@ -37,9 +21,6 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
     const round = activeRounds[idx];
     const prompt = round?.prompt;
 
-    // Auto-play the audio once when the round changes. We track a
-    // per-mount token so a fast next-question advance never lets a
-    // stale playback resolve into the new round's state.
     useEffect(() => {
         if (!prompt?.audioClip) return;
         const token = ++playToken.current;
@@ -48,40 +29,37 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
             setIsPlaying(true);
             try {
                 await playAudio(prompt.audioClip);
-            } catch (_) { /* ignore */ }
+            } catch (_) {}
             if (token === playToken.current) setIsPlaying(false);
         }, 350);
+
         return () => {
             clearTimeout(t);
             stopAllAudio();
         };
     }, [idx, prompt?.audioClip]);
 
-    // Reveal the hint automatically after the first wrong attempt so
-    // a stuck child sees the spelling on the second try.
     useEffect(() => {
         if (wrong.length >= 1) setShowHint(true);
     }, [wrong.length]);
 
-    // Reset the hint when we move to the next round so each round
-    // starts as a pure listening challenge again.
     useEffect(() => {
         setShowHint(false);
     }, [idx]);
 
     if (!activeRounds.length) {
         return (
-            <div className="text-center p-6 sm:p-10 max-w-sm mx-auto">
-                <span className="text-5xl block mb-3">🎧</span>
-                <h3 className="text-lg sm:text-xl font-black text-gray-700 mb-1">
+            <div className="mx-auto max-w-sm p-6 text-center sm:p-10">
+                <span className="mb-3 block text-5xl">🎧</span>
+                <h3 className="mb-1 text-lg font-black text-gray-700 sm:text-xl">
                     No listening rounds yet
                 </h3>
-                <p className="text-sm text-gray-500 font-bold mb-5">
+                <p className="mb-5 text-sm font-bold text-gray-500">
                     Your teacher hasn't recorded these clips yet — let's keep going.
                 </p>
                 <button
                     onClick={() => onComplete({ correct: 1, total: 1, rounds: [] })}
-                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl font-black shadow-md hover:-translate-y-0.5 transition-all"
+                    className="rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-3 font-black text-white shadow-md transition-all hover:-translate-y-0.5"
                 >
                     Continue →
                 </button>
@@ -104,33 +82,6 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
         setShowHint((h) => !h);
     };
 
-    const handlePick = (option) => {
-        if (correctId !== null) return;
-        playClick();
-
-        if (option.isCorrect) {
-            setCorrectId(option.id);
-            playSuccess();
-            const firstTry = wrong.length === 0;
-            // Telemetry: kid's FIRST chronological wrong tap (wrong[0]).
-            const firstWrongOpt = round.options?.find((o) => o.id === wrong[0]);
-            const next = [...results, {
-                roundId: round.roundId,
-                wordId: round.wordId,
-                word: prompt?.text,
-                correct: firstTry,
-                timeMs: 0,
-                wrongChoice: firstWrongOpt?.word,
-                wrongChoiceId: firstWrongOpt?.wordId,
-            }];
-            setResults(next);
-            setTimeout(() => advance(next), 1000);
-        } else {
-            playFail();
-            setWrong((w) => [...w, option.id]);
-        }
-    };
-
     const advance = (finalResults) => {
         if (idx + 1 >= activeRounds.length) {
             onComplete({
@@ -145,100 +96,92 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
         setCorrectId(null);
     };
 
-    const progressPct = Math.round((idx / activeRounds.length) * 100);
+    const handlePick = (option) => {
+        if (correctId !== null) return;
+        playClick();
+
+        if (option.isCorrect) {
+            setCorrectId(option.id);
+            playSuccess();
+
+            const firstTry = wrong.length === 0;
+            const firstWrongOpt = round.options?.find((o) => o.id === wrong[0]);
+
+            const next = [
+                ...results,
+                {
+                    roundId: round.roundId,
+                    wordId: round.wordId,
+                    word: prompt?.text,
+                    correct: firstTry,
+                    timeMs: 0,
+                    wrongChoice: firstWrongOpt?.word,
+                    wrongChoiceId: firstWrongOpt?.wordId,
+                },
+            ];
+
+            setResults(next);
+            setTimeout(() => advance(next), 900);
+        } else {
+            playFail();
+            setWrong((w) => [...w, option.id]);
+        }
+    };
 
     return (
-        <div className="w-full max-w-3xl flex flex-col items-center gap-3 sm:gap-4 animate-fade-in-up px-2">
-            {/* Compact prompt card — progress + listen button + hint */}
-            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl shadow-md border border-white px-4 py-2.5 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-blue-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-blue-400 to-cyan-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />
-                    </div>
-                    <span className="text-[10px] font-black text-blue-600">{idx + 1}/{activeRounds.length}</span>
-                </div>
+        <GameShell
+            title="Listen and tap"
+            subtitle="Audio game"
+            progressCurrent={idx + 1}
+            progressTotal={activeRounds.length}
+            accent="#2563EB"
+            hint={
+                wrong.length > 0
+                    ? "Not quite — listen again"
+                    : "Tap the picture that matches the sound"
+            }
+            footer={
+                <p className="text-center text-[11px] font-bold text-gray-500">
+                    {wrong.length > 0
+                        ? "Not quite — listen again 🎧"
+                        : "Tap the picture that matches the word you heard"}
+                </p>
+            }
+        >
+            <GamePromptCard
+                title={showHint && prompt?.text ? prompt.text.toUpperCase() : "Listen carefully"}
+                subtitle="Hear the word"
+                accent="#2563EB"
+                onReplay={handlePlayAgain}
+                replayDisabled={isPlaying}
+                hint={showHint ? "Hint is visible" : "Tap hint if the child gets stuck"}
+                hintActive={showHint}
+                onHintToggle={prompt?.text ? toggleHint : null}
+            />
 
-                <div className="flex flex-col items-center gap-1">
-                    <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Listen &amp; tap the picture</p>
-                    <button
-                        onClick={handlePlayAgain}
-                        disabled={isPlaying}
-                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-xl sm:text-2xl text-white shadow-xl transition-all ${
-                            isPlaying
-                                ? "bg-gradient-to-br from-amber-400 to-orange-500 animate-pulse scale-110"
-                                : "bg-gradient-to-br from-blue-500 to-cyan-600 hover:scale-110 active:scale-95"
-                        }`}
-                        aria-label="Play again"
-                    >{isPlaying ? "🎵" : "🔊"}</button>
-
-                    {/* Hint pill — shows the prompt text on demand. Becomes
-                        much more prominent (filled background) once
-                        revealed so the child knows the word is shown. */}
-                    {prompt?.text ? (
-                        <button
-                            onClick={toggleHint}
-                            className={`mt-0.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
-                                showHint
-                                    ? "bg-amber-100 text-amber-700 border border-amber-300"
-                                    : "bg-gray-50 text-gray-400 hover:text-amber-500 hover:bg-amber-50 border border-gray-200"
-                            }`}
-                            aria-label={showHint ? "Hide hint" : "Show hint"}
-                        >
-                            {showHint ? `🔠 ${prompt.text.toUpperCase()}` : "💡 Hint"}
-                        </button>
-                    ) : (
-                        <p className="text-[10px] text-gray-400 font-bold">Tap to listen again</p>
-                    )}
-                </div>
-            </div>
-
-            {/* Option grid — 3 columns on every breakpoint so the kid
-                sees all three same-category siblings without scrolling. */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 w-full max-w-2xl mx-auto justify-items-center">
-                {(round.options || []).map((opt) => {
+            <div className="mx-auto grid w-full max-w-2xl grid-cols-3 justify-items-center gap-2 sm:gap-3 lg:gap-4">
+                {(round?.options || []).map((opt) => {
                     const isCorrect = correctId === opt.id;
                     const isWrong = wrong.includes(opt.id);
-                    const disabled = correctId !== null || isWrong;
 
-                    let cls = "border-purple-200 hover:border-purple-400 hover:shadow-lg hover:-translate-y-1";
-                    if (isCorrect) cls = "border-emerald-400 bg-emerald-50 scale-[1.04] shadow-xl ring-4 ring-emerald-200 z-10";
-                    if (isWrong)   cls = "border-red-300 bg-red-50/60 opacity-50 scale-95";
+                    let state = "idle";
+                    if (isCorrect) state = "correct";
+                    else if (isWrong) state = "wrong";
 
                     return (
-                        <button
+                        <GameChoiceCard
                             key={opt.id}
-                            disabled={disabled}
+                            variant="image"
+                            state={state}
+                            imagePath={opt.imagePath}
+                            label={opt.word}
+                            disabled={correctId !== null}
                             onClick={() => handlePick(opt)}
-                            className={`relative aspect-square w-full rounded-2xl border-2 border-dashed transition-all duration-300 shadow-sm flex items-center justify-center overflow-hidden bg-white ${cls}`}
-                            aria-label={`Option: ${opt.word}`}
-                        >
-                            <SmartImage
-                                src={opt.imagePath}
-                                label={opt.word || ""}
-                                className="absolute inset-0 w-full h-full"
-                                imgClassName="w-full h-full object-contain p-1.5 sm:p-2 drop-shadow"
-                            />
-                            {isCorrect && (
-                                <div className="absolute -top-2 -right-2 bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow animate-bounce">✓</div>
-                            )}
-                            {isWrong && (
-                                <div className="absolute -top-2 -right-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-black border-2 border-white shadow">✕</div>
-                            )}
-                        </button>
+                        />
                     );
                 })}
             </div>
-
-            {wrong.length > 0 ? (
-                <p className="text-[11px] font-bold text-red-500 text-center">
-                    Not quite — listen again 🎧
-                </p>
-            ) : (
-                <p className="text-[11px] font-semibold text-gray-400 text-center">
-                    Tap the picture that matches the word you heard
-                </p>
-            )}
-        </div>
+        </GameShell>
     );
 };
 

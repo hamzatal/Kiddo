@@ -27,11 +27,36 @@ import AudioControl from "@/learning/components/ui/AudioControl";
  */
 
 const UNIT_VISUAL = {
-    1: { image: "/assets/lessons/welcome/hut.png",         color: "#7C3AED", pos: { left: "21%", top: "38%" }, size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44" },
-    2: { image: "/assets/lessons/family/treehouse.png",    color: "#2563EB", pos: { left: "52%", top: "32%" }, size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44" },
-    3: { image: "/assets/lessons/schoolbag/bag.png",       color: "#DB2777", pos: { left: "75%", top: "66%" }, size: "w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32" },
-    4: { image: "/assets/lessons/classroom/desk.png",      color: "#D97706", pos: { left: "18%", top: "65%" }, size: "w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36" },
-    5: { image: "/assets/lessons/toy/toy.png",             color: "#16A34A", pos: { left: "62%", top: "70%" }, size: "w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32" },
+    1: {
+        image: "/assets/lessons/welcome/hut.png",
+        color: "#7C3AED",
+        pos: { left: "21%", top: "38%" },
+        size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44",
+    },
+    2: {
+        image: "/assets/lessons/family/treehouse.png",
+        color: "#2563EB",
+        pos: { left: "52%", top: "32%" },
+        size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44",
+    },
+    3: {
+        image: "/assets/lessons/schoolbag/bag.png",
+        color: "#DB2777",
+        pos: { left: "75%", top: "66%" },
+        size: "w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32",
+    },
+    4: {
+        image: "/assets/lessons/classroom/desk.png",
+        color: "#D97706",
+        pos: { left: "18%", top: "65%" },
+        size: "w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36",
+    },
+    5: {
+        image: "/assets/lessons/toy/toy.png",
+        color: "#16A34A",
+        pos: { left: "62%", top: "70%" },
+        size: "w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32",
+    },
 };
 
 // The Games Arena uses the toy image (operator's request). Sits
@@ -60,9 +85,16 @@ const resolveImageUrl = (path) => {
     return "/" + String(path).replace(/^\//, "");
 };
 const COLOR_BY_KEY = {
-    purple: "#7C3AED", blue: "#2563EB", pink: "#DB2777", amber: "#D97706",
-    green:  "#16A34A", cyan: "#0EA5E9", rose: "#E11D48", indigo: "#4F46E5",
-    teal:   "#0D9488", orange: "#EA580C",
+    purple: "#7C3AED",
+    blue: "#2563EB",
+    pink: "#DB2777",
+    amber: "#D97706",
+    green: "#16A34A",
+    cyan: "#0EA5E9",
+    rose: "#E11D48",
+    indigo: "#4F46E5",
+    teal: "#0D9488",
+    orange: "#EA580C",
 };
 const visualFor = (unit) => {
     const fallback = UNIT_VISUAL[unit?.id] || UNIT_VISUAL[unit?.number] || UNIT_VISUAL[1];
@@ -71,16 +103,19 @@ const visualFor = (unit) => {
     // Admin-set values from the new units columns take precedence.
     const dbImage = resolveImageUrl(unit.map_image_path || unit.image_path);
     const dbColor = COLOR_BY_KEY[unit.color_key] || null;
-    const dbPos   = (unit.map_x !== null && unit.map_x !== undefined &&
-                     unit.map_y !== null && unit.map_y !== undefined)
-        ? { left: `${Number(unit.map_x)}%`, top: `${Number(unit.map_y)}%` }
-        : null;
+    const dbPos =
+        unit.map_x !== null &&
+        unit.map_x !== undefined &&
+        unit.map_y !== null &&
+        unit.map_y !== undefined
+            ? { left: `${Number(unit.map_x)}%`, top: `${Number(unit.map_y)}%` }
+            : null;
 
     return {
         image: dbImage || fallback.image,
         color: dbColor || fallback.color,
-        pos:   dbPos   || fallback.pos,
-        size:  unit.map_size || fallback.size,
+        pos: dbPos || fallback.pos,
+        size: unit.map_size || fallback.size,
     };
 };
 
@@ -91,7 +126,7 @@ const visualFor = (unit) => {
    ───────────────────────────────────────────────────────────── */
 const UnitNode = ({ unit, onClick }) => {
     const v = visualFor(unit);
-    const isDone   = unit.status === "done";
+    const isDone = unit.status === "done";
     const isActive = unit.status === "active";
     const isLocked = unit.status === "locked";
 
@@ -99,22 +134,22 @@ const UnitNode = ({ unit, onClick }) => {
 
     return (
         <div
-            className={`group flex flex-col items-center select-none ${isLocked ? "cursor-default" : "cursor-pointer"}`}
+            className={`group flex select-none flex-col items-center ${isLocked ? "cursor-default" : "cursor-pointer"}`}
             onClick={!isLocked ? onClick : undefined}
             style={{ filter: isLocked ? "grayscale(70%) brightness(0.85)" : "none" }}
         >
             {/* Title pill (above) */}
-            <div className="relative z-30 -mb-1 flex flex-col items-center gap-1 pointer-events-none transition-transform duration-300 group-hover:-translate-y-1">
+            <div className="pointer-events-none relative z-30 -mb-1 flex flex-col items-center gap-1 transition-transform duration-300 group-hover:-translate-y-1">
                 {isActive && (
-                    <span className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-orange-400 to-amber-500 rounded-full shadow-md border-2 border-white animate-bounce">
+                    <span className="animate-bounce rounded-full border-2 border-white bg-gradient-to-r from-orange-400 to-amber-500 px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md">
                         Now playing!
                     </span>
                 )}
                 <span
-                    className="px-4 py-1.5 text-[11px] sm:text-xs font-black text-white rounded-full shadow-xl border-2 border-white/60 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
+                    className="flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/60 px-4 py-1.5 text-[11px] font-black text-white shadow-xl backdrop-blur-md sm:text-xs"
                     style={{ backgroundColor: v.color }}
                 >
-                    <span className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-[9px] font-black shadow-inner">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/30 text-[9px] font-black shadow-inner">
                         {unit.number}
                     </span>
                     {unit.title}
@@ -122,43 +157,51 @@ const UnitNode = ({ unit, onClick }) => {
             </div>
 
             {/* The pin image */}
-            <div className={`${v.size} relative flex items-center justify-center transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"} drop-shadow-2xl`}>
+            <div
+                className={`${v.size} relative flex items-center justify-center transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"} drop-shadow-2xl`}
+            >
                 <img
                     src={v.image}
                     alt={unit.title}
-                    className="w-full h-full object-contain pointer-events-none"
+                    className="pointer-events-none h-full w-full object-contain"
                     onError={(e) => (e.currentTarget.style.opacity = "0.2")}
                 />
 
                 {isLocked && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="bg-black/60 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center border-2 border-white/30 shadow-xl">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/30 bg-black/60 shadow-xl backdrop-blur">
                             <span className="text-2xl">🔒</span>
                         </div>
                     </div>
                 )}
 
                 {isActive && (
-                    <span className="absolute inset-0 rounded-full bg-white/25 animate-ping opacity-30 pointer-events-none" />
+                    <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-white/25 opacity-30" />
                 )}
             </div>
 
             {/* Stars / hint pill (below) */}
-            <div className="relative z-20 -mt-1 flex flex-col items-center gap-1 pointer-events-none">
+            <div className="pointer-events-none relative z-20 -mt-1 flex flex-col items-center gap-1">
                 {isDone && stars > 0 && (
-                    <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border border-amber-100 flex items-center gap-0.5">
+                    <span className="flex items-center gap-0.5 rounded-full border border-amber-100 bg-white/95 px-2.5 py-0.5 shadow">
                         {stars <= 3 ? (
-                            Array.from({ length: stars }).map((_, i) => <span key={i} className="text-xs">⭐</span>)
+                            Array.from({ length: stars }).map((_, i) => (
+                                <span key={i} className="text-xs">
+                                    ⭐
+                                </span>
+                            ))
                         ) : (
                             <>
                                 <span className="text-xs">⭐</span>
-                                <span className="text-[10px] font-black text-amber-600 ml-0.5">×{stars}</span>
+                                <span className="ml-0.5 text-[10px] font-black text-amber-600">
+                                    ×{stars}
+                                </span>
                             </>
                         )}
                     </span>
                 )}
                 {isActive && (
-                    <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border border-blue-100 text-[9px] font-black text-blue-700 uppercase tracking-widest">
+                    <span className="rounded-full border border-blue-100 bg-white/95 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700 shadow">
                         Lesson {unit.current_lesson || 1}
                     </span>
                 )}
@@ -177,25 +220,27 @@ const ArenaNode = ({ unlocked, arena }) => {
     // hardcoded ARENA_VISUAL defaults.
     const v = {
         image: arena?.image_path
-            ? (/^https?:\/\//i.test(arena.image_path) ? arena.image_path : "/" + String(arena.image_path).replace(/^\//, ""))
+            ? /^https?:\/\//i.test(arena.image_path)
+                ? arena.image_path
+                : "/" + String(arena.image_path).replace(/^\//, "")
             : ARENA_VISUAL.image,
         color: ARENA_VISUAL.color,
-        size:  arena?.size || ARENA_VISUAL.size,
+        size: arena?.size || ARENA_VISUAL.size,
     };
     return (
         <div
-            className={`group flex flex-col items-center select-none ${unlocked ? "cursor-pointer" : "cursor-default"}`}
+            className={`group flex select-none flex-col items-center ${unlocked ? "cursor-pointer" : "cursor-default"}`}
             onClick={unlocked ? () => router.visit("/arena") : undefined}
             style={{ filter: unlocked ? "none" : "grayscale(60%) brightness(0.85)" }}
         >
-            <div className="relative z-30 -mb-1 flex flex-col items-center gap-1 pointer-events-none transition-transform duration-300 group-hover:-translate-y-1">
+            <div className="pointer-events-none relative z-30 -mb-1 flex flex-col items-center gap-1 transition-transform duration-300 group-hover:-translate-y-1">
                 {unlocked && (
-                    <span className="px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-fuchsia-500 to-pink-500 rounded-full shadow-md border-2 border-white animate-bounce -rotate-2">
+                    <span className="-rotate-2 animate-bounce rounded-full border-2 border-white bg-gradient-to-r from-fuchsia-500 to-pink-500 px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md">
                         Mixed practice!
                     </span>
                 )}
                 <span
-                    className="px-4 py-1.5 text-[11px] sm:text-xs font-black text-white rounded-full shadow-xl border-2 border-white/60 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
+                    className="flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/60 px-4 py-1.5 text-[11px] font-black text-white shadow-xl backdrop-blur-md sm:text-xs"
                     style={{ backgroundColor: v.color }}
                 >
                     <span className="text-sm leading-none">🏆</span>
@@ -203,27 +248,29 @@ const ArenaNode = ({ unlocked, arena }) => {
                 </span>
             </div>
 
-            <div className={`${v.size} relative flex items-center justify-center transition-transform duration-300 ${unlocked ? "group-hover:scale-105" : ""} drop-shadow-2xl`}>
+            <div
+                className={`${v.size} relative flex items-center justify-center transition-transform duration-300 ${unlocked ? "group-hover:scale-105" : ""} drop-shadow-2xl`}
+            >
                 <img
                     src={v.image}
                     alt="Games Arena"
-                    className="w-full h-full object-contain pointer-events-none"
+                    className="pointer-events-none h-full w-full object-contain"
                     onError={(e) => (e.currentTarget.style.opacity = "0.2")}
                 />
                 {!unlocked && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="bg-black/60 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center border-2 border-white/30 shadow-xl">
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/30 bg-black/60 shadow-xl backdrop-blur">
                             <span className="text-2xl">🔒</span>
                         </div>
                     </div>
                 )}
                 {unlocked && (
-                    <span className="absolute inset-0 rounded-full bg-white/25 animate-ping opacity-30 pointer-events-none" />
+                    <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-white/25 opacity-30" />
                 )}
             </div>
 
-            <div className="relative z-20 -mt-1 flex flex-col items-center gap-1 pointer-events-none">
-                <span className="px-2.5 py-0.5 bg-white/95 rounded-full shadow border border-fuchsia-100 text-[9px] font-black text-fuchsia-700 uppercase tracking-widest">
+            <div className="pointer-events-none relative z-20 -mt-1 flex flex-col items-center gap-1">
+                <span className="rounded-full border border-fuchsia-100 bg-white/95 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-fuchsia-700 shadow">
                     {unlocked ? "All units · all words" : "Finish a lesson"}
                 </span>
             </div>
@@ -253,9 +300,10 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
         }
     }, [quizResult]);
 
-    const totalStars = typeof user?.total_stars === "number"
-        ? user.total_stars
-        : units.reduce((sum, u) => sum + (u.stars_earned || u.stars || 0), 0);
+    const totalStars =
+        typeof user?.total_stars === "number"
+            ? user.total_stars
+            : units.reduce((sum, u) => sum + (u.stars_earned || u.stars || 0), 0);
     const unitsTotal = units.length || 5;
 
     const xp = user?.xp || 0;
@@ -263,47 +311,56 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
     const xpPct = Math.min((xp / maxXp) * 100, 100);
 
     return (
-        <div className="h-[100dvh] w-screen flex flex-col overflow-hidden bg-gradient-to-b from-sky-100 via-blue-50 to-indigo-50 font-sans">
+        <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-gradient-to-b from-sky-100 via-blue-50 to-indigo-50 font-sans">
             <PageHead
                 title="Adventure Map"
                 description="Travel the Kiddo learning map and unlock new English units lesson by lesson."
             />
             {/* ─── HEADER ─────────────────────────────────────── */}
-            <header className="h-14 sm:h-16 lg:h-[68px] shrink-0 bg-white/95 backdrop-blur-2xl border-b border-gray-100 shadow-sm flex items-center z-50">
-                <div className="w-full px-3 sm:px-5 lg:px-6 flex items-center justify-between gap-2 sm:gap-3">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <header className="z-50 flex h-14 shrink-0 items-center border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur-2xl sm:h-16 lg:h-[68px]">
+                <div className="flex w-full items-center justify-between gap-2 px-3 sm:gap-3 sm:px-5 lg:px-6">
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                         <button
                             onClick={() => router.visit("/")}
-                            className="hover:scale-105 transition-transform shrink-0"
+                            className="shrink-0 transition-transform hover:scale-105"
                             aria-label="Home"
                         >
                             <img
                                 src="/assets/ui/hero/title-logo.png"
                                 alt="Kiddo"
-                                className="h-7 sm:h-8 lg:h-9 object-contain"
+                                className="h-7 object-contain sm:h-8 lg:h-9"
                                 onError={(e) => (e.currentTarget.style.display = "none")}
                             />
                         </button>
-                        <div className="hidden lg:flex items-center gap-2 bg-[#F0F4FF] px-3 py-1.5 rounded-full border border-[#E0E7FF]">
+                        <div className="hidden items-center gap-2 rounded-full border border-[#E0E7FF] bg-[#F0F4FF] px-3 py-1.5 lg:flex">
                             <span className="text-base leading-none">🗺️</span>
-                            <span className="font-black text-[#4338CA] text-[11px] tracking-wide">Adventure Map</span>
+                            <span className="text-[11px] font-black tracking-wide text-[#4338CA]">
+                                Adventure Map
+                            </span>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 sm:gap-2">
                         {/* Level + XP — desktop only */}
-                        <div className="hidden xl:flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1 rounded-full">
-                            <span className="font-black text-[#7C3AED] text-[10px] uppercase tracking-widest">Lv.{user?.level || 1}</span>
-                            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-                                <div className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A855F7]" style={{ width: `${xpPct}%` }} />
+                        <div className="hidden items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 xl:flex">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#7C3AED]">
+                                Lv.{user?.level || 1}
+                            </span>
+                            <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200 shadow-inner">
+                                <div
+                                    className="h-full bg-gradient-to-r from-[#7C3AED] to-[#A855F7]"
+                                    style={{ width: `${xpPct}%` }}
+                                />
                             </div>
-                            <span className="text-[9px] text-gray-500 font-bold">{xp}</span>
+                            <span className="text-[9px] font-bold text-gray-500">{xp}</span>
                         </div>
 
                         {/* Stars */}
-                        <div className="flex items-center gap-1 bg-amber-50 border border-amber-100 px-2.5 sm:px-3 py-1 rounded-full shadow-sm">
+                        <div className="flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 shadow-sm sm:px-3">
                             <span className="text-sm leading-none">⭐</span>
-                            <span className="font-black text-amber-600 text-[11px] sm:text-xs">{totalStars}</span>
+                            <span className="text-[11px] font-black text-amber-600 sm:text-xs">
+                                {totalStars}
+                            </span>
                         </div>
 
                         {/* Daily streak — sits between stars and user pill so
@@ -318,10 +375,14 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         {/* User chip */}
                         <button
                             onClick={() => router.visit("/progress")}
-                            className="hidden sm:flex items-center gap-1.5 bg-white border border-gray-200 p-1 pr-3 rounded-full shadow-sm hover:bg-gray-50 transition"
+                            className="hidden items-center gap-1.5 rounded-full border border-gray-200 bg-white p-1 pr-3 shadow-sm transition hover:bg-gray-50 sm:flex"
                         >
-                            <span className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs border-2 border-white shadow-inner">👦🏻</span>
-                            <span className="font-black text-[#1E293B] text-[10px] hidden md:block max-w-[80px] truncate">{user?.name || "Student"}</span>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-blue-100 text-xs shadow-inner">
+                                👦🏻
+                            </span>
+                            <span className="hidden max-w-[80px] truncate text-[10px] font-black text-[#1E293B] md:block">
+                                {user?.name || "Student"}
+                            </span>
                         </button>
 
                         {/* Sound toggle — wired to the global audio
@@ -332,7 +393,7 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         {/* Mobile drawer toggle */}
                         <button
                             onClick={() => setDrawerOpen(true)}
-                            className="lg:hidden w-9 h-9 rounded-lg bg-[#1E293B] text-white flex items-center justify-center shadow-sm"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1E293B] text-white shadow-sm lg:hidden"
                             aria-label="Open menu"
                         >
                             ☰
@@ -342,19 +403,19 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
             </header>
 
             {/* ─── BODY: map + sidebar ───────────────────────── */}
-            <div className="flex-1 flex min-h-0 relative">
+            <div className="relative flex min-h-0 flex-1">
                 {/* Map area — fluid, fits viewport, no horizontal scroll */}
-                <main className="flex-1 relative bg-[#A6DBF6] overflow-hidden">
+                <main className="relative flex-1 overflow-hidden bg-[#A6DBF6]">
                     {/* Map background */}
                     <div className="absolute inset-0">
                         <img
                             src="/assets/ui/map/map-bg.png"
                             alt=""
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover"
                             draggable={false}
                             onError={(e) => (e.currentTarget.style.display = "none")}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-b from-sky-400/5 via-transparent to-blue-900/10 pointer-events-none" />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-sky-400/5 via-transparent to-blue-900/10" />
                     </div>
 
                     {/* Pin layer */}
@@ -369,7 +430,11 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                                 >
                                     <UnitNode
                                         unit={u}
-                                        onClick={u.status === "locked" ? undefined : () => router.visit(`/lesson/${u.id}`)}
+                                        onClick={
+                                            u.status === "locked"
+                                                ? undefined
+                                                : () => router.visit(`/lesson/${u.id}`)
+                                        }
                                     />
                                 </div>
                             );
@@ -379,8 +444,14 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             <div
                                 className="absolute -translate-x-1/2 -translate-y-1/2"
                                 style={{
-                                    left: arena.map_x != null ? `${Number(arena.map_x)}%` : ARENA_VISUAL.pos.left,
-                                    top:  arena.map_y != null ? `${Number(arena.map_y)}%` : ARENA_VISUAL.pos.top,
+                                    left:
+                                        arena.map_x != null
+                                            ? `${Number(arena.map_x)}%`
+                                            : ARENA_VISUAL.pos.left,
+                                    top:
+                                        arena.map_y != null
+                                            ? `${Number(arena.map_y)}%`
+                                            : ARENA_VISUAL.pos.top,
                                 }}
                             >
                                 <ArenaNode unlocked={!!arena.unlocked} arena={arena} />
@@ -391,7 +462,7 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                     {/* Centered "Need Help?" button */}
                     <button
                         onClick={() => router.visit("/help")}
-                        className="absolute left-1/2 -translate-x-1/2 bottom-3 sm:bottom-4 z-30 bg-white/95 backdrop-blur text-[#7C3AED] font-black text-[11px] sm:text-xs px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-xl border border-white hover:scale-105 transition-transform flex items-center gap-1.5"
+                        className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white bg-white/95 px-4 py-2 text-[11px] font-black text-[#7C3AED] shadow-xl backdrop-blur transition-transform hover:scale-105 sm:bottom-4 sm:px-5 sm:py-2.5 sm:text-xs"
                     >
                         <span className="text-sm">❓</span> Need Help?
                     </button>
@@ -420,30 +491,37 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
             {/* Quiz result overlay */}
             {showQuizResult && quizResult ? (
                 <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
                     onClick={() => setShowQuizResult(false)}
                 >
                     <div
-                        className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl animate-fade-in"
+                        className="animate-fade-in w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl sm:p-8"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <span className="text-5xl block mb-3">{quizResult.passed ? "🎉" : "💪"}</span>
-                        <h2 className="text-2xl font-black text-gray-800 mb-2">
+                        <span className="mb-3 block text-5xl">
+                            {quizResult.passed ? "🎉" : "💪"}
+                        </span>
+                        <h2 className="mb-2 text-2xl font-black text-gray-800">
                             {quizResult.passed ? "Unit Complete!" : "Almost There!"}
                         </h2>
-                        <p className="text-sm text-gray-500 mb-4">
+                        <p className="mb-4 text-sm text-gray-500">
                             {quizResult.passed
                                 ? `You scored ${quizResult.percent}% and earned ${quizResult.stars} stars!`
                                 : `You scored ${quizResult.percent}%. Need 70% to pass. Try again!`}
                         </p>
-                        <div className="flex items-center justify-center gap-2 mb-5">
+                        <div className="mb-5 flex items-center justify-center gap-2">
                             {[1, 2, 3].map((s) => (
-                                <span key={s} className={`text-3xl ${s <= (quizResult.stars || 0) ? "" : "opacity-20 grayscale"}`}>⭐</span>
+                                <span
+                                    key={s}
+                                    className={`text-3xl ${s <= (quizResult.stars || 0) ? "" : "opacity-20 grayscale"}`}
+                                >
+                                    ⭐
+                                </span>
                             ))}
                         </div>
                         <button
                             onClick={() => setShowQuizResult(false)}
-                            className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-3 rounded-2xl font-black shadow-lg"
+                            className="w-full rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-600 py-3 font-black text-white shadow-lg"
                         >
                             {quizResult.passed ? "Continue Adventure! →" : "Try Again →"}
                         </button>
@@ -466,11 +544,20 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
 /* ═════════════════════════════════════════════════════════════
    Sidebar — three responsive sizes (drawer / rail / panel)
    ═════════════════════════════════════════════════════════════ */
-const Sidebar = ({ units, activeUnit, completedCount, unitsTotal, totalStars, arena, drawerOpen, onCloseDrawer }) => {
+const Sidebar = ({
+    units,
+    activeUnit,
+    completedCount,
+    unitsTotal,
+    totalStars,
+    arena,
+    drawerOpen,
+    onCloseDrawer,
+}) => {
     return (
         <>
             {/* Desktop expanded panel (xl+) */}
-            <aside className="hidden xl:flex w-[280px] shrink-0 flex-col bg-white border-l border-gray-100 shadow-lg">
+            <aside className="hidden w-[280px] shrink-0 flex-col border-l border-gray-100 bg-white shadow-lg xl:flex">
                 <ExpandedSidebarContent
                     activeUnit={activeUnit}
                     completedCount={completedCount}
@@ -482,7 +569,7 @@ const Sidebar = ({ units, activeUnit, completedCount, unitsTotal, totalStars, ar
             </aside>
 
             {/* Tablet/laptop icon rail (lg) */}
-            <aside className="hidden lg:flex xl:hidden w-[64px] shrink-0 flex-col bg-white border-l border-gray-100 shadow-lg items-center py-3 gap-2">
+            <aside className="hidden w-[64px] shrink-0 flex-col items-center gap-2 border-l border-gray-100 bg-white py-3 shadow-lg lg:flex xl:hidden">
                 <RailButton
                     icon="🚀"
                     title={activeUnit ? activeUnit.title : "All done!"}
@@ -496,7 +583,7 @@ const Sidebar = ({ units, activeUnit, completedCount, unitsTotal, totalStars, ar
                     disabled={!arena?.unlocked}
                     accent="#9333EA"
                 />
-                <div className="my-2 w-8 h-px bg-gray-200" />
+                <div className="my-2 h-px w-8 bg-gray-200" />
                 {units.map((u) => (
                     <RailButton
                         key={u.id}
@@ -518,14 +605,14 @@ const Sidebar = ({ units, activeUnit, completedCount, unitsTotal, totalStars, ar
 
             {/* Phone drawer (<lg) */}
             <aside
-                className={`lg:hidden fixed top-0 right-0 h-[100dvh] w-[280px] max-w-[80vw] bg-white border-l border-gray-100 shadow-2xl z-[60] transform transition-transform duration-300 ${
+                className={`fixed right-0 top-0 z-[60] h-[100dvh] w-[280px] max-w-[80vw] transform border-l border-gray-100 bg-white shadow-2xl transition-transform duration-300 lg:hidden ${
                     drawerOpen ? "translate-x-0" : "translate-x-full"
                 } flex flex-col`}
             >
-                <div className="flex justify-end p-3 shrink-0">
+                <div className="flex shrink-0 justify-end p-3">
                     <button
                         onClick={onCloseDrawer}
-                        className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-black"
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 font-black text-gray-700"
                         aria-label="Close menu"
                     >
                         ✕
@@ -546,7 +633,7 @@ const Sidebar = ({ units, activeUnit, completedCount, unitsTotal, totalStars, ar
                     type="button"
                     aria-label="Close menu"
                     onClick={onCloseDrawer}
-                    className="lg:hidden fixed inset-0 z-[55] bg-black/40"
+                    className="fixed inset-0 z-[55] bg-black/40 lg:hidden"
                 />
             ) : null}
         </>
@@ -559,68 +646,82 @@ const RailButton = ({ icon, title, onClick, disabled, accent }) => (
         title={title}
         onClick={onClick}
         disabled={disabled}
-        className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shadow-sm border border-gray-100 bg-white hover:scale-105 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-100 bg-white text-xl shadow-sm transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         style={{ borderColor: disabled ? undefined : `${accent}33` }}
     >
         {icon}
     </button>
 );
 
-const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalStars, units, arena, onNavigate }) => {
+const ExpandedSidebarContent = ({
+    activeUnit,
+    completedCount,
+    unitsTotal,
+    totalStars,
+    units,
+    arena,
+    onNavigate,
+}) => {
     const go = (path) => {
         onNavigate?.();
         router.visit(path);
     };
     return (
-        <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-2.5 sm:p-3 overflow-y-auto custom-scroll">
+        <div className="custom-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2.5 sm:p-3">
             {/* Daily Quest — first card so it's always visible, even
                 without scrolling. The card itself returns null when
                 the user is signed out. */}
             <DailyQuestCard />
 
             {/* Today's mission */}
-            <div className="shrink-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-2.5 border border-indigo-100 shadow-sm">
-                <h3 className="font-black text-[#1E293B] text-xs flex items-center gap-1.5 mb-1.5">
+            <div className="shrink-0 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50 p-2.5 shadow-sm">
+                <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-black text-[#1E293B]">
                     <span className="text-base">🎯</span> Today's Mission
                 </h3>
-                <div className="flex items-center gap-2 mb-2 bg-white p-2 rounded-xl">
-                    <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center text-lg shrink-0">
+                <div className="mb-2 flex items-center gap-2 rounded-xl bg-white p-2">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-lg">
                         🚀
                     </div>
-                    <div className="flex flex-col leading-tight min-w-0">
-                        <span className="text-[11px] font-black text-[#1E293B] truncate">
+                    <div className="flex min-w-0 flex-col leading-tight">
+                        <span className="truncate text-[11px] font-black text-[#1E293B]">
                             {activeUnit ? activeUnit.title : "All Units Done!"}
                         </span>
-                        <span className="text-[9px] text-indigo-500 font-bold uppercase tracking-widest">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">
                             {activeUnit ? "Ready to play" : "Amazing job!"}
                         </span>
                     </div>
                 </div>
                 <button
                     onClick={() => go(activeUnit ? `/lesson/${activeUnit.id}` : "/progress")}
-                    className="w-full bg-[#10B981] text-white py-2 rounded-xl font-black text-[11px] shadow-[0_3px_0_#059669] hover:translate-y-[1px] transition-all"
+                    className="w-full rounded-xl bg-[#10B981] py-2 text-[11px] font-black text-white shadow-[0_3px_0_#059669] transition-all hover:translate-y-[1px]"
                 >
                     {activeUnit ? "START ADVENTURE →" : "VIEW REWARDS →"}
                 </button>
             </div>
 
             {/* Quick stats */}
-            <div className="shrink-0 grid grid-cols-2 gap-2">
-                <div className="bg-white rounded-xl p-2.5 border border-gray-100 shadow-sm text-center">
-                    <p className="text-base font-black text-[#1E293B] leading-none mb-1">
+            <div className="grid shrink-0 grid-cols-2 gap-2">
+                <div className="rounded-xl border border-gray-100 bg-white p-2.5 text-center shadow-sm">
+                    <p className="mb-1 text-base font-black leading-none text-[#1E293B]">
                         {completedCount}/{unitsTotal}
                     </p>
-                    <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest">Units done</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-gray-500">
+                        Units done
+                    </p>
                 </div>
-                <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-100 shadow-sm text-center">
-                    <p className="text-base font-black text-amber-600 leading-none mb-1">⭐ {totalStars}</p>
-                    <p className="text-[8px] text-amber-700 font-black uppercase tracking-widest">Stars</p>
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-2.5 text-center shadow-sm">
+                    <p className="mb-1 text-base font-black leading-none text-amber-600">
+                        ⭐ {totalStars}
+                    </p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-amber-700">
+                        Stars
+                    </p>
                 </div>
             </div>
 
             {/* Map index — units + arena */}
-            <div className="bg-white rounded-2xl p-2.5 border border-gray-100 shadow-sm">
-                <h3 className="font-black text-[#1E293B] text-xs mb-1.5 flex items-center gap-1.5">
+            <div className="rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm">
+                <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-black text-[#1E293B]">
                     <span>🗺️</span> Map Index
                 </h3>
                 <div className="flex flex-col gap-1">
@@ -629,24 +730,32 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
                         return (
                             <div
                                 key={u.id}
-                                onClick={u.status !== "locked" ? () => go(`/lesson/${u.id}`) : undefined}
-                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition ${
+                                onClick={
+                                    u.status !== "locked" ? () => go(`/lesson/${u.id}`) : undefined
+                                }
+                                className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 transition ${
                                     u.status === "active"
-                                        ? "border-blue-200 bg-blue-50 cursor-pointer hover:bg-blue-100"
+                                        ? "cursor-pointer border-blue-200 bg-blue-50 hover:bg-blue-100"
                                         : u.status === "done"
-                                        ? "border-green-200 bg-green-50 cursor-pointer hover:bg-green-100"
-                                        : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                                          ? "cursor-pointer border-green-200 bg-green-50 hover:bg-green-100"
+                                          : "cursor-not-allowed border-gray-100 bg-gray-50 opacity-50"
                                 }`}
                             >
                                 <span
-                                    className="w-5 h-5 rounded-full flex items-center justify-center text-white font-black text-[9px] shrink-0"
+                                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-black text-white"
                                     style={{ backgroundColor: color }}
                                 >
                                     {u.number}
                                 </span>
-                                <span className="text-[10px] font-black text-[#1E293B] flex-1 truncate">{u.title}</span>
+                                <span className="flex-1 truncate text-[10px] font-black text-[#1E293B]">
+                                    {u.title}
+                                </span>
                                 <span className="text-xs">
-                                    {u.status === "done" ? "✅" : u.status === "active" ? "📍" : "🔒"}
+                                    {u.status === "done"
+                                        ? "✅"
+                                        : u.status === "active"
+                                          ? "📍"
+                                          : "🔒"}
                                 </span>
                             </div>
                         );
@@ -655,16 +764,18 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
                     {arena ? (
                         <div
                             onClick={arena.unlocked ? () => go("/arena") : undefined}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition mt-1 ${
+                            className={`mt-1 flex items-center gap-2 rounded-lg border px-2 py-1.5 transition ${
                                 arena.unlocked
-                                    ? "border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-pink-50 cursor-pointer hover:from-fuchsia-100"
-                                    : "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                                    ? "cursor-pointer border-fuchsia-200 bg-gradient-to-r from-fuchsia-50 to-pink-50 hover:from-fuchsia-100"
+                                    : "cursor-not-allowed border-gray-100 bg-gray-50 opacity-50"
                             }`}
                         >
-                            <span className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[9px]">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-[9px]">
                                 🏆
                             </span>
-                            <span className="text-[10px] font-black text-[#1E293B] flex-1 truncate">Games Arena</span>
+                            <span className="flex-1 truncate text-[10px] font-black text-[#1E293B]">
+                                Games Arena
+                            </span>
                             <span className="text-xs">{arena.unlocked ? "🎮" : "🔒"}</span>
                         </div>
                     ) : null}
@@ -678,17 +789,19 @@ const ExpandedSidebarContent = ({ activeUnit, completedCount, unitsTotal, totalS
                 hid it. We now keep it in the regular flow with a
                 small top margin so the whole card list scrolls
                 cleanly. */}
-            <div className="bg-[#7C3AED] rounded-2xl p-2.5 relative overflow-hidden shadow-md border border-[#6D28D9] shrink-0">
-                <div className="flex items-center gap-2 relative z-10">
+            <div className="relative shrink-0 overflow-hidden rounded-2xl border border-[#6D28D9] bg-[#7C3AED] p-2.5 shadow-md">
+                <div className="relative z-10 flex items-center gap-2">
                     <img
                         src="/assets/ui/mascot/fox-hint.png"
                         alt="Fox tip"
-                        className="w-9 h-9 object-contain drop-shadow-md shrink-0"
+                        className="h-9 w-9 shrink-0 object-contain drop-shadow-md"
                         onError={(e) => (e.currentTarget.style.display = "none")}
                     />
                     <div className="min-w-0">
-                        <p className="font-black text-white text-[10px] leading-tight">Parent's Tip:</p>
-                        <p className="text-[9px] text-purple-100 font-bold leading-snug">
+                        <p className="text-[10px] font-black leading-tight text-white">
+                            Parent's Tip:
+                        </p>
+                        <p className="text-[9px] font-bold leading-snug text-purple-100">
                             Visit the dashboard for certificates &amp; reports.
                         </p>
                     </div>
