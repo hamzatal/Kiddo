@@ -47,8 +47,30 @@ const ArenaScreen = ({ arena }) => {
     const style = round?.style || "word-to-image";
     const meta = STYLE_META[style] || STYLE_META["word-to-image"];
 
-    /** Reset session state when a new deck is loaded ("Play again"). */
-    const sessionKey = (rounds[0]?.roundId || "") + ":" + rounds.length;
+    /** Reset session state when a new deck is loaded ("Play again").
+     *
+     * v4 (May 2026): the previous sessionKey was
+     *     `(rounds[0]?.roundId || "") + ":" + rounds.length`
+     * but the controller assigns roundIds deterministically as
+     * "arena-0", "arena-1", ... — so the FIRST roundId is always
+     * "arena-0" and the length is always 12. sessionKey was
+     * therefore the SAME string before and after a Play-again
+     * reload, so React's dependency check skipped the reset and
+     * the celebration card stayed pinned with `finished=true`.
+     * Operator reported this as "the buttons don't work at all".
+     *
+     * Fix: include the FULL sequence of word ids in the key so
+     * any new shuffle gives a different fingerprint. We hash with
+     * the round count + first/middle/last wordIds — cheap to
+     * compute, stable for identical decks, different for new
+     * shuffles. */
+    const sessionKey = useMemo(() => {
+        if (!rounds.length) return "empty";
+        const first = rounds[0]?.wordId ?? "0";
+        const middle = rounds[Math.floor(rounds.length / 2)]?.wordId ?? "0";
+        const last = rounds[rounds.length - 1]?.wordId ?? "0";
+        return `${rounds.length}:${first}:${middle}:${last}`;
+    }, [rounds]);
     useEffect(() => {
         setIdx(0);
         setResults([]);
@@ -148,11 +170,19 @@ const ArenaScreen = ({ arena }) => {
 
         // Safety net: if the server never responds (offline,
         // dropped wifi, validation 422 silently rolling back),
-        // re-enable the button after 8 seconds so the kid is
-        // never stuck on "Saving…" forever. This matches the
-        // pattern used by every long-running button in the app.
-        const stuckTimer = setTimeout(() => setSubmitting(false), 8000);
+        // navigate to /map manually after 5s so the kid is never
+        // stuck on a frozen "Saving…" celebration screen.
+        const stuckTimer = setTimeout(() => {
+            setSubmitting(false);
+            router.visit("/map");
+        }, 5000);
 
+        // The controller now redirects to /map after saving (was
+        // /arena, which sent the kid back to a fresh round 1 and
+        // looked exactly like nothing happened). The frontend just
+        // follows the redirect — single navigation, no flash. If
+        // the redirect doesn't land us on /map for any reason we
+        // visit explicitly in onSuccess as a safety net.
         router.post(
             "/arena/submit",
             {
@@ -160,9 +190,25 @@ const ArenaScreen = ({ arena }) => {
                 durationMs: Date.now() - startedAtRef.current,
             },
             {
-                onError:   () => { clearTimeout(stuckTimer); setSubmitting(false); },
-                onFinish:  () => { clearTimeout(stuckTimer); setSubmitting(false); },
-                onSuccess: () => { clearTimeout(stuckTimer); /* redirect handles state */ },
+                preserveState:  false,
+                preserveScroll: false,
+                onError:   () => {
+                    clearTimeout(stuckTimer);
+                    setSubmitting(false);
+                    // Save failed (offline, validation, etc.) — go
+                    // home anyway so the kid isn't trapped.
+                    router.visit("/map");
+                },
+                onSuccess: () => {
+                    clearTimeout(stuckTimer);
+                    // Server redirect should already have us on /map.
+                    // Belt-and-braces: only nav if we somehow ended
+                    // up elsewhere.
+                    if (!window.location.pathname.startsWith("/map")) {
+                        router.visit("/map");
+                    }
+                },
+                onFinish:  () => { clearTimeout(stuckTimer); },
             }
         );
     }
@@ -175,6 +221,41 @@ const ArenaScreen = ({ arena }) => {
     function skipArena() {
         playClick();
         setFinished(true);
+    }
+
+    /**
+     * "Play again" — kid wants another arena run. We do TWO things
+     * to make this rock-solid:
+     *   1. Explicitly reset every piece of state synchronously, so
+     *      the celebration card disappears INSTANTLY even if the
+     *      server is slow.
+     *   2. Reload the arena prop so the controller picks a fresh
+     *      randomised deck.
+     *
+     * Operator reported "Play again does nothing": root cause was
+     * the previous sessionKey stayed identical between reloads, so
+     * the reset useEffect never fired. We've fixed sessionKey AND
+     * we now reset state in this click handler too — belt and
+     * braces, so even if a future change breaks one path the
+     * other still recovers the kid.
+     */
+    function playAgain() {
+        playClick();
+        // Synchronous state reset — celebration card hides on next
+        // render, no waiting for the server.
+        setIdx(0);
+        setResults([]);
+        setWrong([]);
+        setCorrectId(null);
+        setFinished(false);
+        setSubmitting(false);
+        startedAtRef.current = Date.now();
+        // Then reload the arena prop. router.visit('/arena') is
+        // more reliable than router.reload({only:['arena']}) — a
+        // partial reload silently fails if Inertia's HEAD-check
+        // doesn't see the prop change, while a fresh visit always
+        // gives us a clean state from the controller.
+        router.visit("/arena", { preserveScroll: false });
     }
 
     const total = rounds.length;
@@ -299,7 +380,7 @@ const ArenaScreen = ({ arena }) => {
                                 className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50">
                                 {submitting ? "Saving…" : "Save & back to map →"}
                             </button>
-                            <button onClick={() => router.reload({ only: ["arena"] })}
+                            <button onClick={playAgain}
                                 className="w-full bg-white border border-gray-200 text-gray-700 py-2.5 rounded-2xl font-black text-xs sm:text-sm hover:bg-gray-50">
                                 Play again
                             </button>
