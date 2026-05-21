@@ -64,30 +64,71 @@ class GamesArenaController extends Controller
             ->pluck('unit_id')
             ->all();
 
+        // v1.1 (May 2026): the previous arena was unforgivingly strict
+        // for brand-new learners. If a kid signed up and went STRAIGHT
+        // to /arena (instead of clicking a unit on the map first), they
+        // had no UserProgress rows yet — the controller fell back to
+        // the FIRST unit only. If that one unit happened to have
+        // words without `image_path` / `audio_path` / `audio_track_id`
+        // set (or had fewer than 4 such words) the deck came out
+        // empty and the screen rendered "🎮 No words yet!" which the
+        // operator reported as "ولا اي لعبة موجودة".
+        //
+        // The new fallback chain ALWAYS produces a playable deck:
+        //   1. Words from unlocked units, with media, ≥4 words      → ideal
+        //   2. Words from unlocked units, with media, ≥1 word       → use them
+        //   3. Words from unlocked units, ANY (rely on SVG fallback)→ use them
+        //   4. Words from ALL units, with media                     → use them
+        //   5. ANY words anywhere                                   → use them
+        // Step 4-5 means a brand-new account is never blocked from
+        // the arena even with empty UserProgress.
+
         if (empty($unlockedUnitIds)) {
-            // Brand-new account — let them play with U0 anyway so the
-            // arena never shows an empty room.
-            $unlockedUnitIds = Unit::orderBy('unit_number')->limit(1)->pluck('id')->all();
+            // Brand-new account — fall back to EVERY unit (not just U0)
+            // so we have the largest possible pool of vocab to draw from.
+            $unlockedUnitIds = Unit::orderBy('unit_number')->pluck('id')->all();
         }
 
+        $allUnitIds = Unit::pluck('id')->all();
+
+        $hasMediaQuery = function ($q) {
+            $q->whereNotNull('image_path')
+              ->orWhereNotNull('audio_path')
+              ->orWhereNotNull('audio_track_id');
+        };
+
+        // Step 1+2: words with media in unlocked units
         $words = Word::with(['audioTrack', 'unit:id,code,title,unit_number,color_key'])
             ->whereIn('unit_id', $unlockedUnitIds)
-            ->where(function ($q) {
-                // Skip rows with no displayable content. We always have
-                // SVG fallback for missing images, but a totally empty
-                // word row is still useless in a game.
-                $q->whereNotNull('image_path')
-                  ->orWhereNotNull('audio_path')
-                  ->orWhereNotNull('audio_track_id');
-            })
+            ->where($hasMediaQuery)
             ->get();
 
+        // Step 3: any words in unlocked units (SVG fallback handles missing images)
         if ($words->count() < 4) {
-            // Not enough words yet — add ANY words in the unit pool.
             $words = Word::with(['audioTrack', 'unit:id,code,title,unit_number,color_key'])
                 ->whereIn('unit_id', $unlockedUnitIds)
                 ->get();
         }
+
+        // Step 4: words with media across ALL units (covers the case
+        // where the unlocked unit is empty but seeded units later are full)
+        if ($words->count() < 4) {
+            $words = Word::with(['audioTrack', 'unit:id,code,title,unit_number,color_key'])
+                ->whereIn('unit_id', $allUnitIds)
+                ->where($hasMediaQuery)
+                ->get();
+        }
+
+        // Step 5: last-ditch — every word in the database.
+        if ($words->count() < 1) {
+            $words = Word::with(['audioTrack', 'unit:id,code,title,unit_number,color_key'])->get();
+        }
+
+        Log::debug('Arena deck pool', [
+            'user_id'         => $user->id,
+            'unlocked_units'  => $unlockedUnitIds,
+            'words_available' => $words->count(),
+        ]);
 
         $deck = $this->buildDeck($words, $rounds);
 
