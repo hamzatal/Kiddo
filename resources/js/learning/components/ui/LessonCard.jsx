@@ -6,98 +6,73 @@ import { cn } from "@/lib/cn";
  * home page (`/`), the admin lesson list, and any future surface
  * that needs to render a unit/lesson preview.
  *
- * v1.1 (May 2026) — total rewrite from the old `vh`-based card.
- *   Why the old card was retired:
- *     • Mixed `vh` units with Tailwind utility classes — broke
- *       layout on Safari iPad (vh evaluates against the OS
- *       browser chrome) and on landscape Android phones.
- *     • Used dynamic `border-${colorClass}-200` strings which
- *       Tailwind's purger silently dropped (no border ever
- *       rendered in production builds).
- *     • Was orphaned: nothing imported it. Meanwhile every
- *       caller (HomeScreen, MapScreen sidebar) was reinventing
- *       its own "lesson card" with copy-paste drift.
- *
- *   This version:
- *     • Pure Tailwind + a few shared `kiddo-*` tokens (defined in
- *       app.css) so every surface lifts/breathes the same way.
- *     • Five colour palettes (purple/blue/green/pink/amber) with
- *       static class strings so Tailwind's JIT keeps every shade.
- *     • Three sizes: sm (sidebar, dense lists), md (default
- *       grid card), lg (hero / featured promo).
- *     • Clear LOCKED / ACTIVE / DONE state visuals (lock chip,
- *       "Now playing" pulse, gold star ribbon) so a kid scanning
- *       a list immediately sees what they CAN tap and what's
- *       still ahead.
- *     • Optional progress (current/total lessons) and stars-earned
- *       so the card doubles as a tiny progress widget on the home
- *       page without us shipping a second component.
+ * v1.2 (May 2026) — bulletproof rebuild.
+ *   v1.1 used the new `kiddo-surface` / `kiddo-lift` custom classes
+ *   defined in app.css. If app.css wasn't fully rebuilt (incomplete
+ *   `npm run build`, browser caching, missing JIT output), the card
+ *   rendered with no background and no shadow — looking like blank
+ *   space. v1.2 replaces every custom class with stock Tailwind 3
+ *   utilities so the card renders identically regardless of cache
+ *   state.
  *
  * Props:
  *   number        — int|string, shown in the top-left badge
  *   title         — string
  *   imagePath     — string (PNG/JPG/SVG path under /public)
- *   colorKey      — 'purple' | 'blue' | 'green' | 'pink' | 'amber' (default: purple)
+ *   colorKey      — 'purple' | 'blue' | 'green' | 'pink' | 'amber'
  *   size          — 'sm' | 'md' | 'lg' (default: md)
- *   status        — 'active' | 'done' | 'locked' (default: derived from isLocked)
+ *   status        — 'active' | 'done' | 'locked'
  *   isLocked      — bool (legacy alias for status='locked')
  *   stars         — number (0-3) shown when status='done'
  *   progress      — { current, total } shown when status='active'
  *   onClick       — fired on tap when status !== 'locked'
- *
- * Anything not in this list is intentional — keep callers simple.
  */
 
 const PALETTES = {
     purple: {
         ring: "ring-purple-300/70 hover:ring-purple-500",
         ringActive: "ring-purple-500",
-        bgTint: "bg-gradient-to-br from-purple-50 via-white to-purple-100/70",
+        bgTint: "bg-gradient-to-br from-purple-50 via-white to-purple-100",
         accent: "text-purple-700",
         badge: "from-purple-500 to-purple-700",
         bar: "from-purple-500 to-fuchsia-500",
         chip: "bg-purple-100 text-purple-700",
-        glow: "shadow-purple-200/50",
     },
     blue: {
         ring: "ring-blue-300/70 hover:ring-blue-500",
         ringActive: "ring-blue-500",
-        bgTint: "bg-gradient-to-br from-sky-50 via-white to-blue-100/70",
+        bgTint: "bg-gradient-to-br from-sky-50 via-white to-blue-100",
         accent: "text-blue-700",
         badge: "from-sky-500 to-blue-700",
         bar: "from-sky-500 to-blue-500",
         chip: "bg-sky-100 text-sky-700",
-        glow: "shadow-sky-200/50",
     },
     green: {
         ring: "ring-emerald-300/70 hover:ring-emerald-500",
         ringActive: "ring-emerald-500",
-        bgTint: "bg-gradient-to-br from-emerald-50 via-white to-green-100/70",
+        bgTint: "bg-gradient-to-br from-emerald-50 via-white to-green-100",
         accent: "text-emerald-700",
         badge: "from-emerald-500 to-green-700",
         bar: "from-emerald-500 to-green-500",
         chip: "bg-emerald-100 text-emerald-700",
-        glow: "shadow-emerald-200/50",
     },
     pink: {
         ring: "ring-rose-300/70 hover:ring-rose-500",
         ringActive: "ring-rose-500",
-        bgTint: "bg-gradient-to-br from-rose-50 via-white to-pink-100/70",
+        bgTint: "bg-gradient-to-br from-rose-50 via-white to-pink-100",
         accent: "text-rose-700",
         badge: "from-rose-500 to-pink-700",
         bar: "from-rose-500 to-pink-500",
         chip: "bg-rose-100 text-rose-700",
-        glow: "shadow-rose-200/50",
     },
     amber: {
         ring: "ring-amber-300/70 hover:ring-amber-500",
         ringActive: "ring-amber-500",
-        bgTint: "bg-gradient-to-br from-amber-50 via-white to-orange-100/70",
+        bgTint: "bg-gradient-to-br from-amber-50 via-white to-orange-100",
         accent: "text-amber-700",
         badge: "from-amber-500 to-orange-700",
         bar: "from-amber-500 to-orange-500",
         chip: "bg-amber-100 text-amber-700",
-        glow: "shadow-amber-200/50",
     },
 };
 
@@ -141,10 +116,7 @@ const LessonCard = ({
     const palette = PALETTES[colorKey] || PALETTES.purple;
     const sz = SIZES[size] || SIZES.md;
 
-    // Resolve the canonical state. `isLocked` is kept as an alias
-    // because half the existing callers pass it instead of `status`.
-    const resolvedStatus =
-        status || (isLocked ? "locked" : "active");
+    const resolvedStatus = status || (isLocked ? "locked" : "active");
     const locked = resolvedStatus === "locked";
     const done = resolvedStatus === "done";
     const active = resolvedStatus === "active";
@@ -163,20 +135,20 @@ const LessonCard = ({
             aria-disabled={locked}
             className={cn(
                 "group relative w-full h-full text-left select-none",
-                "kiddo-surface kiddo-lift",
-                "ring-[3px]",
+                "ring-[3px] transition-all duration-200",
                 sz.outer,
                 palette.bgTint,
                 locked
                     ? "opacity-65 grayscale-[40%] cursor-not-allowed ring-gray-200"
                     : active
-                    ? cn(palette.ringActive, "shadow-lg", palette.glow)
-                    : palette.ring,
+                    ? cn(palette.ringActive, "shadow-lg hover:-translate-y-1 hover:shadow-xl cursor-pointer")
+                    : cn(palette.ring, "hover:-translate-y-1 hover:shadow-xl cursor-pointer"),
                 "shadow-md",
                 className,
             )}
+            style={{ minHeight: "10rem" }}
         >
-            {/* Number badge — top-left, Kiddo "juicy" style. */}
+            {/* Number badge — top-left */}
             <span
                 aria-hidden="true"
                 className={cn(
@@ -190,28 +162,21 @@ const LessonCard = ({
                 {number ?? "?"}
             </span>
 
-            {/* "Now playing" chip — only on active cards, animated to
-                catch the eye but not so loud it competes with the
-                title. Sits top-right opposite the number badge. */}
+            {/* Now playing chip */}
             {active && (
                 <span className="absolute -top-2 right-2 z-20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-orange-400 to-amber-500 shadow-md border-2 border-white animate-bounce">
                     Now playing
                 </span>
             )}
 
-            {/* Lock chip — replaces the "Now playing" chip on locked
-                cards so the kid sees a friendly padlock instead of
-                a disabled-looking shape. */}
+            {/* Lock chip */}
             {locked && (
-                <span className="absolute -top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/95 border-2 border-gray-200 shadow flex items-center justify-center text-base">
+                <span className="absolute -top-2 right-2 z-20 w-9 h-9 rounded-full bg-white border-2 border-gray-200 shadow flex items-center justify-center text-base">
                     🔒
                 </span>
             )}
 
-            {/* Image — fills the top of the card. object-contain so
-                tall illustrations don't clip; flexible height per
-                size variant. The wrapper has a subtle inner shadow
-                so the picture sits "in" the card. */}
+            {/* Image */}
             <div
                 className={cn(
                     "relative w-full flex items-center justify-center overflow-hidden rounded-2xl",
@@ -237,7 +202,7 @@ const LessonCard = ({
                 )}
             </div>
 
-            {/* Title row */}
+            {/* Title */}
             <div className="mt-2 px-1 text-center">
                 <p
                     className={cn(
@@ -249,9 +214,7 @@ const LessonCard = ({
                 </p>
             </div>
 
-            {/* Status footer — stars row on `done`, progress bar on
-                `active`, "Locked" hint on `locked`. Always renders
-                (even if minimal) so cards in the same row align. */}
+            {/* Status footer */}
             <div className="mt-2 px-1 min-h-[18px] flex items-center justify-center">
                 {done ? (
                     <span

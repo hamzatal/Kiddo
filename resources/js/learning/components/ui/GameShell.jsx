@@ -200,7 +200,7 @@ const GameShell = ({
             <div
                 className={cn(
                     "w-full max-w-md rounded-2xl shadow-lg border-2 px-4 py-3",
-                    "kiddo-surface flex flex-col gap-2",
+                    "bg-white/95 backdrop-blur flex flex-col gap-2",
                     t.ring,
                 )}
             >

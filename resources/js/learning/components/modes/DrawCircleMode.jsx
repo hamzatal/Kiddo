@@ -140,7 +140,7 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
             </div>
 
             {/* Target card */}
-            <div className="kiddo-surface px-4 sm:px-8 lg:px-10 py-3 sm:py-5 rounded-2xl sm:rounded-[2rem] shadow-md border border-white flex flex-col items-center gap-2 sm:gap-3 w-full max-w-2xl">
+            <div className="bg-white/95 backdrop-blur px-4 sm:px-8 lg:px-10 py-3 sm:py-5 rounded-2xl sm:rounded-[2rem] shadow-md border border-white flex flex-col items-center gap-2 sm:gap-3 w-full max-w-2xl">
                 <p className="text-[10px] sm:text-[11px] font-black text-purple-500 uppercase tracking-widest">
                     {label}
                 </p>
@@ -178,7 +178,7 @@ const DrawCircleMode = ({ lesson, deck = [], onComplete }) => {
                             type="button"
                             disabled={isDisabled}
                             onClick={() => handlePick(opt)}
-                            className={`dc-card group relative p-4 sm:p-5 kiddo-surface rounded-[2rem] border-4 border-white transition-all duration-300 shadow-md flex flex-col items-center justify-center aspect-square ${
+                            className={`dc-card group relative p-4 sm:p-5 bg-white/95 backdrop-blur rounded-[2rem] border-4 border-white transition-all duration-300 shadow-md flex flex-col items-center justify-center aspect-square ${
                                 isDisabled ? "opacity-60 cursor-not-allowed" : "hover:border-purple-300 hover:-translate-y-1"
                             }`}
                         >

@@ -162,7 +162,7 @@ const SequenceBuildMode = ({ lesson, deck = [], onComplete }) => {
 
     return (
         <div className="w-full flex flex-col items-center gap-6 animate-fade-in-up">
-            <div className="kiddo-surface px-6 py-3 rounded-full shadow-md border border-white flex items-center gap-3">
+            <div className="bg-white/95 backdrop-blur px-6 py-3 rounded-full shadow-md border border-white flex items-center gap-3">
                 <p className="text-sm sm:text-base font-black text-[#1E293B]">
                     Build the sentence — drag the words in order.
                 </p>

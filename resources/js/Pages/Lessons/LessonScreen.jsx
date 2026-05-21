@@ -383,7 +383,7 @@ const LessonScreen = (props) => {
             {/* Big "Awesome!" overlay */}
             {showCelebration && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none animate-fade-in">
-                    <div className="kiddo-surface rounded-3xl p-6 sm:p-10 shadow-2xl border-4 border-yellow-300 animate-celebPop">
+                    <div className="bg-white/95 backdrop-blur rounded-3xl p-6 sm:p-10 shadow-2xl border-4 border-yellow-300 animate-celebPop">
                         <div className="text-center">
                             <div className="text-5xl sm:text-7xl mb-2 animate-bounce">🎉</div>
                             <h2 className="text-2xl sm:text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
@@ -454,7 +454,7 @@ const CelebrationStage = ({ stars, accuracy, nextStep, unitTitle, lessonNumber, 
 
     return (
         <div className={`w-full max-w-md mx-auto transition-all duration-500 ${animateIn ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}>
-            <div className="kiddo-surface rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden animate-celebPop">
+            <div className="bg-white/95 backdrop-blur rounded-3xl p-5 sm:p-8 lg:p-10 flex flex-col items-center text-center shadow-2xl border border-white/60 relative overflow-hidden animate-celebPop">
                 <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${message.color} opacity-10`} />
                 <div className="absolute top-0 right-0 w-20 h-20 bg-amber-100/50 rounded-full -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-16 h-16 bg-purple-100/50 rounded-full translate-y-1/2 -translate-x-1/2" />

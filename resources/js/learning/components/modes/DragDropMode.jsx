@@ -119,7 +119,7 @@ const DragDropMode = ({ lesson, deck = [], onComplete }) => {
 
     return (
         <div className="w-full max-w-3xl flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-fade-in-up px-2">
-            <div className="w-full max-w-md kiddo-surface rounded-2xl shadow-md border border-white/50 px-4 py-2.5">
+            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl shadow-md border border-white/50 px-4 py-2.5">
                 <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest text-center mb-1.5">Match the Pairs!</p>
                 <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-teal-100 rounded-full overflow-hidden">

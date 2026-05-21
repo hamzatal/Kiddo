@@ -150,7 +150,7 @@ const ListeningGameMode = ({ lesson, deck = [], onComplete }) => {
     return (
         <div className="w-full max-w-3xl flex flex-col items-center gap-3 sm:gap-4 animate-fade-in-up px-2">
             {/* Compact prompt card — progress + listen button + hint */}
-            <div className="w-full max-w-md kiddo-surface rounded-2xl shadow-md border border-white px-4 py-2.5 flex flex-col gap-2">
+            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl shadow-md border border-white px-4 py-2.5 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-blue-100 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-blue-400 to-cyan-500 transition-all duration-500" style={{ width: `${progressPct}%` }} />

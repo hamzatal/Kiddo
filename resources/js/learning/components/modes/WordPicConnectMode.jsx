@@ -181,7 +181,7 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
 
     return (
         <div className="w-full max-w-5xl flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-fade-in-up px-2">
-            <div className="w-full max-w-md kiddo-surface rounded-2xl shadow-md border border-white px-4 py-2 flex flex-col items-center gap-1.5">
+            <div className="w-full max-w-md bg-white/95 backdrop-blur rounded-2xl shadow-md border border-white px-4 py-2 flex flex-col items-center gap-1.5">
                 <p className="text-[10px] font-black text-cyan-500 uppercase tracking-widest text-center">Connect each word to its picture</p>
                 <div className="w-full flex items-center gap-2">
                     <div className="flex-1 h-2 bg-cyan-100 rounded-full overflow-hidden">
