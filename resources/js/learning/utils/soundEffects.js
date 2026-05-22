@@ -135,19 +135,24 @@ const playNoise = (startOffset = 0, duration = 0.05, volume = 0.03) => {
 };
 
 /**
- * Bright sparkly success - ascending arpeggio with shimmer
+ * Bright sparkly success - short ascending ding (3 notes).
+ *
+ * v2 (May 2026): operator feedback — the previous 5-note arpeggio
+ * + final shimmer sounded like the success melody fired multiple
+ * times for a single correct answer ("صوت النجاح بيظهر 3 مرات").
+ * We trimmed it to a tight 3-note rise (C5 → E5 → G5) with one
+ * gentle high sparkle so the kid hears a single clean "ding!" per
+ * correct match — no perceived repetition, no overlap with TTS.
  */
 export const playSuccess = () => {
-  const notes = [523.25, 659.25, 783.99, 1046.5, 1318.51]; // C5 E5 G5 C6 E6
+  const notes = [523.25, 659.25, 783.99]; // C5 E5 G5
   notes.forEach((freq, i) => {
-    const t = i * 0.07;
-    playTone(freq, t, 0.2, 0.12, 'sine');
-    playTone(freq * 1.5, t + 0.02, 0.15, 0.04, 'sine'); // shimmer harmonic
+    const t = i * 0.06;
+    playTone(freq, t, 0.18, 0.12, 'sine');
+    playTone(freq * 1.5, t + 0.02, 0.12, 0.035, 'sine'); // gentle shimmer
   });
-  // Sparkle at the end
-  playNoise(0.35, 0.06, 0.02);
-  playTone(2637, 0.35, 0.08, 0.03, 'sine'); // high sparkle
-  playTone(3136, 0.38, 0.06, 0.02, 'sine');
+  // Single high sparkle at the end — punctuation, not a 4th note.
+  playTone(2093, 0.20, 0.08, 0.03, 'sine');
 };
 
 /**

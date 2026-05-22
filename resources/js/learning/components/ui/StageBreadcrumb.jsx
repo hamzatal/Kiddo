@@ -1,28 +1,33 @@
 import React from "react";
 
 /**
- * StageBreadcrumb — the persistent "Where am I?" pill anchored at
- * the BOTTOM-CENTER of every play surface (LessonScreen, QuizScreen,
- * ArenaScreen). It tells the kid exactly which unit, which lesson,
- * and which activity type they're currently on, so they always
- * have a sense of place — like a tiny mini-map on the bottom edge.
+ * StageBreadcrumb — the persistent "Where am I?" pill that tells
+ * the kid which unit, lesson, and game type they're currently on.
  *
- * Why bottom-center?
- *   • The top is reserved for AppHeader (back button, mode pill,
- *     stars, audio control) — already crowded.
- *   • The bottom-right has the floating "Skip / Next / Finish" pill.
- *   • The bottom-left has FoxHelper.
- *   • The center is the only edge slot that doesn't compete with
- *     anything, and it's where eyes naturally drift between rounds.
+ * v2 (May 2026) — moved from BOTTOM-CENTER to TOP-CENTER, docked
+ * directly under the AppHeader.
  *
- * Visual language matches the existing AppHeader pills exactly so it
- * feels like the same system, not a new widget:
- *   • white/95 + backdrop-blur capsule
- *   • mode-coloured accent dots
- *   • mode icon on the left, unit/lesson on the right
+ * Why the move?
+ *   The previous bottom-anchored pill kept colliding with the
+ *   center-positioned action buttons inside several game modes
+ *   (Continue, Reveal, Check answer, Next round) — operators
+ *   reported "البطاقة الصغيرة اللي بتكون اسفل كل درس فيها مشكلة
+ *   انها احيانا بتغطي على زر الانتقال للمرحلة الثانية او الموافق
+ *   او غيرها". The whole bottom edge is now reserved for
+ *   game-level CTAs and the floating Skip/Next pill on the right.
  *
- * The component renders nothing if no useful information is provided
- * (so a misconfigured page can't show a half-empty pill).
+ *   Top-docked feels natural too: the AppHeader already shows
+ *   "where I am" at a glance (back button + unit/lesson chips +
+ *   stars), and the breadcrumb extends that information one notch
+ *   lower without competing with it. Eyes that scan a page
+ *   top-to-bottom hit the breadcrumb second, then the play area.
+ *
+ * Behaviour:
+ *   • Renders nothing if no useful information is provided.
+ *   • Keeps the same colour-language and shape as the AppHeader
+ *     pills so it feels like the same system, not a new widget.
+ *   • Auto-hides on short landscape phones (≤480px tall) where
+ *     every pixel of vertical space matters for the play surface.
  */
 const StageBreadcrumb = ({
     unitTitle,
@@ -35,44 +40,31 @@ const StageBreadcrumb = ({
     modeColor = "#7C3AED",
     /**
      * Visual-only override for special surfaces. e.g. the Games
-     * Arena passes {label:"Mixed practice", icon:"🏆"} and HIDES the
-     * lesson chip because every round draws from a different unit.
+     * Arena passes {label:"Mixed practice", icon:"🏆"} and HIDES
+     * the lesson chip because every round draws from a different
+     * unit.
      */
     hideLesson = false,
-    /**
-     * When the host page has its own floating right-anchored button
-     * (e.g. the green Skip / End / Finish pill), this prop nudges
-     * the breadcrumb left a touch so the two never collide on tiny
-     * phones (<360px). Default centred.
-     */
-    align = "center",
     className = "",
 }) => {
     const hasUnit = !!unitTitle;
     const hasLesson = !hideLesson && (lessonNumber || totalLessons);
     if (!hasUnit && !hasLesson && !modeLabel) return null;
 
-    const alignment =
-        align === "left"
-            ? "left-3 sm:left-4"
-            : align === "right"
-            ? "right-3 sm:right-4"
-            : "left-1/2 -translate-x-1/2";
-
     return (
         <nav
             aria-label="Current lesson location"
-            className={`stage-breadcrumb fixed bottom-2 sm:bottom-3 ${alignment} z-30 max-w-[92vw] pointer-events-none ${className}`}
+            className={`stage-breadcrumb relative z-20 w-full flex justify-center pt-2 pb-1 px-3 pointer-events-none ${className}`}
         >
             <div
-                className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-full shadow-xl border-2 border-white/70 px-2.5 sm:px-4 py-1 sm:py-2 flex items-center gap-1.5 sm:gap-3"
-                style={{ boxShadow: `0 8px 24px ${modeColor}33` }}
+                className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-full shadow-md border-2 border-white/70 px-2.5 sm:px-4 py-1 sm:py-1.5 flex items-center gap-1.5 sm:gap-3 max-w-[92vw]"
+                style={{ boxShadow: `0 6px 18px ${modeColor}26` }}
             >
                 {/* Mode icon — matches the AppHeader's mode pill so
                     the kid associates the colour at the top with the
-                    indicator at the bottom. */}
+                    indicator just below it. */}
                 <span
-                    className="shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-sm sm:text-lg shadow-inner border-2 border-white"
+                    className="shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-sm shadow-inner border-2 border-white"
                     style={{ backgroundColor: `${modeColor}1A`, color: modeColor }}
                     aria-hidden="true"
                 >
@@ -142,8 +134,7 @@ const StageBreadcrumb = ({
                 )}
 
                 {/* Optional second-line lesson title — only shown on
-                    very wide screens where there's room. Truncates
-                    cleanly so a long title never wraps the pill. */}
+                    very wide screens. Truncates cleanly. */}
                 {lessonTitle && (
                     <span
                         className="hidden xl:inline text-[10px] font-bold text-gray-400 truncate max-w-[22ch]"
@@ -155,11 +146,7 @@ const StageBreadcrumb = ({
             </div>
 
             {/* Auto-hide on short landscape phones (e.g. iPhone in
-                landscape) where every pixel of vertical space matters
-                for the play surface. The breakpoint matches the
-                "phone landscape" media query used elsewhere in the
-                app. The kid still has the AppHeader at the top so
-                navigation context is never lost. */}
+                landscape) where vertical space is precious. */}
             <style>{`
                 @media (max-height: 480px) and (orientation: landscape) {
                     .stage-breadcrumb { display: none !important; }

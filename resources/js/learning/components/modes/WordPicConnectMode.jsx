@@ -5,10 +5,34 @@ import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects"
 import { speakWord } from "@/learning/utils/playAudio";
 
 /**
- * WordPicConnectMode — sister of MatchConnectMode but with a
- * teal/cyan palette and slightly different sizing rules. Uses the
- * same "no-clip" aspect-ratio frame for pictures so illustrations
- * always render fully.
+ * WordPicConnectMode — pair each word with its picture.
+ *
+ * v4 (May 2026) — operator feedback fixes:
+ *   "الكلمات كلهم مرصوصين فقوق والصور نازلين كثير لتحت" — old layout
+ *   stacked all words on top, then a big arrow, then all pictures
+ *   on a separate row. The kid had to scroll between halves and
+ *   could lose track of which word they had picked.
+ *
+ *   v4 keeps the picture on the same row as ITS WORD's row even on
+ *   mobile (always two columns — `grid-cols-2`). Words on the left,
+ *   shuffled pictures on the right; the grid uses `auto-rows-fr` so
+ *   row heights stay equal and the kid's eyes only move sideways
+ *   between the picked word and the candidate picture, not up and
+ *   down across stacked groups. The big mobile-only "⬇️" divider
+ *   went away because there's no longer a top/bottom split.
+ *
+ *   "صوت النجاح بيظهر 3 مرات" — the previous build occasionally
+ *   replayed the success melody because (a) `playSuccess` itself
+ *   was a long 5-note arpeggio that sounded like multiple beeps,
+ *   (b) a stale render could re-enter `handlePicTap` while the
+ *   first match was still in flight. v4 adds `lastMatchRef` as a
+ *   guard so each pair fires `playSuccess` AT MOST ONCE, and
+ *   relies on the slimmed 3-note `playSuccess` (see soundEffects.js
+ *   v2). TTS for the picked word now plays through the
+ *   AudioClipButton on the word card itself — `handleWordTap` no
+ *   longer triggers `speakWord` directly, so the click → word →
+ *   click → success cascade can't overlap into "feels like three
+ *   sounds for one correct match".
  */
 
 const MAX_PAIRS = 5;
@@ -48,12 +72,27 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     const containerRef = useRef(null);
     const wordRefs = useRef({});
     const picRefs = useRef({});
+    /**
+     * Guard — set to the pair id we LAST played `playSuccess` for.
+     * Prevents the success melody from firing twice in rapid succession
+     * if React re-renders or the kid double-taps the same picture.
+     * Cleared back to null on unmount only; matched pairs are
+     * unclickable so a second tap can't reach this code.
+     */
+    const lastMatchRef = useRef(null);
 
     const [selectedWord, setSelectedWord] = useState(null);
     const [matched, setMatched] = useState([]);
     const [wrongFlash, setWrongFlash] = useState(null);
     const [attempts, setAttempts] = useState([]);
     const [tick, setTick] = useState(0);
+    /**
+     * One-shot sparkle burst keyed by the matched pair id. Used to
+     * trigger a tiny celebration animation on the picture card the
+     * instant a pair is connected — kids see WHICH match they got
+     * right, not just hear a generic ding.
+     */
+    const [sparklePairId, setSparklePairId] = useState(null);
 
     const setWordRef = (id) => (el) => {
         if (el) wordRefs.current[id] = el; else delete wordRefs.current[id];
@@ -69,15 +108,19 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     }, [wrongFlash]);
 
     useEffect(() => {
+        if (!sparklePairId) return;
+        const t = setTimeout(() => setSparklePairId(null), 800);
+        return () => clearTimeout(t);
+    }, [sparklePairId]);
+
+    useEffect(() => {
         const t = setTimeout(() => setTick((n) => n + 1), 100);
         return () => clearTimeout(t);
     }, [pairs.length]);
 
     useEffect(() => {
-        // Recompute SVG line endpoints on both resize AND scroll —
-        // matches MatchConnectMode. Without the scroll listener,
-        // scrolling the lesson page on small viewports leaves the
-        // already-drawn lines pointing at stale coordinates.
+        // Recompute SVG line endpoints on resize AND scroll so the
+        // already-drawn lines never point at stale coordinates.
         const onResize = () => setTick((t) => t + 1);
         window.addEventListener("resize", onResize);
         window.addEventListener("scroll", onResize, true);
@@ -124,7 +167,12 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
         if (matched.includes(pair.id)) return;
         playClick();
         setSelectedWord(pair.id);
-        speakWord({ wordId: pair.wordId, label: pair.word, audioClip: pair.audioClip });
+        // The word card has its own AudioClipButton speaker icon —
+        // tapping the body of the word selects it but does NOT
+        // auto-play the TTS. This stops the "click + speech + click
+        // + success" cascade from feeling like 3 success sounds.
+        // The kid can still hear the word any time by tapping the
+        // small green speaker chip on the card.
     };
 
     const handlePicTap = (pairIdx) => {
@@ -136,8 +184,15 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
         const sourcePair = pairs.find((p) => p.id === selectedWord);
 
         if (targetPair.id === selectedWord) {
-            playSuccess();
+            // Guard against double-fire — playSuccess is a 3-note
+            // melody and stacking two of them on top of each other
+            // is what the operator heard as "3 times".
+            if (lastMatchRef.current !== targetPair.id) {
+                lastMatchRef.current = targetPair.id;
+                playSuccess();
+            }
             setMatched((prev) => [...prev, targetPair.id]);
+            setSparklePairId(targetPair.id);
             setAttempts((prev) => [...prev, { pairId: targetPair.id, correct: true, wordId: sourcePair?.wordId, word: sourcePair?.word }]);
         } else {
             playFail();
@@ -180,7 +235,7 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     const progressPct = Math.round((matched.length / pairs.length) * 100);
 
     return (
-        <div className="w-full max-w-5xl flex flex-col items-center gap-3 sm:gap-4 lg:gap-5 animate-fade-in-up px-2">
+        <div className="w-full max-w-4xl flex flex-col items-center gap-3 sm:gap-4 animate-fade-in-up px-2">
             <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-white px-4 py-2 flex flex-col items-center gap-1.5">
                 <p className="text-[10px] font-black text-cyan-500 uppercase tracking-widest text-center">Connect each word to its picture</p>
                 <div className="w-full flex items-center gap-2">
@@ -191,61 +246,104 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
+            {/* Two-column grid, ALWAYS. Words on the left, pictures on
+                the right. `auto-rows-fr` makes every row the same
+                height so the kid's eyes only move sideways between
+                a picked word and a candidate picture — never up
+                and down across stacked groups. */}
             <div
                 ref={containerRef}
                 className="
-                    relative w-full max-w-4xl
-                    grid grid-cols-1
-                    md:grid-cols-[1fr_140px_1fr]
-                    lg:grid-cols-[1fr_180px_1fr]
-                    xl:grid-cols-[1fr_220px_1fr]
-                    gap-3 md:gap-2 lg:gap-3 items-stretch
+                    relative w-full max-w-3xl
+                    grid grid-cols-2
+                    gap-3 sm:gap-4 lg:gap-6
+                    items-stretch
                 "
+                style={{ gridAutoRows: "1fr" }}
             >
-                <div className="flex flex-col gap-2 sm:gap-2.5 lg:gap-3">
-                    <p className="md:hidden text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Words</p>
-                    {pairs.map((p) => {
-                        const isMatched = matched.includes(p.id);
-                        const isSelected = selectedWord === p.id;
-                        const isWrong = wrongFlash?.wordId === p.id;
+                {/* Column header — appears once on each side, very small. */}
+                <div className="contents">
+                    <p className="text-[9px] sm:text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Words</p>
+                    <p className="text-[9px] sm:text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Pictures</p>
+                </div>
 
-                        let cls = "border-white hover:border-cyan-300 hover:shadow-lg hover:-translate-y-0.5";
-                        if (isSelected) cls = "border-cyan-500 ring-4 ring-cyan-200 shadow-lg scale-[1.02]";
-                        if (isMatched)  cls = "border-emerald-400 bg-emerald-50 opacity-90";
-                        if (isWrong)    cls = "border-red-400 bg-red-50 animate-shake";
+                {/* Render row-by-row so each WORD sits next to a
+                    SHUFFLED PICTURE at the same vertical position.
+                    React-wise that means we interleave the two
+                    columns into a single flat list of children. */}
+                {pairs.map((p, rowIdx) => {
+                    const isMatched = matched.includes(p.id);
+                    const isSelected = selectedWord === p.id;
+                    const isWrongWord = wrongFlash?.wordId === p.id;
 
-                        return (
+                    let wordCls = "border-white hover:border-cyan-300 hover:shadow-lg hover:-translate-y-0.5";
+                    if (isSelected) wordCls = "border-cyan-500 ring-4 ring-cyan-200 shadow-lg scale-[1.02]";
+                    if (isMatched)  wordCls = "border-emerald-400 bg-emerald-50 opacity-90";
+                    if (isWrongWord) wordCls = "border-red-400 bg-red-50 animate-shake";
+
+                    // Picture for THIS row — uses the shuffled
+                    // imageOrder so it doesn't sit next to its own
+                    // word (otherwise the puzzle would solve itself).
+                    const picPairIdx = imageOrder[rowIdx];
+                    const picPair = pairs[picPairIdx];
+                    const picMatched = matched.includes(picPair.id);
+                    const picWrong = wrongFlash?.picId === picPair.id;
+                    const picSparkle = sparklePairId === picPair.id;
+
+                    let picCls = "border-white hover:border-cyan-300 hover:shadow-lg hover:-translate-y-0.5";
+                    if (picMatched) picCls = "border-emerald-400 bg-emerald-50 opacity-90";
+                    if (picWrong)   picCls = "border-red-400 bg-red-50 animate-shake";
+
+                    return (
+                        <React.Fragment key={p.id}>
                             <button
-                                key={p.id}
                                 ref={setWordRef(p.id)}
                                 disabled={isMatched}
                                 onClick={() => handleWordTap(p)}
-                                className={`relative w-full p-2.5 sm:p-3 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center gap-2 ${cls} ${isMatched ? "cursor-default" : ""}`}
+                                className={`relative w-full p-2 sm:p-2.5 lg:p-3 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${wordCls} ${isMatched ? "cursor-default" : ""}`}
                             >
                                 <AudioClipButton clip={p.audioClip} wordId={p.wordId} label={p.word} size="sm" />
-                                <span className="text-base sm:text-lg lg:text-xl font-black uppercase text-gray-800 tracking-tight flex-1 text-left truncate">{p.word}</span>
-                                <span
-                                    aria-hidden
-                                    className={`hidden md:block absolute right-[-7px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white transition-colors ${
-                                        isMatched ? "bg-emerald-500" : isSelected ? "bg-cyan-500" : "bg-cyan-300"
-                                    }`}
-                                />
+                                <span className="text-sm sm:text-base lg:text-lg font-black uppercase text-gray-800 tracking-tight flex-1 text-left truncate">{p.word}</span>
                                 {isMatched && (
-                                    <span className="absolute -top-2 -right-2 bg-emerald-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black border-2 border-white shadow-md text-xs">✓</span>
+                                    <span className="absolute -top-2 -right-2 bg-emerald-500 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center font-black border-2 border-white shadow-md text-[10px] sm:text-xs">✓</span>
                                 )}
                             </button>
-                        );
-                    })}
-                </div>
 
+                            <button
+                                ref={setPicRef(rowIdx)}
+                                disabled={picMatched || !selectedWord}
+                                onClick={() => handlePicTap(picPairIdx)}
+                                className={`relative w-full p-1.5 sm:p-2 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center justify-center aspect-square ${picCls} ${picMatched ? "cursor-default" : ""} ${selectedWord == null && !picMatched ? "opacity-70" : ""}`}
+                            >
+                                <SmartImage src={picPair.imagePath} label={picPair.word} className="w-full h-full" imgClassName="w-full h-full object-contain" />
+                                {picMatched && (
+                                    <span className="absolute -top-2 -right-2 bg-emerald-500 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center font-black border-2 border-white shadow-md text-[10px] sm:text-xs">✓</span>
+                                )}
+                                {picSparkle && (
+                                    <>
+                                        <span className="pointer-events-none absolute inset-0 wpc-sparkle-burst" aria-hidden="true">
+                                            <span className="wpc-spark wpc-spark-1">✨</span>
+                                            <span className="wpc-spark wpc-spark-2">⭐</span>
+                                            <span className="wpc-spark wpc-spark-3">✨</span>
+                                            <span className="wpc-spark wpc-spark-4">⭐</span>
+                                        </span>
+                                    </>
+                                )}
+                            </button>
+                        </React.Fragment>
+                    );
+                })}
+
+                {/* SVG overlay for the connecting lines — drawn after
+                    the cards so it sits on top, but `pointer-events:
+                    none` keeps it from stealing taps from the cards. */}
                 <svg
-                    className="hidden md:block absolute inset-0 pointer-events-none"
+                    className="absolute inset-0 pointer-events-none hidden md:block"
                     style={{ width: "100%", height: "100%" }}
                     aria-hidden="true"
                 >
                     {matchedLines.map(({ pid, coords }) => (
                         <line
-                            // Stable key — see MatchConnectMode comment.
                             key={`m-${pid}`}
                             x1={coords.x1} y1={coords.y1} x2={coords.x2} y2={coords.y2}
                             stroke="#10B981" strokeWidth="5" strokeLinecap="round"
@@ -261,44 +359,6 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                         />
                     ) : null}
                 </svg>
-
-                <div className="md:hidden flex items-center justify-center py-1">
-                    <span className="text-2xl text-cyan-400">⬇️</span>
-                </div>
-
-                <div className="flex flex-col gap-2 sm:gap-2.5 lg:gap-3">
-                    <p className="md:hidden text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Pictures</p>
-                    {imageOrder.map((pairIdx, slotIdx) => {
-                        const p = pairs[pairIdx];
-                        const isMatched = matched.includes(p.id);
-                        const isWrong = wrongFlash?.picId === p.id;
-
-                        let cls = "border-white hover:border-cyan-300 hover:shadow-lg hover:-translate-y-0.5";
-                        if (isMatched) cls = "border-emerald-400 bg-emerald-50 opacity-90";
-                        if (isWrong)   cls = "border-red-400 bg-red-50 animate-shake";
-
-                        return (
-                            <button
-                                key={p.id}
-                                ref={setPicRef(slotIdx)}
-                                disabled={isMatched || !selectedWord}
-                                onClick={() => handlePicTap(pairIdx)}
-                                className={`relative w-full p-2 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center justify-center aspect-[16/9] ${cls} ${isMatched ? "cursor-default" : ""} ${selectedWord == null && !isMatched ? "opacity-70" : ""}`}
-                            >
-                                <span
-                                    aria-hidden
-                                    className={`hidden md:block absolute left-[-7px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white transition-colors ${
-                                        isMatched ? "bg-emerald-500" : "bg-cyan-300"
-                                    }`}
-                                />
-                                <SmartImage src={p.imagePath} label={p.word} className="w-full h-full" imgClassName="w-full h-full object-contain" />
-                                {isMatched && (
-                                    <span className="absolute -top-2 -right-2 bg-emerald-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black border-2 border-white shadow-md text-xs">✓</span>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
             </div>
 
             <p className="text-[10px] sm:text-xs font-bold text-gray-500 text-center">
@@ -314,6 +374,26 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 .wpc-line-wrong { animation: wpc-flash 700ms ease-in-out forwards; }
                 @keyframes wpc-draw  { to { stroke-dashoffset: 0; } }
                 @keyframes wpc-flash { 0%, 100% { opacity: 0; } 15%, 85% { opacity: 1; } }
+
+                /* Sparkle burst on a correct match — four tiny stars
+                   shoot outward from the picture card centre. Lasts
+                   ~700ms then unmounts via React. */
+                .wpc-sparkle-burst { position: absolute; inset: 0; pointer-events: none; }
+                .wpc-spark {
+                    position: absolute;
+                    top: 50%; left: 50%;
+                    font-size: 20px;
+                    animation: wpc-sparkle 700ms ease-out forwards;
+                    will-change: transform, opacity;
+                }
+                .wpc-spark-1 { animation-name: wpc-sparkle-tl; }
+                .wpc-spark-2 { animation-name: wpc-sparkle-tr; }
+                .wpc-spark-3 { animation-name: wpc-sparkle-bl; }
+                .wpc-spark-4 { animation-name: wpc-sparkle-br; }
+                @keyframes wpc-sparkle-tl { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(-180%, -180%) scale(1.1) rotate(-30deg); opacity: 0; } }
+                @keyframes wpc-sparkle-tr { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate( 80%, -180%) scale(1.1) rotate( 30deg); opacity: 0; } }
+                @keyframes wpc-sparkle-bl { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(-180%,  80%) scale(1.1) rotate( 45deg); opacity: 0; } }
+                @keyframes wpc-sparkle-br { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate( 80%,  80%) scale(1.1) rotate(-45deg); opacity: 0; } }
             `}</style>
         </div>
     );

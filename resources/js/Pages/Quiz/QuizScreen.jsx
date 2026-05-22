@@ -200,6 +200,21 @@ const QuizScreen = ({ quizData }) => {
                 skipTitle="End the quiz now and save my progress"
             />
 
+            {/* "You are here" pill — docked under the AppHeader (v2,
+                May 2026). Same placement as LessonScreen so the
+                indicator feels like one consistent system. */}
+            {!isFinished && (
+                <StageBreadcrumb
+                    unitTitle={unitTitle}
+                    lessonTitle="Unit Quiz"
+                    lessonNumber={currentIndex + 1}
+                    totalLessons={questions.length}
+                    modeLabel="Quiz"
+                    modeIcon="🏆"
+                    modeColor="#F59E0B"
+                />
+            )}
+
             {!isFinished ? (
                 <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
                     <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 pb-20 sm:pb-24">
@@ -298,21 +313,8 @@ const QuizScreen = ({ quizData }) => {
                 <FoxHelper unitId={unitId} wordId={currentQ.targetWordId} aiEnabled={ai.enabled} />
             ) : null}
 
-            {/* "You are here" pill at the bottom-center — same
-                placement and visual language as LessonScreen and
-                ArenaScreen so the indicator feels like one
-                consistent system across every play surface. */}
-            {!isFinished && (
-                <StageBreadcrumb
-                    unitTitle={unitTitle}
-                    lessonTitle="Unit Quiz"
-                    lessonNumber={currentIndex + 1}
-                    totalLessons={questions.length}
-                    modeLabel="Quiz"
-                    modeIcon="🏆"
-                    modeColor="#F59E0B"
-                />
-            )}
+            {/* StageBreadcrumb — moved to top dock in v2 (May 2026);
+                rendered right after the AppHeader above. */}
 
             {/* Floating Skip pill — secondary recovery path. Mirrors
                 the LessonScreen / ArenaScreen design so navigation

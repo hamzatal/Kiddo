@@ -35,7 +35,12 @@ export default {
 
         extend: {
             fontFamily: {
+                // Default sans — Fredoka. Rounded, playful, very
+                // legible at all sizes; the dominant face used by
+                // every kid-facing surface (lesson cards, prompts,
+                // option labels, headlines).
                 sans: [
+                    "Fredoka",
                     "Nunito",
                     "ui-sans-serif",
                     "system-ui",
@@ -44,6 +49,25 @@ export default {
                     "Roboto",
                     "Helvetica Neue",
                     "Arial",
+                    "sans-serif",
+                ],
+                // `font-display` — used for the few large hero
+                // titles that benefit from Fredoka's heavier weight
+                // without dragging the whole page into it.
+                display: [
+                    "Fredoka",
+                    "Nunito",
+                    "ui-sans-serif",
+                    "system-ui",
+                    "sans-serif",
+                ],
+                // `font-body` — Nunito is calmer for long passages
+                // (story mode prose, parent dashboard tables). Opt
+                // in explicitly with `font-body`.
+                body: [
+                    "Nunito",
+                    "ui-sans-serif",
+                    "system-ui",
                     "sans-serif",
                 ],
             },

@@ -396,6 +396,22 @@ function handlePlayAgain() {
                 skipTitle="End run early and see results"
             />
 
+            {/* "You are here" pill — docked under the AppHeader (v2,
+                May 2026). Bottom edge is reserved for the floating
+                Finish button so the two never collide. */}
+            {!finished && (
+                <StageBreadcrumb
+                    unitTitle={round?.unitTitle || "Games Arena"}
+                    unitNumber={null}
+                    lessonTitle="Mixed practice"
+                    lessonNumber={Math.min(idx + 1, total)}
+                    totalLessons={total}
+                    modeLabel={meta.label}
+                    modeIcon={meta.icon}
+                    modeColor={meta.color}
+                />
+            )}
+
             {/* ── Active round ─────────────────────────────────────────────── */}
             {!finished ? (
                 <main className="relative z-10 min-h-0 flex-1 overflow-y-auto">
@@ -531,18 +547,10 @@ function handlePlayAgain() {
 
             <StreakCelebration />
 
-            {!finished && (
-                <StageBreadcrumb
-                    unitTitle={round?.unitTitle || "Games Arena"}
-                    unitNumber={null}
-                    lessonTitle="Mixed practice"
-                    lessonNumber={Math.min(idx + 1, total)}
-                    totalLessons={total}
-                    modeLabel={meta.label}
-                    modeIcon={meta.icon}
-                    modeColor={meta.color}
-                />
-            )}
+            {/* StageBreadcrumb — moved to top dock in v2 (May 2026);
+                kept here only as a no-op fallback for older render
+                paths. The actual pill is rendered right after the
+                AppHeader above. */}
 
             {!finished && (
                 <button

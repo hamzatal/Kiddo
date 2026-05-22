@@ -74,10 +74,17 @@ option {
     }
 
     body {
-        font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system,
+        font-family: 'Fredoka', 'Nunito', ui-sans-serif, system-ui, -apple-system,
             'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         background-color: rgb(var(--kiddo-bg));
         color: rgb(var(--kiddo-text));
+        /* Fredoka renders just slightly heavier than Nunito at the
+         * same weight — knock body text down a notch so the page
+         * doesn't feel ALL-CAPS-y when long passages render. Kid-
+         * facing CTAs and titles still use the explicit weight
+         * utilities (font-bold / font-black). */
+        font-weight: 500;
+        letter-spacing: 0.005em;
     }
 
     /* Visible focus ring for keyboard users — required by WCAG 2.1.
@@ -189,6 +196,68 @@ option {
     75%      { transform: translateX(-3px); }
 }
 .animate-shake { animation: shake 0.4s ease-in-out; }
+
+/* ── Lesson screen ambience ────────────────────────────────
+ * A handful of background-only animations that make the play
+ * surface feel "alive" while a kid is learning. They do NOT
+ * touch any interactive control — they sit BEHIND the play
+ * area on the decorative blob layer.
+ *
+ * Operator request (May 2026):
+ *   "بهمني كثير انو يكون في انيميشن بالدروس لما الطفل يتعلم
+ *    عشان يكون الموضوع ممتع"
+ *
+ * `prefers-reduced-motion: reduce` already neutralises every
+ * keyframe at the top of this file (see the @media block in
+ * @layer base) — kids with vestibular issues see a still page.
+ */
+@keyframes drift-slow {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(8px, -10px) scale(1.04); }
+    66%      { transform: translate(-6px, 6px) scale(0.98); }
+}
+.animate-drift-slow { animation: drift-slow 14s ease-in-out infinite; }
+
+@keyframes drift-medium {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-10px, 8px) scale(1.05); }
+}
+.animate-drift-medium { animation: drift-medium 11s ease-in-out infinite; }
+
+@keyframes float-up-fade {
+    0%   { transform: translateY(0) scale(0.9); opacity: 0; }
+    20%  { opacity: 0.6; }
+    80%  { opacity: 0.4; }
+    100% { transform: translateY(-180px) scale(1.1); opacity: 0; }
+}
+.animate-float-up-fade { animation: float-up-fade 6s ease-in-out infinite; }
+
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-fade-in-up { animation: fade-in-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+/* Gentle wiggle for the prompt card / target word so even
+ * after the page settles, the kid's eye keeps coming back to
+ * "what should I do". 2s pause between cycles so it never
+ * feels frantic. */
+@keyframes prompt-attention {
+    0%, 88%, 100% { transform: rotate(0deg); }
+    91%  { transform: rotate(-1.6deg); }
+    94%  { transform: rotate(1.6deg); }
+    97%  { transform: rotate(-0.8deg); }
+}
+.animate-prompt-attention { animation: prompt-attention 5.5s ease-in-out infinite; }
+
+/* ⭐ star burst — used by the celebration overlay so the
+ * stars don't just fade in, they pop. */
+@keyframes starBurst {
+    0%   { transform: scale(0.4) rotate(-25deg); opacity: 0; }
+    50%  { transform: scale(1.25) rotate(8deg);  opacity: 1; }
+    100% { transform: scale(1.10) rotate(0deg);  opacity: 1; }
+}
+.animate-starBurst { animation: starBurst 700ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
 /* ── Better scrollbar for all pages ───────────────────────── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
