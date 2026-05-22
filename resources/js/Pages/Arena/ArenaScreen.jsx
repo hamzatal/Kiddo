@@ -12,6 +12,7 @@ import ShadowMatchRound from "@/learning/components/games/ShadowMatchRound";
 import RevealGuessRound from "@/learning/components/games/RevealGuessRound";
 import BalloonPopRound from "@/learning/components/games/BalloonPopRound";
 import TrueOrFalseRound from "@/learning/components/games/TrueOrFalseRound";
+import WordPicConnectRound from "@/learning/components/games/WordPicConnectRound";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import {
     playSuccess,
@@ -43,15 +44,23 @@ const STYLE_META = {
     "reveal-guess": { label: "Guess fast!", icon: "✨", color: "#14B8A6" },
     "balloon-pop": { label: "Pop it!", icon: "🎈", color: "#EF4444" },
     "true-or-false": { label: "True or false?", icon: "🤔", color: "#6366F1" },
+    "word-pic-connect": { label: "Connect", icon: "🔗", color: "#06B6D4" },
 };
 
 // ── Specialised game registry ──────────────────────────────────────────────
+//
+// Each entry is a self-contained game component that renders a
+// whole round on its own (vs. the standard prompt+options pair
+// rendered by StandardPrompt + StandardOptions). The controller
+// emits the matching `style` string and ArenaScreen routes the
+// round to the registered component.
 const ROUND_COMPONENTS = {
-    "memory-flip": MemoryFlipRound,
-    "shadow-match": ShadowMatchRound,
-    "reveal-guess": RevealGuessRound,
-    "balloon-pop": BalloonPopRound,
-    "true-or-false": TrueOrFalseRound,
+    "memory-flip":      MemoryFlipRound,
+    "shadow-match":     ShadowMatchRound,
+    "reveal-guess":     RevealGuessRound,
+    "balloon-pop":      BalloonPopRound,
+    "true-or-false":    TrueOrFalseRound,
+    "word-pic-connect": WordPicConnectRound,
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────

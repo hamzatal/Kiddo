@@ -14,39 +14,29 @@ use Inertia\Inertia;
 /**
  * Mixed-review "Games Arena" — a single, fully randomised playground
  * that combines vocabulary from every unit the learner has unlocked
- * so far and rotates through a half-dozen mini-game styles. Designed
- * for free-form practice between adventures, NOT scored against any
+ * so far and rotates through ELEVEN mini-game styles. Designed for
+ * free-form practice between adventures, NOT scored against any
  * specific unit.
  *
- * Round generation
- * ────────────────
- *  • Picks every Word in unlocked units (status=active|done) that has
- *    something to display: an image_path or an audio source.
- *  • For each round, we choose a "style" round-robin so the kid never
- *    gets two identical games in a row:
- *       0  word-to-image    (read the word → tap the matching image)
- *       1  audio-to-image   (hear the word → tap the matching image)
- *       2  image-to-word    (see the image → tap the matching word)
- *       3  listen-then-spell ( hear → tap the right word among 3 )
- *  • Decoys are siblings from the SAME category when possible, falling
- *    back to other words in the same unit, falling back to the global
- *    pool. Every option carries an audioClip so the speaker icon works
- *    on every card, even decoys.
- *  • Up to 12 rounds per session — short enough to keep first-grader
- *    attention but long enough to feel like a "level".
+ * v3 round mix (May 2026 — operator wave 4)
+ * ─────────────────────────────────────────
+ *  The previous build round-robined six basic styles only:
+ *    word-to-image, audio-to-image, image-to-word, listen-then-spell,
+ *    odd-one-out, spot-the-decoy
  *
- * Persistence
- * ───────────
- *  Submitting a session writes a single GameResult row with
- *    lesson_id  = nullable  (Arena has no specific lesson)
- *    unit_id    = nullable  (Arena spans every unit)
- *    word_id    = the word that was prompted on the LAST round
- *    correct    = total correct
- *    total      = total rounds
- *    duration_ms / metadata.rounds[] = full per-round detail
- *  XP / stars stay simple: 5 XP per correct answer, capped at 50.
- *  The map / parent dashboard can use these rows to surface "Arena
- *  practice" stats without having to special-case the schema.
+ *  The frontend ArenaScreen actually had five MORE specialised games
+ *  registered as React components (MemoryFlip, ShadowMatch,
+ *  RevealGuess, BalloonPop, TrueOrFalse) — but the controller never
+ *  emitted their style strings, so they were dead code. The kid
+ *  finished a 12-round arena session having seen the same six
+ *  "tap the picture" variations over and over.
+ *
+ *  v3 expands the styles array to cover ALL ELEVEN game shapes plus
+ *  bumps the default round count from 12 to 18 so the kid sees
+ *  each style at least once per session. Specialised round shapes
+ *  (pairs for memory-flip, decoy prompts for true-or-false) are
+ *  built in dedicated branches so each game gets exactly the
+ *  data its component expects.
  */
 class GamesArenaController extends Controller
 {
@@ -57,7 +47,11 @@ class GamesArenaController extends Controller
     public function show(Request $request)
     {
         $user  = $request->user();
-        $rounds = (int) min(20, max(6, (int) $request->query('rounds', 12)));
+        // v3: default 18 rounds (was 12). Operator wants kids to see
+        // every game style at least once — there are 11 styles now,
+        // so 18 rounds gives ~1.6× coverage with some doubles for
+        // favourite mechanics.
+        $rounds = (int) min(30, max(6, (int) $request->query('rounds', 18)));
 
         $unlockedUnitIds = UserProgress::where('user_id', $user->id)
             ->whereIn('status', ['active', 'done'])
@@ -215,30 +209,57 @@ class GamesArenaController extends Controller
     // ──────────────────────────────────────────────────────────
 
     /**
-     * Build a randomised deck of mixed rounds. Returns an array
-     * of:
-     *   [
-     *     'roundId'   => 'arena-3',
-     *     'style'     => 'word-to-image' | 'audio-to-image' | 'image-to-word' | 'listen-then-spell' | 'odd-one-out' | 'spot-the-decoy',
-     *     'wordId'    => 12,
-     *     'unitTitle' => 'Family',
-     *     'prompt'    => ['text','imagePath','audioClip'],
-     *     'options'   => [ ['id','word','imagePath','audioClip','isCorrect'] ],
-     *   ]
+     * The complete arena round-robin (v3, May 2026 wave 4). Twelve
+     * distinct game shapes, every one of them mapped to a real
+     * frontend component:
      *
-     * v2 round styles — May 2026:
-     *   • odd-one-out:    show 4 cards, 3 from the target's category +
-     *                      1 sibling from a different category. Kid taps
-     *                      the odd one out. Trains categorisation, not
-     *                      just word recognition.
-     *   • spot-the-decoy: same shape as word-to-image but with two
-     *                      pictures that LOOK alike (e.g. apple/orange)
-     *                      forcing the kid to read the word, not just
-     *                      guess from the picture.
+     *   word-to-image      → StandardPrompt + StandardOptions
+     *   audio-to-image     → StandardPrompt + StandardOptions
+     *   image-to-word      → StandardPrompt + StandardOptions (text)
+     *   listen-then-spell  → StandardPrompt + StandardOptions (text)
+     *   odd-one-out        → StandardPrompt + StandardOptions
+     *   spot-the-decoy     → StandardPrompt + StandardOptions
+     *   memory-flip        → MemoryFlipRound      (round.pairs)
+     *   shadow-match       → ShadowMatchRound     (standard shape)
+     *   reveal-guess       → RevealGuessRound     (standard shape)
+     *   balloon-pop        → BalloonPopRound      (standard shape)
+     *   true-or-false      → TrueOrFalseRound     (decoy prompt + 2 opts)
+     *   word-pic-connect   → WordPicConnectRound  (round.pairs)
+     */
+    private const STYLES = [
+        'word-to-image',
+        'audio-to-image',
+        'image-to-word',
+        'listen-then-spell',
+        'odd-one-out',
+        'spot-the-decoy',
+        'memory-flip',
+        'shadow-match',
+        'reveal-guess',
+        'balloon-pop',
+        'true-or-false',
+        'word-pic-connect',
+    ];
+
+    /**
+     * Build a randomised deck of mixed rounds.
      *
-     * Both styles fall back to plain word-to-image when the unit
-     * doesn't have enough material to populate them — the kid
-     * never gets a broken round.
+     * Returns an array of round objects. Each round always carries
+     * { roundId, style, wordId, unitTitle, unitColor, prompt, options }
+     * so the frontend can consume any style with the same shape;
+     * memory-flip additionally carries a `pairs` array.
+     *
+     * Strategy
+     * ────────
+     *   1. Shuffle the available words.
+     *   2. For each round slot, pick the next word AND the next style
+     *      from the round-robin. This guarantees variety: every kid
+     *      sees each of the 11 styles before any style repeats.
+     *   3. Specialised round shapes get dedicated builders.
+     *
+     * Falls back to plain word-to-image if the deck is too small
+     * to populate a specialised style — the kid never gets a broken
+     * round.
      */
     private function buildDeck($words, int $rounds): array
     {
@@ -252,17 +273,13 @@ class GamesArenaController extends Controller
         // tiebreaker so the early-unit words appear at least once.
         $pool = $words->shuffle()->values();
         $deck = [];
-        // v2 (May 2026): added odd-one-out + spot-the-decoy to the
-        // round-robin so the arena has 6 distinct round shapes
-        // instead of 4. Operator request "بدي تنوع بالألعاب".
-        $styles = [
-            'word-to-image',
-            'audio-to-image',
-            'image-to-word',
-            'listen-then-spell',
-            'odd-one-out',
-            'spot-the-decoy',
-        ];
+
+        // Shuffle the styles array ONCE per session so the kid doesn't
+        // see the same style at the same slot every visit. Then cycle
+        // through it round-robin so every style appears before any
+        // style repeats.
+        $styles = self::STYLES;
+        shuffle($styles);
 
         $count = min($rounds, $pool->count());
         for ($i = 0; $i < $count; $i++) {
@@ -270,49 +287,231 @@ class GamesArenaController extends Controller
             $target = $pool[$i];
             $style  = $styles[$i % count($styles)];
 
-            $decoys = $this->pickDecoys($target, $byCategory, $byUnit, $words, 2);
-
-            // Final dedupe: never let the target's word text appear
-            // among the decoys, and never let two decoys share the
-            // same lowercase word — would otherwise produce two
-            // identical-looking cards on the same round.
-            $seenWords = [mb_strtolower(trim((string) $target->word)) => true];
-            $decoys = collect($decoys)->filter(function (Word $w) use (&$seenWords) {
-                $key = mb_strtolower(trim((string) $w->word));
-                if ($key === '' || isset($seenWords[$key])) return false;
-                $seenWords[$key] = true;
-                return true;
-            })->values()->all();
-
-            $allOpts = collect([$target])->merge($decoys);
-
-            $options = $allOpts->map(function (Word $w, int $j) use ($target) {
-                return [
-                    'id'        => 'opt-' . $w->id . '-' . $j,
-                    'wordId'    => $w->id,
-                    'word'      => $w->word,
-                    'imagePath' => $w->imageUrl(),
-                    'audioClip' => $w->audioClip(),
-                    'isCorrect' => $w->id === $target->id,
-                ];
-            })->shuffle()->values()->all();
-
-            $deck[] = [
-                'roundId'   => 'arena-' . $i,
-                'style'     => $style,
-                'wordId'    => $target->id,
-                'unitTitle' => $target->unit?->title,
-                'unitColor' => $target->unit?->color_key,
-                'prompt'    => [
-                    'text'      => $target->word,
-                    'imagePath' => $target->imageUrl(),
-                    'audioClip' => $target->audioClip(),
-                ],
-                'options'   => $options,
-            ];
+            $round = $this->buildRound($style, $target, $byCategory, $byUnit, $words, $i);
+            if ($round !== null) {
+                $deck[] = $round;
+            }
         }
 
         return $deck;
+    }
+
+    /**
+     * Build a single round of the requested style. Returns null only
+     * when the style requires more material than the deck can supply
+     * (e.g. memory-flip with fewer than 3 valid pairs); the caller
+     * skips a null result rather than emitting a broken round.
+     */
+    private function buildRound(
+        string $style,
+        Word $target,
+        $byCategory,
+        $byUnit,
+        $allWords,
+        int $i,
+    ): ?array {
+        // memory-flip needs a different round shape entirely — a
+        // small set of (image, word) pairs that the kid flips and
+        // matches. Build it separately and return early.
+        if ($style === 'memory-flip') {
+            return $this->buildPairsRound($style, $target, $byUnit, $allWords, $i, 4);
+        }
+
+        // word-pic-connect uses the same `pairs` shape as memory-flip
+        // (5 word/picture pairs the kid joins with lines). The
+        // adapter component on the frontend turns the pair list
+        // back into the lesson-engine deck shape.
+        if ($style === 'word-pic-connect') {
+            return $this->buildPairsRound($style, $target, $byUnit, $allWords, $i, 5);
+        }
+
+        // true-or-false is the standard shape with TWO options
+        // (true/false) and a 50% chance the displayed word doesn't
+        // match the picture. Build it separately too.
+        if ($style === 'true-or-false') {
+            return $this->buildTrueOrFalseRound($target, $byCategory, $byUnit, $allWords, $i);
+        }
+
+        // Every other style uses the standard "prompt + options"
+        // shape with three image-bearing options.
+        $decoys = $this->pickDecoys($target, $byCategory, $byUnit, $allWords, 2);
+
+        // Final dedupe: never let the target's word text appear
+        // among the decoys, and never let two decoys share the
+        // same lowercase word — would otherwise produce two
+        // identical-looking cards on the same round.
+        $seenWords = [mb_strtolower(trim((string) $target->word)) => true];
+        $decoys = collect($decoys)->filter(function (Word $w) use (&$seenWords) {
+            $key = mb_strtolower(trim((string) $w->word));
+            if ($key === '' || isset($seenWords[$key])) return false;
+            $seenWords[$key] = true;
+            return true;
+        })->values()->all();
+
+        $allOpts = collect([$target])->merge($decoys);
+
+        $options = $allOpts->map(function (Word $w, int $j) use ($target) {
+            return [
+                'id'        => 'opt-' . $w->id . '-' . $j,
+                'wordId'    => $w->id,
+                'word'      => $w->word,
+                'imagePath' => $w->imageUrl(),
+                'audioClip' => $w->audioClip(),
+                'isCorrect' => $w->id === $target->id,
+            ];
+        })->shuffle()->values()->all();
+
+        return [
+            'roundId'   => 'arena-' . $i,
+            'style'     => $style,
+            'wordId'    => $target->id,
+            'unitTitle' => $target->unit?->title,
+            'unitColor' => $target->unit?->color_key,
+            'prompt'    => [
+                'text'      => $target->word,
+                'imagePath' => $target->imageUrl(),
+                'audioClip' => $target->audioClip(),
+            ],
+            'options'   => $options,
+        ];
+    }
+
+    /**
+     * Generic "pairs" round builder — used by both memory-flip
+     * (4 pairs, hidden + flipped to match) and word-pic-connect
+     * (5 pairs, both sides visible, kid draws connections).
+     *
+     * Falls back to null if we can't find at least 3 distinct
+     * words; the caller skips a null result rather than emitting
+     * a half-built round.
+     */
+    private function buildPairsRound(
+        string $style,
+        Word $target,
+        $byUnit,
+        $allWords,
+        int $i,
+        int $count,
+    ): ?array {
+        $candidates = collect([$target]);
+
+        // Prefer words from the same unit so the round feels coherent.
+        if ($byUnit->has($target->unit_id)) {
+            $candidates = $candidates->merge(
+                $byUnit[$target->unit_id]
+                    ->where('id', '!=', $target->id)
+                    ->shuffle()
+                    ->take($count - 1)
+            );
+        }
+
+        // Top up from the global pool if we still don't have enough.
+        if ($candidates->count() < $count) {
+            $needed = $count - $candidates->count();
+            $extras = $allWords
+                ->where('id', '!=', $target->id)
+                ->whereNotIn('id', $candidates->pluck('id')->all())
+                ->shuffle()
+                ->take($needed);
+            $candidates = $candidates->merge($extras);
+        }
+
+        // Need at least 3 unique pairs to make either matching game
+        // worth playing. If even that's too much, fall back to the
+        // standard shape so the slot isn't wasted.
+        if ($candidates->count() < 3) {
+            return null;
+        }
+
+        // Final dedupe by lowercase word so two siblings with the
+        // same spelling don't render as separate pairs.
+        $seen = [];
+        $pairs = $candidates->filter(function (Word $w) use (&$seen) {
+            $key = mb_strtolower(trim((string) $w->word));
+            if ($key === '' || isset($seen[$key])) return false;
+            $seen[$key] = true;
+            return true;
+        })->take($count)->values()->map(function (Word $w, int $idx) {
+            return [
+                'pairId'    => 'pair-' . $idx,
+                'wordId'    => $w->id,
+                'word'      => $w->word,
+                'imagePath' => $w->imageUrl(),
+                'audioClip' => $w->audioClip(),
+            ];
+        })->all();
+
+        return [
+            'roundId'   => 'arena-' . $i,
+            'style'     => $style,
+            'wordId'    => $target->id,
+            'unitTitle' => $target->unit?->title,
+            'unitColor' => $target->unit?->color_key,
+            'prompt'    => [
+                'text'      => $target->word,
+                'imagePath' => $target->imageUrl(),
+                'audioClip' => $target->audioClip(),
+            ],
+            'pairs'     => $pairs,
+            // Empty options array so older frontend code that always
+            // reads `round.options` doesn't crash on a missing key.
+            'options'   => [],
+        ];
+    }
+
+    /**
+     * true-or-false: shows the target image with EITHER the matching
+     * word (50%) or a sibling decoy word (50%). Two big buttons
+     * (✅ True / ❌ False) — the kid picks whether the word matches.
+     *
+     * Hard rule: the "isCorrect" flag on each option must reflect
+     * the actual relationship between the prompt image and the
+     * displayed word. The frontend uses this directly to grade.
+     */
+    private function buildTrueOrFalseRound(
+        Word $target,
+        $byCategory,
+        $byUnit,
+        $allWords,
+        int $i,
+    ): ?array {
+        // 50/50: keep the real word OR swap in a decoy.
+        $useDecoy = (mt_rand(0, 1) === 1);
+        $promptText = $target->word;
+
+        if ($useDecoy) {
+            $decoy = $this->pickDecoys($target, $byCategory, $byUnit, $allWords, 1)[0] ?? null;
+            if ($decoy) {
+                $promptText = $decoy->word;
+            } else {
+                // No decoy available — degrade to "true" so the round
+                // is still grade-able (the kid will pick True).
+                $useDecoy = false;
+            }
+        }
+
+        // The image came from $target. If we kept the original word,
+        // the answer is True; if we swapped to a decoy, the answer
+        // is False.
+        $trueIsCorrect  = !$useDecoy;
+        $falseIsCorrect =  $useDecoy;
+
+        return [
+            'roundId'   => 'arena-' . $i,
+            'style'     => 'true-or-false',
+            'wordId'    => $target->id,
+            'unitTitle' => $target->unit?->title,
+            'unitColor' => $target->unit?->color_key,
+            'prompt'    => [
+                'text'      => $promptText,
+                'imagePath' => $target->imageUrl(),
+                'audioClip' => $target->audioClip(),
+            ],
+            'options'   => [
+                ['id' => 'true',  'word' => 'true',  'isCorrect' => $trueIsCorrect ],
+                ['id' => 'false', 'word' => 'false', 'isCorrect' => $falseIsCorrect],
+            ],
+        ];
     }
 
     /**
