@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
+import { ErrorBoundary } from "react-error-boundary";
 import PageHead from "@/learning/components/ui/PageHead";
 import StreakCelebration from "@/learning/components/ui/StreakCelebration";
 
@@ -245,6 +246,11 @@ const LessonScreen = (props) => {
      * specific. Operators can pin any single lesson to a fixed game
      * with `lesson.config.fixed_mode = true`.
      *
+     * v1.3 (May 2026): added a try/catch + ErrorBoundary fallback so
+     * a single mode component crashing never leaves the kid on a
+     * blank screen — they fall through to the safe default
+     * VocabGameMode and can still complete the lesson.
+     *
      * Result: a child playing through the whole curriculum sees a
      * different mini-game on every lesson, instead of three Vocab
      * games in a row inside one unit.
@@ -294,7 +300,17 @@ const LessonScreen = (props) => {
         // Default: every playable lesson rotates through the full
         // 14-variant pool. `effectiveMode` was computed at the top
         // of this component from a lesson+unit seed.
+        //
+        // Defensive fallback — if the rotated variant somehow fails
+        // to resolve (which shouldn't happen since VARIANT_BY_KEY
+        // mirrors VARIANT_KEYS exactly, but better safe than sorry
+        // when the kid is staring at a blank surface), drop back
+        // to VocabGameMode which we know renders for any deck.
         const Variant = VARIANT_BY_KEY[effectiveMode] || VocabGameMode;
+        if (!Variant) {
+            // Absolute last resort — shouldn't be possible.
+            return <VocabGameMode {...common} deck={_deck} />;
+        }
         return <Variant {...common} deck={_deck} />;
     };
 
@@ -375,7 +391,15 @@ const LessonScreen = (props) => {
             <main className="flex-1 min-h-0 relative z-10 overflow-y-auto">
                 <div className="min-h-full w-full flex items-center justify-center px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 pb-20 sm:pb-24">
                     <div className="w-full flex items-center justify-center">
-                        {stage === LESSON_STAGES.PLAY && renderMode()}
+                        {stage === LESSON_STAGES.PLAY && (
+                            <ErrorBoundary
+                                FallbackComponent={LessonModeFallback}
+                                onReset={() => router.visit(`/lesson/${safeUnit.id}`)}
+                                resetKeys={[effectiveMode, safeLesson?.id]}
+                            >
+                                {renderMode()}
+                            </ErrorBoundary>
+                        )}
                         {stage === LESSON_STAGES.REWARD && (
                             <CelebrationStage
                                 stars={starsEarned}
@@ -465,6 +489,40 @@ const LessonScreen = (props) => {
                     .xs\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
                 }
             `}</style>
+        </div>
+    );
+};
+
+/* ─────────────────────────────────────────────────────────────
+   LessonModeFallback — shown if the rendered game mode crashes.
+
+   Operator's #1 worry on v1.2 was 'الالعاب ما بتظهر ابدا' (games
+   don't appear at all). The most defensive thing we can do is
+   wrap the rotated mode in an ErrorBoundary so a single bug in
+   one of the 14 variants never blanks the play surface. The kid
+   sees a friendly recovery card and a 'Try the next game'
+   button that reloads the lesson — which retriggers the rotation
+   seed and (since seed depends on lesson_number) goes the same
+   way again. To get a different game on retry we simply visit
+   /lesson/{unitId} which advances them naturally.
+   ───────────────────────────────────────────────────────────── */
+const LessonModeFallback = ({ resetErrorBoundary }) => {
+    return (
+        <div className="w-full max-w-md mx-auto bg-white/95 rounded-3xl p-6 shadow-2xl border-4 border-amber-400 text-center">
+            <div className="text-5xl mb-3">😅</div>
+            <h2 className="text-xl font-black text-gray-800 mb-2">
+                Oops — let's try a different game!
+            </h2>
+            <p className="text-sm text-gray-500 font-bold mb-4">
+                That round had a tiny hiccup. Tap below to skip
+                forward — your stars are safe.
+            </p>
+            <button
+                onClick={resetErrorBoundary}
+                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 rounded-2xl font-black text-base shadow-lg hover:-translate-y-0.5 transition-all"
+            >
+                Continue →
+            </button>
         </div>
     );
 };
