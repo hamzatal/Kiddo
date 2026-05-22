@@ -2,37 +2,40 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import SmartImage from "@/learning/components/ui/SmartImage";
 import AudioClipButton from "@/learning/components/ui/AudioClipButton";
 import { playSuccess, playFail, playClick } from "@/learning/utils/soundEffects";
-import { speakWord } from "@/learning/utils/playAudio";
 
 /**
  * WordPicConnectMode — pair each word with its picture.
  *
- * v4 (May 2026) — operator feedback fixes:
- *   "الكلمات كلهم مرصوصين فقوق والصور نازلين كثير لتحت" — old layout
- *   stacked all words on top, then a big arrow, then all pictures
- *   on a separate row. The kid had to scroll between halves and
- *   could lose track of which word they had picked.
+ * v5 (May 2026 — operator wave 5)
+ * ───────────────────────────────
+ * Operator complaint: "الصور كثير كبيرة كثير وفي فراغ اول الصفحة
+ * يعني صغير الصور اكثر مع تناسق الكلمات مع مربعات الصور زي الحالي
+ * بس لو تحط شكل للخط يكون احلى من هيك وتبعد مسافة بين الكلمات
+ * والصور".
  *
- *   v4 keeps the picture on the same row as ITS WORD's row even on
- *   mobile (always two columns — `grid-cols-2`). Words on the left,
- *   shuffled pictures on the right; the grid uses `auto-rows-fr` so
- *   row heights stay equal and the kid's eyes only move sideways
- *   between the picked word and the candidate picture, not up and
- *   down across stacked groups. The big mobile-only "⬇️" divider
- *   went away because there's no longer a top/bottom split.
+ * Translation:
+ *   • The pictures are too big.
+ *   • There's wasted vertical space at the top of the screen.
+ *   • Word and picture cards should stay aligned at the same height.
+ *   • Add a visible "guide line" / connector style between the
+ *     two columns.
+ *   • Increase the horizontal spacing between words and pictures.
  *
- *   "صوت النجاح بيظهر 3 مرات" — the previous build occasionally
- *   replayed the success melody because (a) `playSuccess` itself
- *   was a long 5-note arpeggio that sounded like multiple beeps,
- *   (b) a stale render could re-enter `handlePicTap` while the
- *   first match was still in flight. v4 adds `lastMatchRef` as a
- *   guard so each pair fires `playSuccess` AT MOST ONCE, and
- *   relies on the slimmed 3-note `playSuccess` (see soundEffects.js
- *   v2). TTS for the picked word now plays through the
- *   AudioClipButton on the word card itself — `handleWordTap` no
- *   longer triggers `speakWord` directly, so the click → word →
- *   click → success cascade can't overlap into "feels like three
- *   sounds for one correct match".
+ * v5 changes:
+ *   • Picture cards capped at 88px - 130px (was unbounded square,
+ *     ballooning to ~200px on desktop).
+ *   • Words now use the same MAX height as pictures so each row is
+ *     a tight, balanced bar — no card stretches taller than its
+ *     sibling.
+ *   • Two new dashed "guide rails" run vertically between the two
+ *     columns — gives the kid a visual hint that the columns are
+ *     paired (the actual solid lines that draw on a successful
+ *     match still replace these on hit).
+ *   • Bumped the column gap from 12-24px to 32-48px so the rails
+ *     have breathing room.
+ *   • Added top alignment for the whole grid so the rows pack
+ *     against the header instead of being pushed to the screen
+ *     centre by the parent flex layout.
  */
 
 const MAX_PAIRS = 5;
@@ -74,10 +77,8 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     const picRefs = useRef({});
     /**
      * Guard — set to the pair id we LAST played `playSuccess` for.
-     * Prevents the success melody from firing twice in rapid succession
-     * if React re-renders or the kid double-taps the same picture.
-     * Cleared back to null on unmount only; matched pairs are
-     * unclickable so a second tap can't reach this code.
+     * Prevents the success melody from firing twice in rapid
+     * succession on a stale render or double-tap.
      */
     const lastMatchRef = useRef(null);
 
@@ -86,12 +87,6 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     const [wrongFlash, setWrongFlash] = useState(null);
     const [attempts, setAttempts] = useState([]);
     const [tick, setTick] = useState(0);
-    /**
-     * One-shot sparkle burst keyed by the matched pair id. Used to
-     * trigger a tiny celebration animation on the picture card the
-     * instant a pair is connected — kids see WHICH match they got
-     * right, not just hear a generic ding.
-     */
     const [sparklePairId, setSparklePairId] = useState(null);
 
     const setWordRef = (id) => (el) => {
@@ -119,8 +114,6 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     }, [pairs.length]);
 
     useEffect(() => {
-        // Recompute SVG line endpoints on resize AND scroll so the
-        // already-drawn lines never point at stale coordinates.
         const onResize = () => setTick((t) => t + 1);
         window.addEventListener("resize", onResize);
         window.addEventListener("scroll", onResize, true);
@@ -167,12 +160,6 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
         if (matched.includes(pair.id)) return;
         playClick();
         setSelectedWord(pair.id);
-        // The word card has its own AudioClipButton speaker icon —
-        // tapping the body of the word selects it but does NOT
-        // auto-play the TTS. This stops the "click + speech + click
-        // + success" cascade from feeling like 3 success sounds.
-        // The kid can still hear the word any time by tapping the
-        // small green speaker chip on the card.
     };
 
     const handlePicTap = (pairIdx) => {
@@ -184,9 +171,6 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
         const sourcePair = pairs.find((p) => p.id === selectedWord);
 
         if (targetPair.id === selectedWord) {
-            // Guard against double-fire — playSuccess is a 3-note
-            // melody and stacking two of them on top of each other
-            // is what the operator heard as "3 times".
             if (lastMatchRef.current !== targetPair.id) {
                 lastMatchRef.current = targetPair.id;
                 playSuccess();
@@ -232,11 +216,39 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
     const matchedLines = matched.map((pid) => ({ pid, coords: getCoords(pid, pid) })).filter((x) => x.coords);
     const wrongLine = wrongFlash ? getCoords(wrongFlash.wordId, wrongFlash.picId) : null;
 
+    /**
+     * Compute "decorative guide lines" between every word's right
+     * edge and the picture column's left edge — one per row. These
+     * are the dashed cyan rails the operator asked for. They sit
+     * BEHIND the solid match/wrong lines so a successful match
+     * paints over its rail. Recomputed on the same tick the match
+     * lines use so they snap to the real layout.
+     */
+    const guideRails = pairs.map((p, rowIdx) => {
+        const container = containerRef.current;
+        const a = wordRefs.current[p.id];
+        const b = picRefs.current[rowIdx];
+        if (!container || !a || !b) return null;
+        const cRect = container.getBoundingClientRect();
+        const aRect = a.getBoundingClientRect();
+        const bRect = b.getBoundingClientRect();
+        return {
+            id: p.id,
+            x1: aRect.right - cRect.left,
+            y1: aRect.top + aRect.height / 2 - cRect.top,
+            x2: bRect.left - cRect.left,
+            y2: bRect.top + bRect.height / 2 - cRect.top,
+        };
+    });
+
     const progressPct = Math.round((matched.length / pairs.length) * 100);
 
     return (
-        <div className="w-full max-w-4xl flex flex-col items-center gap-3 sm:gap-4 animate-fade-in-up px-2">
-            <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-white px-4 py-2 flex flex-col items-center gap-1.5">
+        <div className="w-full max-w-3xl flex flex-col items-start gap-2 sm:gap-3 animate-fade-in-up px-2">
+            {/* Compact header bar — unchanged size, but the parent
+                now uses items-start so the page packs from the top
+                rather than centering vertically. */}
+            <div className="w-full max-w-md mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-white px-4 py-2 flex flex-col items-center gap-1.5">
                 <p className="text-[10px] font-black text-cyan-500 uppercase tracking-widest text-center">Connect each word to its picture</p>
                 <div className="w-full flex items-center gap-2">
                     <div className="flex-1 h-2 bg-cyan-100 rounded-full overflow-hidden">
@@ -246,31 +258,33 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </div>
             </div>
 
-            {/* Two-column grid, ALWAYS. Words on the left, pictures on
-                the right. `auto-rows-fr` makes every row the same
-                height so the kid's eyes only move sideways between
-                a picked word and a candidate picture — never up
-                and down across stacked groups. */}
+            {/*
+              Two-column board. Operator wave 5:
+                • bigger column gap (32-48px) so the dashed guide
+                  rails between word and picture have visual room
+                • items-start packs rows from the top — no more
+                  empty space at the head of the page
+                • each row uses a fixed, smaller picture size
+                  (`h-20 sm:h-24 lg:h-28`) so pictures no longer
+                  feel like the dominant visual element
+            */}
             <div
                 ref={containerRef}
                 className="
-                    relative w-full max-w-3xl
-                    grid grid-cols-2
-                    gap-3 sm:gap-4 lg:gap-6
-                    items-stretch
+                    relative w-full max-w-2xl mx-auto
+                    grid grid-cols-[1fr_minmax(0,5rem)_1fr] sm:grid-cols-[1fr_minmax(0,7rem)_1fr]
+                    gap-y-2 sm:gap-y-3
+                    items-start
                 "
-                style={{ gridAutoRows: "1fr" }}
             >
-                {/* Column header — appears once on each side, very small. */}
-                <div className="contents">
-                    <p className="text-[9px] sm:text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Words</p>
-                    <p className="text-[9px] sm:text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Pictures</p>
-                </div>
+                {/* Headers — small chips above each column. */}
+                <p className="text-[9px] sm:text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Words</p>
+                <span aria-hidden="true" />
+                <p className="text-[9px] sm:text-[10px] font-black text-cyan-500 uppercase tracking-widest pl-2">Pictures</p>
 
-                {/* Render row-by-row so each WORD sits next to a
-                    SHUFFLED PICTURE at the same vertical position.
-                    React-wise that means we interleave the two
-                    columns into a single flat list of children. */}
+                {/* Render each row as: word | spacer | picture.
+                    Three explicit grid cells per row keeps the
+                    middle column dedicated to the connection rails. */}
                 {pairs.map((p, rowIdx) => {
                     const isMatched = matched.includes(p.id);
                     const isSelected = selectedWord === p.id;
@@ -281,9 +295,6 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                     if (isMatched)  wordCls = "border-emerald-400 bg-emerald-50 opacity-90";
                     if (isWrongWord) wordCls = "border-red-400 bg-red-50 animate-shake";
 
-                    // Picture for THIS row — uses the shuffled
-                    // imageOrder so it doesn't sit next to its own
-                    // word (otherwise the puzzle would solve itself).
                     const picPairIdx = imageOrder[rowIdx];
                     const picPair = pairs[picPairIdx];
                     const picMatched = matched.includes(picPair.id);
@@ -296,11 +307,14 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
 
                     return (
                         <React.Fragment key={p.id}>
+                            {/* Word card — fixed height that matches
+                                the picture column so each row is a
+                                tidy bar. */}
                             <button
                                 ref={setWordRef(p.id)}
                                 disabled={isMatched}
                                 onClick={() => handleWordTap(p)}
-                                className={`relative w-full p-2 sm:p-2.5 lg:p-3 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center gap-1.5 sm:gap-2 ${wordCls} ${isMatched ? "cursor-default" : ""}`}
+                                className={`relative w-full h-20 sm:h-24 lg:h-28 px-2.5 sm:px-3 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center gap-2 ${wordCls} ${isMatched ? "cursor-default" : ""}`}
                             >
                                 <AudioClipButton clip={p.audioClip} wordId={p.wordId} label={p.word} size="sm" />
                                 <span className="text-sm sm:text-base lg:text-lg font-black uppercase text-gray-800 tracking-tight flex-1 text-left truncate">{p.word}</span>
@@ -309,39 +323,69 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                                 )}
                             </button>
 
+                            {/* Middle spacer cell — empty grid cell,
+                                the dashed rail is drawn in the SVG
+                                overlay below so it lines up exactly
+                                with the row's vertical centre. */}
+                            <span aria-hidden="true" className="block" />
+
+                            {/* Picture card — same fixed height as
+                                the word card, capped width so it
+                                never stretches into a giant square. */}
                             <button
                                 ref={setPicRef(rowIdx)}
                                 disabled={picMatched || !selectedWord}
                                 onClick={() => handlePicTap(picPairIdx)}
-                                className={`relative w-full p-1.5 sm:p-2 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center justify-center aspect-square ${picCls} ${picMatched ? "cursor-default" : ""} ${selectedWord == null && !picMatched ? "opacity-70" : ""}`}
+                                className={`relative w-full h-20 sm:h-24 lg:h-28 max-w-[8rem] sm:max-w-[9rem] lg:max-w-[10rem] mx-auto p-1.5 sm:p-2 bg-white rounded-2xl border-4 shadow-md transition-all duration-200 flex items-center justify-center ${picCls} ${picMatched ? "cursor-default" : ""} ${selectedWord == null && !picMatched ? "opacity-70" : ""}`}
                             >
                                 <SmartImage src={picPair.imagePath} label={picPair.word} className="w-full h-full" imgClassName="w-full h-full object-contain" />
                                 {picMatched && (
                                     <span className="absolute -top-2 -right-2 bg-emerald-500 text-white w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center font-black border-2 border-white shadow-md text-[10px] sm:text-xs">✓</span>
                                 )}
                                 {picSparkle && (
-                                    <>
-                                        <span className="pointer-events-none absolute inset-0 wpc-sparkle-burst" aria-hidden="true">
-                                            <span className="wpc-spark wpc-spark-1">✨</span>
-                                            <span className="wpc-spark wpc-spark-2">⭐</span>
-                                            <span className="wpc-spark wpc-spark-3">✨</span>
-                                            <span className="wpc-spark wpc-spark-4">⭐</span>
-                                        </span>
-                                    </>
+                                    <span className="pointer-events-none absolute inset-0 wpc-sparkle-burst" aria-hidden="true">
+                                        <span className="wpc-spark wpc-spark-1">✨</span>
+                                        <span className="wpc-spark wpc-spark-2">⭐</span>
+                                        <span className="wpc-spark wpc-spark-3">✨</span>
+                                        <span className="wpc-spark wpc-spark-4">⭐</span>
+                                    </span>
                                 )}
                             </button>
                         </React.Fragment>
                     );
                 })}
 
-                {/* SVG overlay for the connecting lines — drawn after
-                    the cards so it sits on top, but `pointer-events:
-                    none` keeps it from stealing taps from the cards. */}
+                {/* SVG overlay — three layers stacked:
+                      1. Dashed cyan guide rails (always visible)
+                      2. Solid green lines for matched pairs
+                      3. Red flash for wrong attempts
+                    The dashed rails are drawn FIRST so the solid
+                    match line paints over its rail when a pair
+                    connects. */}
                 <svg
-                    className="absolute inset-0 pointer-events-none hidden md:block"
+                    className="absolute inset-0 pointer-events-none"
                     style={{ width: "100%", height: "100%" }}
                     aria-hidden="true"
                 >
+                    {/* Layer 1: dashed guide rails — one per row. */}
+                    {guideRails.map((g) =>
+                        g ? (
+                            <line
+                                key={`g-${g.id}`}
+                                x1={g.x1}
+                                y1={g.y1}
+                                x2={g.x2}
+                                y2={g.y2}
+                                stroke="#06B6D4"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeDasharray="6 8"
+                                opacity={matched.includes(g.id) ? 0 : 0.5}
+                                className="wpc-rail"
+                            />
+                        ) : null,
+                    )}
+                    {/* Layer 2: matched lines — solid green. */}
                     {matchedLines.map(({ pid, coords }) => (
                         <line
                             key={`m-${pid}`}
@@ -350,6 +394,7 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                             className="wpc-line-correct"
                         />
                     ))}
+                    {/* Layer 3: wrong-attempt flash. */}
                     {wrongLine ? (
                         <line
                             key={`w-${tick}`}
@@ -361,7 +406,7 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 </svg>
             </div>
 
-            <p className="text-[10px] sm:text-xs font-bold text-gray-500 text-center">
+            <p className="w-full text-[10px] sm:text-xs font-bold text-gray-500 text-center mt-1">
                 {selectedWord ? "✨ Now tap the matching picture →" : "👈 Tap a word to start"}
             </p>
 
@@ -375,25 +420,38 @@ const WordPicConnectMode = ({ lesson, deck = [], onComplete }) => {
                 @keyframes wpc-draw  { to { stroke-dashoffset: 0; } }
                 @keyframes wpc-flash { 0%, 100% { opacity: 0; } 15%, 85% { opacity: 1; } }
 
+                /* Dashed rails breathe gently so the kid sees they
+                   are intentional decoration (and a hint at the
+                   connection direction), not stale lines. */
+                .wpc-rail {
+                    animation: wpc-rail-breathe 2.4s ease-in-out infinite;
+                }
+                @keyframes wpc-rail-breathe {
+                    0%, 100% { opacity: 0.30; }
+                    50%      { opacity: 0.60; }
+                }
+
                 /* Sparkle burst on a correct match — four tiny stars
-                   shoot outward from the picture card centre. Lasts
-                   ~700ms then unmounts via React. */
+                   shoot outward from the picture card centre. */
                 .wpc-sparkle-burst { position: absolute; inset: 0; pointer-events: none; }
                 .wpc-spark {
                     position: absolute;
                     top: 50%; left: 50%;
                     font-size: 20px;
-                    animation: wpc-sparkle 700ms ease-out forwards;
                     will-change: transform, opacity;
                 }
-                .wpc-spark-1 { animation-name: wpc-sparkle-tl; }
-                .wpc-spark-2 { animation-name: wpc-sparkle-tr; }
-                .wpc-spark-3 { animation-name: wpc-sparkle-bl; }
-                .wpc-spark-4 { animation-name: wpc-sparkle-br; }
+                .wpc-spark-1 { animation: wpc-sparkle-tl 700ms ease-out forwards; }
+                .wpc-spark-2 { animation: wpc-sparkle-tr 700ms ease-out forwards; }
+                .wpc-spark-3 { animation: wpc-sparkle-bl 700ms ease-out forwards; }
+                .wpc-spark-4 { animation: wpc-sparkle-br 700ms ease-out forwards; }
                 @keyframes wpc-sparkle-tl { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(-180%, -180%) scale(1.1) rotate(-30deg); opacity: 0; } }
                 @keyframes wpc-sparkle-tr { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate( 80%, -180%) scale(1.1) rotate( 30deg); opacity: 0; } }
                 @keyframes wpc-sparkle-bl { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(-180%,  80%) scale(1.1) rotate( 45deg); opacity: 0; } }
                 @keyframes wpc-sparkle-br { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate( 80%,  80%) scale(1.1) rotate(-45deg); opacity: 0; } }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .wpc-rail, .wpc-spark, .wpc-line-correct, .wpc-line-wrong { animation: none !important; }
+                }
             `}</style>
         </div>
     );

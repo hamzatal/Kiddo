@@ -15,9 +15,23 @@ import { launchStars } from "@/learning/utils/confetti";
  *     { id: "true",  word: "true",  isCorrect: <bool> },
  *     { id: "false", word: "false", isCorrect: <bool> },
  *   ]
+ *
+ * Flow contract — IMPORTANT (operator wave 5)
+ * ───────────────────────────────────────────
+ *   The previous build called `onPick(opt)` for both correct AND
+ *   wrong answers. ArenaScreen.handlePick only advances the round
+ *   when the chosen option is correct (it expects multi-tap retry
+ *   semantics, like a 3-card picker). After a wrong tap the round
+ *   was disabled but never advanced — the kid was stuck on a
+ *   greyed-out screen with no way forward.
+ *
+ *   v2 fix: TrueOrFalse is a TERMINAL question — one tap, round
+ *   ends. We now call `onComplete({correct})` instead of `onPick`.
+ *   ArenaScreen.handleSpecialComplete records the result AND
+ *   schedules `handleAdvance`, so wrong answers progress the same
+ *   way correct answers do. The kid never gets stuck.
  */
-
-const TrueOrFalseRound = ({ round, onPick, correctId, wrong, disabled }) => {
+const TrueOrFalseRound = ({ round, onComplete, disabled }) => {
     const prompt = round?.prompt;
     const options = round?.options || [];
     const [answered, setAnswered] = useState(null);
@@ -35,6 +49,7 @@ const TrueOrFalseRound = ({ round, onPick, correctId, wrong, disabled }) => {
         if (disabled || answered !== null) return;
         playClick();
         setAnswered(opt.id);
+
         if (opt.isCorrect) {
             playSuccess();
             const el = containerRef.current;
@@ -45,7 +60,14 @@ const TrueOrFalseRound = ({ round, onPick, correctId, wrong, disabled }) => {
         } else {
             playFail();
         }
-        setTimeout(() => onPick?.(opt), 350);
+
+        // Round ends on EITHER answer (correct or wrong) — the
+        // arena moves on to the next style. 700ms hold lets the
+        // kid see the ✓/✕ stamp before the next round paints.
+        setTimeout(
+            () => onComplete?.({ correct: !!opt.isCorrect }),
+            700,
+        );
     };
 
     return (
@@ -90,8 +112,9 @@ const TrueOrFalseRound = ({ round, onPick, correctId, wrong, disabled }) => {
             {/* TRUE / FALSE buttons */}
             <div className="grid w-full max-w-xs grid-cols-2 gap-3 sm:gap-4">
                 {options.map((opt) => {
-                    const isThisCorrect = correctId === opt.id;
-                    const isThisWrong = wrong?.includes(opt.id);
+                    const isAnswerThis = answered === opt.id;
+                    const showCorrect = isAnswerThis && opt.isCorrect;
+                    const showWrong = isAnswerThis && !opt.isCorrect;
                     const isTrue = opt.id === "true" || opt.word?.toLowerCase() === "true";
 
                     return (
@@ -108,11 +131,10 @@ const TrueOrFalseRound = ({ round, onPick, correctId, wrong, disabled }) => {
                                 !!answered || disabled
                                     ? "pointer-events-none cursor-not-allowed"
                                     : "cursor-pointer hover:scale-[1.04] active:scale-95",
-                                isThisCorrect
-                                    ? "scale-[1.06] ring-4 ring-white ring-offset-2 " +
-                                      (isTrue ? "ring-offset-emerald-400" : "ring-offset-rose-400")
-                                    : "",
-                                isThisWrong ? "scale-95 opacity-60 grayscale" : "",
+                                showCorrect ? "scale-[1.06] ring-4 ring-white" : "",
+                                showWrong  ? "scale-95 animate-shake" : "",
+                                // Faded once an answer landed AND this isn't it.
+                                answered && !isAnswerThis ? "opacity-50 grayscale" : "",
                                 isTrue
                                     ? "bg-gradient-to-br from-emerald-400 to-green-600 shadow-emerald-300/50"
                                     : "bg-gradient-to-br from-rose-400 to-red-600 shadow-rose-300/50",
@@ -130,12 +152,12 @@ const TrueOrFalseRound = ({ round, onPick, correctId, wrong, disabled }) => {
                             >
                                 {isTrue ? "True" : "False"}
                             </span>
-                            {isThisCorrect && (
+                            {showCorrect && (
                                 <div className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-emerald-400 bg-white text-sm font-black text-emerald-600 shadow-lg">
                                     ✓
                                 </div>
                             )}
-                            {isThisWrong && (
+                            {showWrong && (
                                 <div className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-rose-400 bg-white text-sm font-black text-rose-600 shadow-lg">
                                     ✕
                                 </div>

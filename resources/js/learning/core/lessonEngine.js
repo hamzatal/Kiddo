@@ -44,6 +44,13 @@ export const resolveMode = (lesson) => {
         "spelling-tiles",
         "hangman-friendly",
         "first-letter",
+        // ── New games (May 2026 wave 5) ───────────────────
+        // pixel-reveal:    picture uncovers tile-by-tile, kid guesses ASAP
+        // count-the-items: visual counting drill, 1-9 of one item
+        // emoji-hunt:      'Find the cat!' — search-and-tap in a 3x3 scene
+        "pixel-reveal",
+        "count-the-items",
+        "emoji-hunt",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -103,6 +110,10 @@ export const modeMeta = (mode) => {
         "spelling-tiles":   { label: "Spell",   icon: "🔤", color: "#14B8A6" },
         "hangman-friendly": { label: "Letters", icon: "🎈", color: "#D946EF" },
         "first-letter":     { label: "Phonics", icon: "🔡", color: "#F97316" },
+        // ── New games (May 2026 wave 5) ────────────────────
+        "pixel-reveal":     { label: "Reveal",  icon: "🧩", color: "#7C3AED" },
+        "count-the-items":  { label: "Count",   icon: "🔢", color: "#F97316" },
+        "emoji-hunt":       { label: "Find it", icon: "🔭", color: "#10B981" },
     };
     return map[mode] || map["vocab-game"];
 };
