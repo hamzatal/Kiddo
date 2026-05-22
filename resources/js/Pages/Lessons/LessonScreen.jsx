@@ -30,6 +30,9 @@ import ColorTapMode from "@/learning/components/modes/ColorTapMode";
 import SpellingTilesMode from "@/learning/components/modes/SpellingTilesMode";
 import HangmanFriendlyMode from "@/learning/components/modes/HangmanFriendlyMode";
 import FirstLetterMode from "@/learning/components/modes/FirstLetterMode";
+import PixelRevealMode from "@/learning/components/modes/PixelRevealMode";
+import CountTheItemsMode from "@/learning/components/modes/CountTheItemsMode";
+import EmojiHuntMode from "@/learning/components/modes/EmojiHuntMode";
 
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 import AppHeader from "@/learning/components/ui/AppHeader";
@@ -108,6 +111,10 @@ const LessonScreen = (props) => {
         "spelling-tiles",
         "hangman-friendly",
         "first-letter",
+        // ── May 2026 wave 5 ───────────────────────────────────
+        "pixel-reveal",
+        "count-the-items",
+        "emoji-hunt",
     ], []);
 
     /**
@@ -295,6 +302,9 @@ const LessonScreen = (props) => {
             "spelling-tiles":   SpellingTilesMode,
             "hangman-friendly": HangmanFriendlyMode,
             "first-letter":     FirstLetterMode,
+            "pixel-reveal":     PixelRevealMode,
+            "count-the-items":  CountTheItemsMode,
+            "emoji-hunt":       EmojiHuntMode,
         };
 
         // Content modes — render verbatim, never rotated.
