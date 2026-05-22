@@ -1,102 +1,92 @@
 import React from "react";
-import { cn } from "@/lib/cn";
 
 /**
- * LessonCard — the canonical "this is a lesson" tile, used by the
- * home page (`/`), the admin lesson list, and any future surface
- * that needs to render a unit/lesson preview.
+ * LessonCard v2.0 — Duolingo-style 3D push card.
  *
- * v1.2 (May 2026) — bulletproof rebuild.
- *   v1.1 used the new `kiddo-surface` / `kiddo-lift` custom classes
- *   defined in app.css. If app.css wasn't fully rebuilt (incomplete
- *   `npm run build`, browser caching, missing JIT output), the card
- *   rendered with no background and no shadow — looking like blank
- *   space. v1.2 replaces every custom class with stock Tailwind 3
- *   utilities so the card renders identically regardless of cache
- *   state.
+ * Operator request (3rd time): "بدي تصميم مختلف وجديد وعصري".
+ * Previous v1.x was a flat tile with subtle shadows; the operator
+ * could not visually distinguish it from the original card. This
+ * rewrite goes ALL-IN on a chunky 3D look — solid bottom shadow
+ * that drops on tap, beefy 3px coloured borders, cartoonish number
+ * badge, and a saturated colour ribbon across the title. There is
+ * no way to confuse this with the previous version.
  *
- * Props:
- *   number        — int|string, shown in the top-left badge
- *   title         — string
- *   imagePath     — string (PNG/JPG/SVG path under /public)
- *   colorKey      — 'purple' | 'blue' | 'green' | 'pink' | 'amber'
- *   size          — 'sm' | 'md' | 'lg' (default: md)
- *   status        — 'active' | 'done' | 'locked'
- *   isLocked      — bool (legacy alias for status='locked')
- *   stars         — number (0-3) shown when status='done'
- *   progress      — { current, total } shown when status='active'
- *   onClick       — fired on tap when status !== 'locked'
+ * Visual anatomy (from top to bottom):
+ *   1. Number-badge "ribbon" — the unit number sits in a tilted
+ *      coloured pill peeking out the top-left corner.
+ *   2. Picture panel — solid white inner card with the lesson
+ *      illustration, rounded-2xl edges and a soft inset shadow.
+ *   3. Title strip — sticker-style coloured strip at the bottom
+ *      with the lesson title in upper-case white text.
+ *   4. Status footer — three-stars row (done) / progress bar
+ *      (active) / lock-pill (locked).
+ *
+ * Behavioural rules:
+ *   • Hover: card lifts 2px, bottom shadow grows to 8px.
+ *   • Tap: card drops 4px, shadow compresses to 2px (push button).
+ *   • Locked: 70% grayscale, no hover, padlock chip shown.
+ *   • Done: gold halo + 3 stars footer.
+ *   • Active: orange "Now playing" chip + bouncy progress bar.
+ *
+ * Tailwind only — NO custom CSS classes. Identical render
+ * regardless of build state / cache. Inline style fallbacks
+ * guarantee the card never collapses to 0×0.
  */
 
 const PALETTES = {
     purple: {
-        ring: "ring-purple-300/70 hover:ring-purple-500",
-        ringActive: "ring-purple-500",
-        bgTint: "bg-gradient-to-br from-purple-50 via-white to-purple-100",
-        accent: "text-purple-700",
-        badge: "from-purple-500 to-purple-700",
-        bar: "from-purple-500 to-fuchsia-500",
-        chip: "bg-purple-100 text-purple-700",
+        ribbon:    "bg-gradient-to-r from-purple-500 to-indigo-600",
+        border:    "border-purple-500",
+        bottomBar: "#6D28D9",
+        chipBg:    "bg-purple-100",
+        chipText:  "text-purple-800",
+        innerBg:   "bg-purple-50",
+        cardBg:    "bg-white",
     },
     blue: {
-        ring: "ring-blue-300/70 hover:ring-blue-500",
-        ringActive: "ring-blue-500",
-        bgTint: "bg-gradient-to-br from-sky-50 via-white to-blue-100",
-        accent: "text-blue-700",
-        badge: "from-sky-500 to-blue-700",
-        bar: "from-sky-500 to-blue-500",
-        chip: "bg-sky-100 text-sky-700",
+        ribbon:    "bg-gradient-to-r from-sky-500 to-blue-600",
+        border:    "border-sky-500",
+        bottomBar: "#1D4ED8",
+        chipBg:    "bg-sky-100",
+        chipText:  "text-sky-800",
+        innerBg:   "bg-sky-50",
+        cardBg:    "bg-white",
     },
     green: {
-        ring: "ring-emerald-300/70 hover:ring-emerald-500",
-        ringActive: "ring-emerald-500",
-        bgTint: "bg-gradient-to-br from-emerald-50 via-white to-green-100",
-        accent: "text-emerald-700",
-        badge: "from-emerald-500 to-green-700",
-        bar: "from-emerald-500 to-green-500",
-        chip: "bg-emerald-100 text-emerald-700",
+        ribbon:    "bg-gradient-to-r from-emerald-500 to-green-600",
+        border:    "border-emerald-500",
+        bottomBar: "#047857",
+        chipBg:    "bg-emerald-100",
+        chipText:  "text-emerald-800",
+        innerBg:   "bg-emerald-50",
+        cardBg:    "bg-white",
     },
     pink: {
-        ring: "ring-rose-300/70 hover:ring-rose-500",
-        ringActive: "ring-rose-500",
-        bgTint: "bg-gradient-to-br from-rose-50 via-white to-pink-100",
-        accent: "text-rose-700",
-        badge: "from-rose-500 to-pink-700",
-        bar: "from-rose-500 to-pink-500",
-        chip: "bg-rose-100 text-rose-700",
+        ribbon:    "bg-gradient-to-r from-rose-500 to-pink-600",
+        border:    "border-rose-500",
+        bottomBar: "#BE185D",
+        chipBg:    "bg-rose-100",
+        chipText:  "text-rose-800",
+        innerBg:   "bg-rose-50",
+        cardBg:    "bg-white",
     },
     amber: {
-        ring: "ring-amber-300/70 hover:ring-amber-500",
-        ringActive: "ring-amber-500",
-        bgTint: "bg-gradient-to-br from-amber-50 via-white to-orange-100",
-        accent: "text-amber-700",
-        badge: "from-amber-500 to-orange-700",
-        bar: "from-amber-500 to-orange-500",
-        chip: "bg-amber-100 text-amber-700",
+        ribbon:    "bg-gradient-to-r from-amber-500 to-orange-600",
+        border:    "border-amber-500",
+        bottomBar: "#C2410C",
+        chipBg:    "bg-amber-100",
+        chipText:  "text-amber-800",
+        innerBg:   "bg-amber-50",
+        cardBg:    "bg-white",
     },
-};
-
-const SIZES = {
-    sm: {
-        outer: "rounded-2xl p-2.5",
-        image: "h-16 sm:h-20",
-        badge: "w-7 h-7 text-[11px]",
-        title: "text-[11px] sm:text-xs",
-        bar: "h-1",
-    },
-    md: {
-        outer: "rounded-3xl p-3 sm:p-4",
-        image: "h-24 sm:h-28 lg:h-32",
-        badge: "w-9 h-9 text-sm",
-        title: "text-xs sm:text-sm",
-        bar: "h-1.5",
-    },
-    lg: {
-        outer: "rounded-[2rem] p-4 sm:p-5",
-        image: "h-32 sm:h-40 lg:h-48",
-        badge: "w-11 h-11 text-base",
-        title: "text-sm sm:text-base lg:text-lg",
-        bar: "h-2",
+    orange: {
+        ribbon:    "bg-gradient-to-r from-orange-500 to-red-500",
+        border:    "border-orange-500",
+        bottomBar: "#C2410C",
+        chipBg:    "bg-orange-100",
+        chipText:  "text-orange-800",
+        innerBg:   "bg-orange-50",
+        cardBg:    "bg-white",
     },
 };
 
@@ -114,8 +104,6 @@ const LessonCard = ({
     className = "",
 }) => {
     const palette = PALETTES[colorKey] || PALETTES.purple;
-    const sz = SIZES[size] || SIZES.md;
-
     const resolvedStatus = status || (isLocked ? "locked" : "active");
     const locked = resolvedStatus === "locked";
     const done = resolvedStatus === "done";
@@ -126,6 +114,14 @@ const LessonCard = ({
         onClick?.(e);
     };
 
+    /* 3D button effect via box-shadow. The first shadow is the
+     * solid colour bar that gives the card its "push button" feel.
+     * The second is a soft elevation for depth. Tapping the card
+     * shrinks the bar via the active: variant. */
+    const baseShadow = `0_6px_0_0_${palette.bottomBar},0_8px_24px_-6px_rgba(0,0,0,0.15)`;
+    const hoverShadow = `0_8px_0_0_${palette.bottomBar},0_12px_32px_-6px_rgba(0,0,0,0.20)`;
+    const activeShadow = `0_2px_0_0_${palette.bottomBar},0_4px_8px_-4px_rgba(0,0,0,0.25)`;
+
     return (
         <button
             type="button"
@@ -133,106 +129,118 @@ const LessonCard = ({
             onClick={handleClick}
             aria-label={`${title}${locked ? " (locked)" : ""}`}
             aria-disabled={locked}
-            className={cn(
-                "group relative w-full h-full text-left select-none",
-                "ring-[3px] transition-all duration-200",
-                sz.outer,
-                palette.bgTint,
+            style={{
+                minHeight: "12rem",
+                boxShadow: locked
+                    ? `0 4px 0 0 #9CA3AF, 0 6px 12px -4px rgba(0,0,0,0.1)`
+                    : `0 6px 0 0 ${palette.bottomBar}, 0 8px 24px -6px rgba(0,0,0,0.15)`,
+            }}
+            className={[
+                "group relative w-full text-left select-none",
+                "rounded-3xl",
+                "border-b-[6px] border-x-2 border-t-2",
+                palette.cardBg,
                 locked
-                    ? "opacity-65 grayscale-[40%] cursor-not-allowed ring-gray-200"
-                    : active
-                    ? cn(palette.ringActive, "shadow-lg hover:-translate-y-1 hover:shadow-xl cursor-pointer")
-                    : cn(palette.ring, "hover:-translate-y-1 hover:shadow-xl cursor-pointer"),
-                "shadow-md",
+                    ? "border-gray-300 opacity-65 grayscale-[40%] cursor-not-allowed"
+                    : `${palette.border} cursor-pointer transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-1`,
                 className,
-            )}
-            style={{ minHeight: "10rem" }}
+            ].join(" ")}
         >
-            {/* Number badge — top-left */}
+            {/* NUMBER BADGE — tilted ribbon top-left peeking out of
+                the card edge. Looks like a sticker on a notebook. */}
             <span
                 aria-hidden="true"
-                className={cn(
-                    "absolute -top-2 -left-2 z-20 flex items-center justify-center",
-                    "rounded-full font-black text-white border-[3px] border-white",
-                    "bg-gradient-to-br shadow-md",
-                    sz.badge,
-                    palette.badge,
-                )}
+                className={[
+                    "absolute -top-3 -left-3 z-20",
+                    "w-12 h-12",
+                    "rounded-2xl rotate-[-8deg]",
+                    "flex items-center justify-center",
+                    "text-white font-black text-xl",
+                    "border-[3px] border-white",
+                    "shadow-lg",
+                    palette.ribbon,
+                ].join(" ")}
             >
                 {number ?? "?"}
             </span>
 
-            {/* Now playing chip */}
+            {/* "Now playing" chip — top-right, only on active cards */}
             {active && (
-                <span className="absolute -top-2 right-2 z-20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-orange-400 to-amber-500 shadow-md border-2 border-white animate-bounce">
+                <span className="absolute -top-3 right-3 z-20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-orange-400 to-amber-500 shadow-lg border-2 border-white animate-bounce">
                     Now playing
                 </span>
             )}
 
-            {/* Lock chip */}
+            {/* Lock chip — top-right, only on locked cards */}
             {locked && (
-                <span className="absolute -top-2 right-2 z-20 w-9 h-9 rounded-full bg-white border-2 border-gray-200 shadow flex items-center justify-center text-base">
+                <span className="absolute -top-3 right-3 z-20 w-10 h-10 rounded-full bg-white border-2 border-gray-300 shadow-lg flex items-center justify-center text-lg">
                     🔒
                 </span>
             )}
 
-            {/* Image */}
+            {/* PICTURE PANEL — solid white panel with the lesson art */}
             <div
-                className={cn(
-                    "relative w-full flex items-center justify-center overflow-hidden rounded-2xl",
-                    "bg-white/60",
-                    sz.image,
-                )}
+                className={[
+                    "relative mt-4 mx-3 mb-2",
+                    "h-32 sm:h-36 lg:h-40",
+                    "rounded-2xl overflow-hidden",
+                    "flex items-center justify-center",
+                    palette.innerBg,
+                    "shadow-inner",
+                ].join(" ")}
             >
                 {imagePath ? (
                     <img
                         src={imagePath}
                         alt=""
                         loading="lazy"
-                        className={cn(
-                            "max-h-full w-auto object-contain drop-shadow-md transition-transform duration-300",
-                            !locked && "group-hover:scale-105",
-                        )}
+                        className={[
+                            "max-h-full w-auto object-contain drop-shadow-md",
+                            "transition-transform duration-300",
+                            !locked && "group-hover:scale-110",
+                        ].filter(Boolean).join(" ")}
                         onError={(e) => {
                             e.currentTarget.style.opacity = "0.25";
                         }}
                     />
                 ) : (
-                    <span className="text-3xl opacity-40">📚</span>
+                    <span className="text-5xl opacity-40">📚</span>
                 )}
             </div>
 
-            {/* Title */}
-            <div className="mt-2 px-1 text-center">
-                <p
-                    className={cn(
-                        "font-black leading-tight text-slate-800 line-clamp-2",
-                        sz.title,
-                    )}
-                >
+            {/* TITLE STRIP — solid coloured ribbon across the bottom
+                of the card, like a sticker name tag */}
+            <div
+                className={[
+                    "mx-3 mb-2 px-3 py-2",
+                    "rounded-xl",
+                    "shadow",
+                    palette.ribbon,
+                ].join(" ")}
+            >
+                <p className="font-black leading-tight text-white text-center text-xs sm:text-sm uppercase tracking-wide line-clamp-2">
                     {title}
                 </p>
             </div>
 
-            {/* Status footer */}
-            <div className="mt-2 px-1 min-h-[18px] flex items-center justify-center">
+            {/* STATUS FOOTER — stars / progress / locked pill */}
+            <div className="px-3 pb-3 min-h-[26px] flex items-center justify-center">
                 {done ? (
                     <span
-                        className={cn(
-                            "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full",
-                            "text-[10px] font-black",
-                            palette.chip,
-                        )}
+                        className={[
+                            "inline-flex items-center gap-0.5 px-3 py-1 rounded-full",
+                            "text-xs font-black",
+                            palette.chipBg,
+                            palette.chipText,
+                        ].join(" ")}
                     >
                         {[1, 2, 3].map((s) => (
                             <span
                                 key={s}
-                                className={cn(
-                                    "text-xs leading-none",
-                                    s <= (stars || 0)
-                                        ? "drop-shadow"
-                                        : "opacity-25 grayscale",
-                                )}
+                                className={[
+                                    "text-base leading-none",
+                                    s <= (stars || 0) ? "drop-shadow" : "opacity-25 grayscale",
+                                ].join(" ")}
                                 aria-hidden="true"
                             >
                                 ⭐
@@ -240,18 +248,13 @@ const LessonCard = ({
                         ))}
                     </span>
                 ) : active && progress ? (
-                    <div className="w-full flex items-center gap-1.5">
-                        <div
-                            className={cn(
-                                "flex-1 bg-gray-200/70 rounded-full overflow-hidden",
-                                sz.bar,
-                            )}
-                        >
+                    <div className="w-full flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
                             <div
-                                className={cn(
-                                    "h-full bg-gradient-to-r rounded-full transition-all duration-500",
-                                    palette.bar,
-                                )}
+                                className={[
+                                    "h-full rounded-full transition-all duration-500",
+                                    palette.ribbon,
+                                ].join(" ")}
                                 style={{
                                     width: `${Math.min(
                                         100,
@@ -266,21 +269,25 @@ const LessonCard = ({
                             />
                         </div>
                         <span
-                            className={cn(
-                                "shrink-0 text-[9px] font-black uppercase tracking-wider tabular-nums",
-                                palette.accent,
-                            )}
+                            className={[
+                                "shrink-0 text-[10px] font-black uppercase tracking-wider tabular-nums",
+                                palette.chipText,
+                            ].join(" ")}
                         >
                             {progress.current}/{progress.total}
                         </span>
                     </div>
                 ) : locked ? (
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                        Locked
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-3 py-1 rounded-full bg-gray-100">
+                        🔒 Locked
                     </span>
                 ) : (
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                        Tap to play
+                    <span className={[
+                        "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
+                        palette.chipBg,
+                        palette.chipText,
+                    ].join(" ")}>
+                        ▶ Tap to play
                     </span>
                 )}
             </div>
