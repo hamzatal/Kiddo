@@ -37,6 +37,13 @@ export const resolveMode = (lesson) => {
         "odd-one-out",
         "word-rain",
         "color-tap",
+        // ── New games (May 2026 wave 2) ───────────────────
+        // spelling-tiles:    pick letter tiles to spell a pictured word
+        // hangman-friendly:  guess letters with a balloon mascot (no gallows)
+        // first-letter:      phonics — which picture starts with letter X?
+        "spelling-tiles",
+        "hangman-friendly",
+        "first-letter",
     ];
     return known.includes(m) ? m : "vocab-game";
 };
@@ -90,6 +97,12 @@ export const modeMeta = (mode) => {
         "odd-one-out":      { label: "Odd Out", icon: "🔍", color: "#F59E0B" },
         "word-rain":        { label: "Catch",   icon: "🌧",  color: "#0EA5E9" },
         "color-tap":        { label: "Colour",  icon: "🎨", color: "#A855F7" },
+        // ── New games (May 2026 wave 2) — distinct icons +
+        //    colours so they're easy to tell apart in the
+        //    AppHeader pill and the StageBreadcrumb.
+        "spelling-tiles":   { label: "Spell",   icon: "🔤", color: "#14B8A6" },
+        "hangman-friendly": { label: "Letters", icon: "🎈", color: "#D946EF" },
+        "first-letter":     { label: "Phonics", icon: "🔡", color: "#F97316" },
     };
     return map[mode] || map["vocab-game"];
 };

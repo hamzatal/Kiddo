@@ -27,6 +27,9 @@ import SpeedTapMode from "@/learning/components/modes/SpeedTapMode";
 import OddOneOutMode from "@/learning/components/modes/OddOneOutMode";
 import WordRainMode from "@/learning/components/modes/WordRainMode";
 import ColorTapMode from "@/learning/components/modes/ColorTapMode";
+import SpellingTilesMode from "@/learning/components/modes/SpellingTilesMode";
+import HangmanFriendlyMode from "@/learning/components/modes/HangmanFriendlyMode";
+import FirstLetterMode from "@/learning/components/modes/FirstLetterMode";
 
 import FoxHelper from "@/learning/components/ai/FoxHelper";
 import AppHeader from "@/learning/components/ui/AppHeader";
@@ -101,6 +104,10 @@ const LessonScreen = (props) => {
         "word-rain",
         "color-tap",
         "sequence-build",
+        // ── May 2026 wave 2 ───────────────────────────────────
+        "spelling-tiles",
+        "hangman-friendly",
+        "first-letter",
     ], []);
 
     /**
@@ -271,6 +278,9 @@ const LessonScreen = (props) => {
             "word-rain":        WordRainMode,
             "color-tap":        ColorTapMode,
             "sequence-build":   SequenceBuildMode,
+            "spelling-tiles":   SpellingTilesMode,
+            "hangman-friendly": HangmanFriendlyMode,
+            "first-letter":     FirstLetterMode,
         };
 
         // Content modes — render verbatim, never rotated.
@@ -336,11 +346,37 @@ const LessonScreen = (props) => {
                 title={`${safeUnit?.title ?? "Lesson"} · Lesson ${currentLesson}`}
                 description="Learn new English words with Kiddo through fun, audio-rich mini-games."
             />
-            {/* Decorative background blobs — fully behind the play area */}
-            <div className="absolute inset-0 pointer-events-none z-0">
-                <div className="absolute top-[20%] right-[-5%] w-72 h-72 sm:w-96 sm:h-96 bg-purple-100/40 rounded-full blur-3xl" />
-                <div className="absolute bottom-[10%] left-[-5%] w-64 h-64 sm:w-80 sm:h-80 bg-cyan-100/40 rounded-full blur-2xl" />
-                <div className="absolute top-[40%] left-[40%] w-56 h-56 bg-pink-100/30 rounded-full blur-2xl" />
+            {/* Decorative background — a layered illustration that
+                makes the play surface feel alive while a child is
+                learning. Three big soft blobs drift gently, plus a
+                handful of tiny floating bubbles rise from the
+                bottom edge, plus a few faint sparkle emojis pulse
+                in place. None of these sit on the play area's tap
+                targets, and `prefers-reduced-motion` strips them
+                all to a still image. */}
+            <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+                <div className="absolute top-[20%] right-[-5%] w-72 h-72 sm:w-96 sm:h-96 bg-purple-100/40 rounded-full blur-3xl animate-drift-slow" />
+                <div className="absolute bottom-[10%] left-[-5%] w-64 h-64 sm:w-80 sm:h-80 bg-cyan-100/40 rounded-full blur-2xl animate-drift-medium" />
+                <div className="absolute top-[40%] left-[40%] w-56 h-56 bg-pink-100/30 rounded-full blur-2xl animate-drift-slow" style={{ animationDelay: "3s" }} />
+
+                {/* Floating bubble layer — six tiny circles rise from
+                    the bottom of the screen on staggered timings.
+                    Stays well away from the centred play area. */}
+                <span className="absolute bottom-0 left-[6%]  w-3  h-3  rounded-full bg-purple-300/70 animate-float-up-fade" style={{ animationDelay: "0s"   }} />
+                <span className="absolute bottom-0 left-[18%] w-2  h-2  rounded-full bg-pink-300/70   animate-float-up-fade" style={{ animationDelay: "1.4s" }} />
+                <span className="absolute bottom-0 left-[78%] w-3  h-3  rounded-full bg-cyan-300/70   animate-float-up-fade" style={{ animationDelay: "0.8s" }} />
+                <span className="absolute bottom-0 left-[88%] w-2  h-2  rounded-full bg-amber-300/70  animate-float-up-fade" style={{ animationDelay: "2.5s" }} />
+                <span className="absolute bottom-0 left-[42%] w-2  h-2  rounded-full bg-emerald-300/70 animate-float-up-fade" style={{ animationDelay: "3.6s" }} />
+                <span className="absolute bottom-0 left-[62%] w-2  h-2  rounded-full bg-rose-300/70   animate-float-up-fade" style={{ animationDelay: "4.8s" }} />
+
+                {/* Static sparkle dust — emoji "stars" pinned in the
+                    corners to add personality without animating
+                    (kids' eyes don't need MORE motion at the edges).
+                    The whole layer is 30% opacity so it doesn't
+                    compete with the cards. */}
+                <span className="absolute top-[8%]  left-[8%]  text-2xl opacity-25 select-none" aria-hidden="true">✨</span>
+                <span className="absolute top-[12%] right-[10%] text-xl opacity-20 select-none" aria-hidden="true">⭐</span>
+                <span className="absolute bottom-[18%] right-[6%] text-2xl opacity-20 select-none" aria-hidden="true">✨</span>
             </div>
 
             <AppHeader
@@ -363,6 +399,25 @@ const LessonScreen = (props) => {
                         : `Skip to lesson ${currentLesson + 1} of ${totalLessons}`
                 }
             />
+
+            {/* Persistent "you are here" indicator — v2 (May 2026):
+                docked under the AppHeader instead of the bottom edge
+                so it never collides with in-game CTAs (Continue,
+                Reveal, Check, Next). The bottom edge is now reserved
+                for the floating Skip pill (right) and FoxHelper
+                (left). */}
+            {stage === LESSON_STAGES.PLAY && (
+                <StageBreadcrumb
+                    unitTitle={safeUnit.title}
+                    unitNumber={safeUnit.number}
+                    lessonTitle={safeLesson?.title}
+                    lessonNumber={currentLesson}
+                    totalLessons={totalLessons}
+                    modeLabel={meta.label}
+                    modeIcon={meta.icon}
+                    modeColor={meta.color}
+                />
+            )}
 
             {/* Play surface — fills remaining viewport. Uses an inner
                 wrapper that fits the content and centers itself
@@ -434,24 +489,6 @@ const LessonScreen = (props) => {
             {ai?.enabled !== undefined && stage === LESSON_STAGES.PLAY && firstWord?.id ? (
                 <FoxHelper unitId={safeUnit.id} wordId={firstWord.id} aiEnabled={ai.enabled} />
             ) : null}
-
-            {/* Persistent "you are here" indicator pinned to the
-                bottom-center of the play surface. The kid always
-                knows which unit, which lesson, and which game type
-                they're on — even when the AppHeader at the top
-                scrolls into a tiny strip on a phone. */}
-            {stage === LESSON_STAGES.PLAY && (
-                <StageBreadcrumb
-                    unitTitle={safeUnit.title}
-                    unitNumber={safeUnit.number}
-                    lessonTitle={safeLesson?.title}
-                    lessonNumber={currentLesson}
-                    totalLessons={totalLessons}
-                    modeLabel={meta.label}
-                    modeIcon={meta.icon}
-                    modeColor={meta.color}
-                />
-            )}
 
             {/* Streak celebration toast — only renders when the just-
                 recorded lesson bumped today's streak counter. */}

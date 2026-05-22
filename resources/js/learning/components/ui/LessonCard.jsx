@@ -2,102 +2,82 @@ import React from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * LessonCard — the canonical "this is a lesson" tile, used by the
- * home page (`/`), the admin lesson list, and any future surface
- * that needs to render a unit/lesson preview.
+ * LessonCard — the canonical "this is a lesson" tile.
  *
- * v1.2 (May 2026) — bulletproof rebuild.
- *   v1.1 used the new `kiddo-surface` / `kiddo-lift` custom classes
- *   defined in app.css. If app.css wasn't fully rebuilt (incomplete
- *   `npm run build`, browser caching, missing JIT output), the card
- *   rendered with no background and no shadow — looking like blank
- *   space. v1.2 replaces every custom class with stock Tailwind 3
- *   utilities so the card renders identically regardless of cache
- *   state.
+ * v3 (May 2026) — restored the simpler, cleaner aesthetic that
+ * operators preferred from the early-May design:
+ *   "بدي ترجع شكل البطاقات الخاصة بالمراحل للشكل السابق لانه كان احلى بكثير"
  *
- * Props:
- *   number        — int|string, shown in the top-left badge
- *   title         — string
- *   imagePath     — string (PNG/JPG/SVG path under /public)
- *   colorKey      — 'purple' | 'blue' | 'green' | 'pink' | 'amber'
- *   size          — 'sm' | 'md' | 'lg' (default: md)
- *   status        — 'active' | 'done' | 'locked'
- *   isLocked      — bool (legacy alias for status='locked')
- *   stars         — number (0-3) shown when status='done'
- *   progress      — { current, total } shown when status='active'
- *   onClick       — fired on tap when status !== 'locked'
+ * What changed vs v2:
+ *   • SOLID pastel surface (no busy gradient) — the bg colour is
+ *     now `kiddo-{tint}-100`, period. Easier on the eye, lets the
+ *     image do the talking.
+ *   • Number badge is a small chip pinned INSIDE the top-left
+ *     corner of the card (no longer a floating circle hovering
+ *     OUTSIDE the corner — that always looked like a clipping bug
+ *     on smaller cards).
+ *   • Title sits at the BOTTOM of the card in plain bold dark
+ *     text — no transparent ribbon, no extra background panel.
+ *   • Lock state is a single soft white circle centred on the
+ *     image (matches the v0 design from Feb 2026).
+ *   • Optional star strip + progress bar live in a small footer
+ *     below the title only when we actually have data to show —
+ *     so cards that don't track progress (marketing surfaces) stay
+ *     visually clean.
+ *   • Hover: subtle lift + soft star peek in the bottom-right
+ *     corner (the "tap me!" affordance kids picked up on quickly).
+ *
+ * The full prop API is preserved so every existing caller keeps
+ * working (Home, Map sidebar, admin lesson list).
  */
 
 const PALETTES = {
     purple: {
-        ring: "ring-purple-300/70 hover:ring-purple-500",
-        ringActive: "ring-purple-500",
-        bgTint: "bg-gradient-to-br from-purple-50 via-white to-purple-100",
+        bg: "bg-purple-100",
+        badge: "bg-purple-600",
+        ring: "ring-purple-200/60 hover:ring-purple-400",
+        hover: "hover:bg-purple-200/70",
         accent: "text-purple-700",
-        badge: "from-purple-500 to-purple-700",
         bar: "from-purple-500 to-fuchsia-500",
-        chip: "bg-purple-100 text-purple-700",
     },
     blue: {
-        ring: "ring-blue-300/70 hover:ring-blue-500",
-        ringActive: "ring-blue-500",
-        bgTint: "bg-gradient-to-br from-sky-50 via-white to-blue-100",
-        accent: "text-blue-700",
-        badge: "from-sky-500 to-blue-700",
+        bg: "bg-sky-100",
+        badge: "bg-sky-600",
+        ring: "ring-sky-200/60 hover:ring-sky-400",
+        hover: "hover:bg-sky-200/70",
+        accent: "text-sky-700",
         bar: "from-sky-500 to-blue-500",
-        chip: "bg-sky-100 text-sky-700",
     },
     green: {
-        ring: "ring-emerald-300/70 hover:ring-emerald-500",
-        ringActive: "ring-emerald-500",
-        bgTint: "bg-gradient-to-br from-emerald-50 via-white to-green-100",
+        bg: "bg-emerald-100",
+        badge: "bg-emerald-600",
+        ring: "ring-emerald-200/60 hover:ring-emerald-400",
+        hover: "hover:bg-emerald-200/70",
         accent: "text-emerald-700",
-        badge: "from-emerald-500 to-green-700",
         bar: "from-emerald-500 to-green-500",
-        chip: "bg-emerald-100 text-emerald-700",
     },
     pink: {
-        ring: "ring-rose-300/70 hover:ring-rose-500",
-        ringActive: "ring-rose-500",
-        bgTint: "bg-gradient-to-br from-rose-50 via-white to-pink-100",
+        bg: "bg-rose-100",
+        badge: "bg-rose-600",
+        ring: "ring-rose-200/60 hover:ring-rose-400",
+        hover: "hover:bg-rose-200/70",
         accent: "text-rose-700",
-        badge: "from-rose-500 to-pink-700",
         bar: "from-rose-500 to-pink-500",
-        chip: "bg-rose-100 text-rose-700",
     },
     amber: {
-        ring: "ring-amber-300/70 hover:ring-amber-500",
-        ringActive: "ring-amber-500",
-        bgTint: "bg-gradient-to-br from-amber-50 via-white to-orange-100",
+        bg: "bg-amber-100",
+        badge: "bg-amber-600",
+        ring: "ring-amber-200/60 hover:ring-amber-400",
+        hover: "hover:bg-amber-200/70",
         accent: "text-amber-700",
-        badge: "from-amber-500 to-orange-700",
         bar: "from-amber-500 to-orange-500",
-        chip: "bg-amber-100 text-amber-700",
     },
 };
 
 const SIZES = {
-    sm: {
-        outer: "rounded-2xl p-2.5",
-        image: "h-16 sm:h-20",
-        badge: "w-7 h-7 text-[11px]",
-        title: "text-[11px] sm:text-xs",
-        bar: "h-1",
-    },
-    md: {
-        outer: "rounded-3xl p-3 sm:p-4",
-        image: "h-24 sm:h-28 lg:h-32",
-        badge: "w-9 h-9 text-sm",
-        title: "text-xs sm:text-sm",
-        bar: "h-1.5",
-    },
-    lg: {
-        outer: "rounded-[2rem] p-4 sm:p-5",
-        image: "h-32 sm:h-40 lg:h-48",
-        badge: "w-11 h-11 text-base",
-        title: "text-sm sm:text-base lg:text-lg",
-        bar: "h-2",
-    },
+    sm: { outer: "rounded-2xl p-2.5", image: "h-16 sm:h-20", badge: "h-6 w-6 text-[11px]", title: "text-[11px] sm:text-xs", footer: "text-[9px]" },
+    md: { outer: "rounded-3xl p-3 sm:p-4", image: "h-24 sm:h-28 lg:h-32", badge: "h-7 w-7 text-[13px]", title: "text-xs sm:text-sm", footer: "text-[10px]" },
+    lg: { outer: "rounded-[2rem] p-4 sm:p-5", image: "h-32 sm:h-40 lg:h-48", badge: "h-9 w-9 text-base", title: "text-sm sm:text-base lg:text-lg", footer: "text-[11px]" },
 };
 
 const LessonCard = ({
@@ -126,6 +106,8 @@ const LessonCard = ({
         onClick?.(e);
     };
 
+    const showFooter = (active && progress) || (done && stars > 0);
+
     return (
         <button
             type="button"
@@ -134,63 +116,52 @@ const LessonCard = ({
             aria-label={`${title}${locked ? " (locked)" : ""}`}
             aria-disabled={locked}
             className={cn(
-                "group relative w-full h-full text-left select-none",
-                "ring-[3px] transition-all duration-200",
+                "group relative w-full h-full text-left select-none flex flex-col",
+                "border-2 border-white shadow-md ring-2 transition-all duration-200 ease-out",
                 sz.outer,
-                palette.bgTint,
+                palette.bg,
                 locked
-                    ? "opacity-65 grayscale-[40%] cursor-not-allowed ring-gray-200"
-                    : active
-                    ? cn(palette.ringActive, "shadow-lg hover:-translate-y-1 hover:shadow-xl cursor-pointer")
-                    : cn(palette.ring, "hover:-translate-y-1 hover:shadow-xl cursor-pointer"),
-                "shadow-md",
+                    ? "ring-gray-200 opacity-65 grayscale-[40%] cursor-not-allowed"
+                    : cn(palette.ring, palette.hover, "cursor-pointer hover:-translate-y-1.5 hover:shadow-xl"),
                 className,
             )}
             style={{ minHeight: "10rem" }}
         >
-            {/* Number badge — top-left */}
+            {/* Number badge — pinned INSIDE top-left, not floating
+                outside. Looks intentional at every size. */}
             <span
                 aria-hidden="true"
                 className={cn(
-                    "absolute -top-2 -left-2 z-20 flex items-center justify-center",
-                    "rounded-full font-black text-white border-[3px] border-white",
-                    "bg-gradient-to-br shadow-md",
-                    sz.badge,
+                    "absolute left-2 top-2 z-20 inline-flex items-center justify-center",
+                    "rounded-full font-black text-white shadow-md border-2 border-white",
                     palette.badge,
+                    sz.badge,
                 )}
             >
                 {number ?? "?"}
             </span>
 
-            {/* Now playing chip */}
-            {active && (
-                <span className="absolute -top-2 right-2 z-20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest text-white bg-gradient-to-r from-orange-400 to-amber-500 shadow-md border-2 border-white animate-bounce">
-                    Now playing
+            {/* Done tick — tiny chip top-right, only on completed
+                cards. Replaces the chunky "Now playing" bouncing
+                tag from v2. */}
+            {done && (
+                <span
+                    aria-hidden="true"
+                    className="absolute right-2 top-2 z-20 inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 border-2 border-white shadow text-white text-[11px] font-black"
+                >
+                    ✓
                 </span>
             )}
 
-            {/* Lock chip */}
-            {locked && (
-                <span className="absolute -top-2 right-2 z-20 w-9 h-9 rounded-full bg-white border-2 border-gray-200 shadow flex items-center justify-center text-base">
-                    🔒
-                </span>
-            )}
-
-            {/* Image */}
-            <div
-                className={cn(
-                    "relative w-full flex items-center justify-center overflow-hidden rounded-2xl",
-                    "bg-white/60",
-                    sz.image,
-                )}
-            >
+            {/* Image — centred, reasonable max height per size. */}
+            <div className={cn("flex flex-1 items-center justify-center overflow-hidden", sz.image)}>
                 {imagePath ? (
                     <img
                         src={imagePath}
                         alt=""
                         loading="lazy"
                         className={cn(
-                            "max-h-full w-auto object-contain drop-shadow-md transition-transform duration-300",
+                            "h-full w-full object-contain drop-shadow-md transition-transform duration-300",
                             !locked && "group-hover:scale-105",
                         )}
                         onError={(e) => {
@@ -202,11 +173,23 @@ const LessonCard = ({
                 )}
             </div>
 
-            {/* Title */}
+            {/* Lock — soft white circle centred on the image, only
+                shown for locked cards. Same visual the kids learned
+                in v0. */}
+            {locked && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/85 shadow-md backdrop-blur-[2px]">
+                        <span aria-label="Locked" className="text-2xl">🔒</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Title — plain bold dark text at the bottom of the
+                card. No ribbon, no extra panel. */}
             <div className="mt-2 px-1 text-center">
                 <p
                     className={cn(
-                        "font-black leading-tight text-slate-800 line-clamp-2",
+                        "font-black leading-tight text-slate-900 line-clamp-2",
                         sz.title,
                     )}
                 >
@@ -214,76 +197,68 @@ const LessonCard = ({
                 </p>
             </div>
 
-            {/* Status footer */}
-            <div className="mt-2 px-1 min-h-[18px] flex items-center justify-center">
-                {done ? (
-                    <span
-                        className={cn(
-                            "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full",
-                            "text-[10px] font-black",
-                            palette.chip,
-                        )}
-                    >
-                        {[1, 2, 3].map((s) => (
+            {/* Optional footer — stars (done) OR progress (active).
+                Renders nothing when there's no useful data, keeping
+                marketing surfaces (where progress isn't passed)
+                visually clean. */}
+            {showFooter && (
+                <div className="mt-1.5 px-1 flex items-center justify-center gap-1.5">
+                    {done ? (
+                        [1, 2, 3].map((s) => (
                             <span
                                 key={s}
                                 className={cn(
-                                    "text-xs leading-none",
-                                    s <= (stars || 0)
-                                        ? "drop-shadow"
-                                        : "opacity-25 grayscale",
+                                    sz.footer,
+                                    s <= (stars || 0) ? "drop-shadow" : "opacity-25 grayscale",
                                 )}
                                 aria-hidden="true"
                             >
                                 ⭐
                             </span>
-                        ))}
-                    </span>
-                ) : active && progress ? (
-                    <div className="w-full flex items-center gap-1.5">
-                        <div
-                            className={cn(
-                                "flex-1 bg-gray-200/70 rounded-full overflow-hidden",
-                                sz.bar,
-                            )}
-                        >
-                            <div
-                                className={cn(
-                                    "h-full bg-gradient-to-r rounded-full transition-all duration-500",
-                                    palette.bar,
-                                )}
-                                style={{
-                                    width: `${Math.min(
-                                        100,
-                                        Math.max(
-                                            6,
-                                            ((progress.current - 1) /
-                                                Math.max(1, progress.total)) *
-                                                100,
-                                        ),
-                                    )}%`,
-                                }}
-                            />
-                        </div>
-                        <span
-                            className={cn(
-                                "shrink-0 text-[9px] font-black uppercase tracking-wider tabular-nums",
-                                palette.accent,
-                            )}
-                        >
-                            {progress.current}/{progress.total}
-                        </span>
-                    </div>
-                ) : locked ? (
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                        Locked
-                    </span>
-                ) : (
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                        Tap to play
-                    </span>
-                )}
-            </div>
+                        ))
+                    ) : (
+                        <>
+                            <div className="flex-1 h-1.5 bg-white/70 rounded-full overflow-hidden border border-white">
+                                <div
+                                    className={cn(
+                                        "h-full bg-gradient-to-r rounded-full transition-all duration-500",
+                                        palette.bar,
+                                    )}
+                                    style={{
+                                        width: `${Math.min(
+                                            100,
+                                            Math.max(
+                                                6,
+                                                ((progress.current - 1) /
+                                                    Math.max(1, progress.total)) *
+                                                    100,
+                                            ),
+                                        )}%`,
+                                    }}
+                                />
+                            </div>
+                            <span className={cn("shrink-0 font-black uppercase tracking-wider tabular-nums", sz.footer, palette.accent)}>
+                                {progress.current}/{progress.total}
+                            </span>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* Tap-to-play affordance — tiny star peek bottom-right
+                on hover. The colour matches the palette so it never
+                looks bolted on. */}
+            {!locked && !done && (
+                <span
+                    className={cn(
+                        "absolute bottom-2 right-2.5 text-[11px] opacity-0 transition-opacity group-hover:opacity-100",
+                        palette.accent,
+                    )}
+                    aria-hidden="true"
+                >
+                    ⭐
+                </span>
+            )}
         </button>
     );
 };

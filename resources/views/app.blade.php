@@ -45,14 +45,16 @@
     <link rel="apple-touch-icon" href="/favicon.ico">
     <link rel="manifest" href="/site.webmanifest">
 
-    {{-- Fonts: preconnect first so the DNS/TLS handshake completes
-         before the font request, then load Nunito with display=swap so
-         the page never blocks on the font. NOTE: we no longer @import
-         the same font from app.css (was causing a duplicate request). --}}
+    {{-- Fonts: Fredoka (playful, rounded — primary face for kid-
+         facing UI) plus Nunito (clean, fallback for body copy and
+         long passages where Fredoka's roundness gets tiring). Both
+         loaded with display=swap so the page never blocks. We
+         preconnect first so DNS/TLS handshake completes before the
+         font request. --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap">
 
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.jsx'])
