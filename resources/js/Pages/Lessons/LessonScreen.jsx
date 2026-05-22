@@ -141,14 +141,28 @@ const LessonScreen = (props) => {
             return resolvedMode;
         }
 
-        // Everything else rotates. We mix the unit id into the seed
-        // so unit 1 lesson 3 picks a different game than unit 2
-        // lesson 3 — a child playing the whole curriculum sees
-        // genuinely varied games, not the same 13-cycle repeated
-        // five times.
-        const lessonNum = _lesson?.number || _lesson?.lesson_number || 1;
-        const unitNum   = _unit?.number   || _unit?.unit_number   || 0;
-        const seed = (Number(unitNum) * 31 + Number(lessonNum) * 7) % VARIANT_KEYS.length;
+        // Everything else rotates. We mix the unit id, the lesson
+        // number, AND a per-page-load random nudge into the seed.
+        //
+        // Why the randomness:
+        //   Operator request (May 2026 wave 3) — "حتى لو الطالب
+        //   خلص المراحل كلها وانجز الدروس المفروض الالعاب تضل
+        //   مخلوطة بكل الدروس حتى لو انجزهم كلهم" — i.e. once a
+        //   kid has completed every lesson, replaying any lesson
+        //   should STILL show a different mini-game on each visit.
+        //
+        //   The previous deterministic seed (`unit*31 + lesson*7`)
+        //   gave the SAME game every time the kid revisited a
+        //   lesson — fine for the first pass, boring on replays.
+        //
+        //   `randomNudge` is computed inside the memo so it's
+        //   stable for the lifetime of the LessonScreen mount
+        //   (swapping games mid-round would be jarring) but it
+        //   refreshes on every navigation/refresh.
+        const lessonNum   = _lesson?.number || _lesson?.lesson_number || 1;
+        const unitNum     = _unit?.number   || _unit?.unit_number   || 0;
+        const randomNudge = Math.floor(Math.random() * VARIANT_KEYS.length);
+        const seed = (Number(unitNum) * 31 + Number(lessonNum) * 7 + randomNudge) % VARIANT_KEYS.length;
         return VARIANT_KEYS[seed];
     }, [resolvedMode, _lesson, _unit, VARIANT_KEYS, FIXED_MODES]);
 

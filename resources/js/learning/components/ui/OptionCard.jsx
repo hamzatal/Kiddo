@@ -241,7 +241,7 @@ const OptionCard = ({
                         src={imagePath}
                         label={label}
                         className="absolute inset-0 z-10 h-full w-full"
-                        imgClassName="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-[1.06] transition-transform duration-300 oc-img"
+                        imgClassName="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-[1.06] transition-transform duration-300 oc-img"
                     />
                 )}
 

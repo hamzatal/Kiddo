@@ -12,6 +12,7 @@ import ShadowMatchRound from "@/learning/components/games/ShadowMatchRound";
 import RevealGuessRound from "@/learning/components/games/RevealGuessRound";
 import BalloonPopRound from "@/learning/components/games/BalloonPopRound";
 import TrueOrFalseRound from "@/learning/components/games/TrueOrFalseRound";
+import WordPicConnectRound from "@/learning/components/games/WordPicConnectRound";
 import { playAudio, stopAllAudio } from "@/learning/utils/playAudio";
 import {
     playSuccess,
@@ -43,15 +44,23 @@ const STYLE_META = {
     "reveal-guess": { label: "Guess fast!", icon: "✨", color: "#14B8A6" },
     "balloon-pop": { label: "Pop it!", icon: "🎈", color: "#EF4444" },
     "true-or-false": { label: "True or false?", icon: "🤔", color: "#6366F1" },
+    "word-pic-connect": { label: "Connect", icon: "🔗", color: "#06B6D4" },
 };
 
 // ── Specialised game registry ──────────────────────────────────────────────
+//
+// Each entry is a self-contained game component that renders a
+// whole round on its own (vs. the standard prompt+options pair
+// rendered by StandardPrompt + StandardOptions). The controller
+// emits the matching `style` string and ArenaScreen routes the
+// round to the registered component.
 const ROUND_COMPONENTS = {
-    "memory-flip": MemoryFlipRound,
-    "shadow-match": ShadowMatchRound,
-    "reveal-guess": RevealGuessRound,
-    "balloon-pop": BalloonPopRound,
-    "true-or-false": TrueOrFalseRound,
+    "memory-flip":      MemoryFlipRound,
+    "shadow-match":     ShadowMatchRound,
+    "reveal-guess":     RevealGuessRound,
+    "balloon-pop":      BalloonPopRound,
+    "true-or-false":    TrueOrFalseRound,
+    "word-pic-connect": WordPicConnectRound,
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -286,71 +295,76 @@ const ArenaScreen = ({ arena }) => {
         setTimeout(handleAdvance, 600);
     }
 
-    // ── Submit ───────────────────────────────────────────────────────────────
-function handleFinish() {
-    if (submitting) return;
+// ── Submit ───────────────────────────────────────────────────────────────
+    function handleFinish() {
+        if (submitting) return;
 
-    // إذا ما في نتائج أبداً، ارجع للخريطة مباشرة بدون submit
-    if (!results || results.length === 0) {
+        // No results yet → just bail back to the map (don't try to
+        // POST an empty session).
+        if (!results || results.length === 0) {
+            playClick();
+            router.visit("/map");
+            return;
+        }
+
+        setSubmitting(true);
         playClick();
-        router.visit("/map");
-        return;
+
+        const stuckTimer = setTimeout(() => {
+            setSubmitting(false);
+        }, 8000);
+
+        router.post(
+            "/arena/submit",
+            {
+                rounds: results,
+                durationMs: Date.now() - startedAtRef.current,
+            },
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    console.warn("Arena submit errors:", errors);
+                    clearTimeout(stuckTimer);
+                    setSubmitting(false);
+                    // Still hand the kid back to the map so they're
+                    // never stuck on a frozen "Saving…" screen.
+                    router.visit("/map");
+                },
+                onFinish: () => {
+                    clearTimeout(stuckTimer);
+                    setSubmitting(false);
+                },
+                onSuccess: () => {
+                    clearTimeout(stuckTimer);
+                    router.visit("/map");
+                },
+            },
+        );
     }
 
-    setSubmitting(true);
-    playClick();
-
-    const stuckTimer = setTimeout(() => {
-        setSubmitting(false);
-    }, 8000);
-
-    router.post(
-        "/arena/submit",
-        {
-            rounds: results,
-            durationMs: Date.now() - startedAtRef.current,
-        },
-        {
-            preserveScroll: true,
-            onError: (errors) => {
-                console.warn("Arena submit errors:", errors);
-                clearTimeout(stuckTimer);
-                setSubmitting(false);
-                // ارجع للخريطة حتى لو فشل الحفظ
-                router.visit("/map");
-            },
-            onFinish: () => {
-                clearTimeout(stuckTimer);
-                setSubmitting(false);
-            },
-            onSuccess: () => {
-                clearTimeout(stuckTimer);
-                router.visit("/map");
-            },
-        },
-    );
-}
-
-function skipArena() {
-    playClick();
-    setFinished(true);
-}
-
-// زر "Play again" — أعد تحميل الصفحة بشكل صحيح
-function handlePlayAgain() {
-    playClick();
-    setIdx(0);
-    setResults([]);
-    setWrong([]);
-    setCorrectId(null);
-    setFinished(false);
-    setSubmitting(false);
-    startedAtRef.current = Date.now();
-    router.reload({ only: ["arena"] });
-}
+    // Skip / "I'm stuck" — end the session early; the celebration
+    // card renders next, the kid taps "Save & back to map" to
+    // submit. Single declaration (an earlier rev of this file
+    // accidentally declared this function twice, breaking the whole
+    // bundle in strict mode and rendering nothing on /arena and
+    // every lesson page).
     function skipArena() {
         playClick();
         setFinished(true);
+    }
+
+    // Replay the arena from scratch — Inertia partial reload picks
+    // up a fresh randomised round set from the controller.
+    function handlePlayAgain() {
+        playClick();
+        setIdx(0);
+        setResults([]);
+        setWrong([]);
+        setCorrectId(null);
+        setFinished(false);
+        setSubmitting(false);
+        startedAtRef.current = Date.now();
+        router.reload({ only: ["arena"] });
     }
 
     const total = rounds.length;
@@ -512,7 +526,7 @@ function handlePlayAgain() {
                                 {submitting ? "Saving…" : "Save & back to map →"}
                             </button>
                             <button
-                                onClick={() => router.reload({ only: ["arena"] })}
+                                onClick={handlePlayAgain}
                                 className="w-full rounded-2xl border border-gray-200 bg-white py-2.5 text-xs font-black text-gray-700 transition-colors hover:bg-gray-50 sm:text-sm"
                             >
                                 Play again
