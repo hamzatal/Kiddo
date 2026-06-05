@@ -6,79 +6,46 @@ import StreakBadge from "@/learning/components/ui/StreakBadge";
 import StreakCelebration from "@/learning/components/ui/StreakCelebration";
 import AudioControl from "@/learning/components/ui/AudioControl";
 
-/**
- * MapScreen — the world-map landing page after sign-in.
- *
- * Hard layout rules this rewrite enforces:
- *   1. The whole page fits inside one viewport (h:100dvh) — no
- *      horizontal scroll, no vertical scroll on tablet+.
- *   2. The map area is fluid: scales the background image to fit
- *      using percentage-positioned pins. No min-width tricks.
- *   3. Sidebar is responsive across three sizes:
- *        • desktop (≥xl)  —  280 px expanded panel
- *        • tablet (lg-md) —  72 px icon-only rail
- *        • phone (<md)    —  off-canvas drawer triggered by ☰
- *      In every state the map keeps the rest of the room.
- *   4. The "Need Help?" button is bottom-centre of the map area.
- *   5. The Games Arena pin uses `/assets/lessons/toy/toy.png` —
- *      the same image asset used by Unit 5 — so it visually fits
- *      the map style. Placed below-left of "Family & Friends"
- *      so it doesn't collide with any unit node.
- */
-
 const UNIT_VISUAL = {
     1: {
         image: "/assets/lessons/welcome/hut.png",
         color: "#7C3AED",
-        pos: { left: "21%", top: "38%" },
+        pos: { left: "30%", top: "30%" },
         size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44",
     },
     2: {
         image: "/assets/lessons/family/treehouse.png",
         color: "#2563EB",
-        pos: { left: "52%", top: "32%" },
+        pos: { left: "65%", top: "30%" },
         size: "w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 xl:w-44 xl:h-44",
     },
     3: {
         image: "/assets/lessons/schoolbag/bag.png",
         color: "#DB2777",
-        pos: { left: "75%", top: "66%" },
+        pos: { left: "30%", top: "70%" },
         size: "w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32",
     },
     4: {
         image: "/assets/lessons/classroom/desk.png",
         color: "#D97706",
-        pos: { left: "18%", top: "65%" },
+        pos: { left: "65%", top: "65%" },
         size: "w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36",
     },
     5: {
         image: "/assets/lessons/toy/toy.png",
         color: "#16A34A",
-        pos: { left: "62%", top: "70%" },
+        pos: { left: "50%", top: "50%" },
         size: "w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-32 xl:h-32",
     },
 };
 
-// The Games Arena uses the toy image (operator's request). Sits
-// to the LEFT of Family & Friends (U2) at roughly the same
-// vertical level so it reads as a sibling adventure, not stuck
-// somewhere off the map.
-//   U2 (Family) is at 52% / 32% — we drop the arena at 36% / 33%
-//   so the two pins sit on the same line with breathing room.
 const ARENA_VISUAL = {
     image: "/assets/lessons/toy/toy.png",
     color: "#9333EA",
-    pos: { left: "36%", top: "33%" },
+    pos: { left: "67%", top: "70%" },
     size: "w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36",
 };
 
-/** Resolve a unit's image with a graceful fallback.
- *
- * The map is now DB-driven: when the admin sets `map_x`, `map_y`,
- * `map_size`, `map_image_path` or `color_key` on a unit, those
- * values win. The hardcoded `UNIT_VISUAL` table above is just a
- * legacy fallback so existing units (and brand-new ones the admin
- * hasn't placed yet) still land somewhere visible. */
 const resolveImageUrl = (path) => {
     if (!path) return null;
     if (/^https?:\/\//i.test(path)) return path;
@@ -100,7 +67,6 @@ const visualFor = (unit) => {
     const fallback = UNIT_VISUAL[unit?.id] || UNIT_VISUAL[unit?.number] || UNIT_VISUAL[1];
     if (!unit) return fallback;
 
-    // Admin-set values from the new units columns take precedence.
     const dbImage = resolveImageUrl(unit.map_image_path || unit.image_path);
     const dbColor = COLOR_BY_KEY[unit.color_key] || null;
     const dbPos =
@@ -119,11 +85,6 @@ const visualFor = (unit) => {
     };
 };
 
-/* ─────────────────────────────────────────────────────────────
-   UnitNode — one map pin (image + label + status badge)
-   The label sits ABOVE and the stars/lesson chip sit BELOW so
-   pins never overlap each other regardless of zoom level.
-   ───────────────────────────────────────────────────────────── */
 const UnitNode = ({ unit, onClick }) => {
     const v = visualFor(unit);
     const isDone = unit.status === "done";
@@ -138,7 +99,6 @@ const UnitNode = ({ unit, onClick }) => {
             onClick={!isLocked ? onClick : undefined}
             style={{ filter: isLocked ? "grayscale(70%) brightness(0.85)" : "none" }}
         >
-            {/* Title pill (above) */}
             <div className="pointer-events-none relative z-30 -mb-1 flex flex-col items-center gap-1 transition-transform duration-300 group-hover:-translate-y-1">
                 {isActive && (
                     <span className="animate-bounce rounded-full border-2 border-white bg-gradient-to-r from-orange-400 to-amber-500 px-3 py-0.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md">
@@ -156,7 +116,6 @@ const UnitNode = ({ unit, onClick }) => {
                 </span>
             </div>
 
-            {/* The pin image */}
             <div
                 className={`${v.size} relative flex items-center justify-center transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-105"} drop-shadow-2xl`}
             >
@@ -180,7 +139,6 @@ const UnitNode = ({ unit, onClick }) => {
                 )}
             </div>
 
-            {/* Stars / hint pill (below) */}
             <div className="pointer-events-none relative z-20 -mt-1 flex flex-col items-center gap-1">
                 {isDone && stars > 0 && (
                     <span className="flex items-center gap-0.5 rounded-full border border-amber-100 bg-white/95 px-2.5 py-0.5 shadow">
@@ -210,14 +168,7 @@ const UnitNode = ({ unit, onClick }) => {
     );
 };
 
-/* ─────────────────────────────────────────────────────────────
-   ArenaNode — the Games Arena pin. Same visual language as
-   UnitNode (image + pill + ping) so it feels native to the map.
-   ───────────────────────────────────────────────────────────── */
 const ArenaNode = ({ unlocked, arena }) => {
-    // Allow admin to override the Arena image via `arena.image_path`
-    // and the size via `arena.size`. Otherwise fall back to the
-    // hardcoded ARENA_VISUAL defaults.
     const v = {
         image: arena?.image_path
             ? /^https?:\/\//i.test(arena.image_path)
@@ -278,9 +229,6 @@ const ArenaNode = ({ unlocked, arena }) => {
     );
 };
 
-/* ═════════════════════════════════════════════════════════════
-   MapScreen
-   ═════════════════════════════════════════════════════════════ */
 const MapScreen = ({ user, units: propUnits, arena }) => {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [showQuizResult, setShowQuizResult] = useState(false);
@@ -316,7 +264,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                 title="Adventure Map"
                 description="Travel the Kiddo learning map and unlock new English units lesson by lesson."
             />
-            {/* ─── HEADER ─────────────────────────────────────── */}
             <header className="z-50 flex h-14 shrink-0 items-center border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur-2xl sm:h-16 lg:h-[68px]">
                 <div className="flex w-full items-center justify-between gap-2 px-3 sm:gap-3 sm:px-5 lg:px-6">
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -341,7 +288,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                     </div>
 
                     <div className="flex items-center gap-1.5 sm:gap-2">
-                        {/* Level + XP — desktop only */}
                         <div className="hidden items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 xl:flex">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[#7C3AED]">
                                 Lv.{user?.level || 1}
@@ -355,7 +301,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             <span className="text-[9px] font-bold text-gray-500">{xp}</span>
                         </div>
 
-                        {/* Stars */}
                         <div className="flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 shadow-sm sm:px-3">
                             <span className="text-sm leading-none">⭐</span>
                             <span className="text-[11px] font-black text-amber-600 sm:text-xs">
@@ -363,16 +308,10 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             </span>
                         </div>
 
-                        {/* Daily streak — sits between stars and user pill so
-                            it reads "⭐ stars · 🔥 streak · 👤 user". The badge
-                            is itself a Link that points at /progress for the
-                            full streak history view. Hidden on the very
-                            narrowest phones to keep the header from wrapping. */}
                         <div className="hidden md:flex">
                             <StreakBadge size="sm" />
                         </div>
 
-                        {/* User chip */}
                         <button
                             onClick={() => router.visit("/progress")}
                             className="hidden items-center gap-1.5 rounded-full border border-gray-200 bg-white p-1 pr-3 shadow-sm transition hover:bg-gray-50 sm:flex"
@@ -385,12 +324,8 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             </span>
                         </button>
 
-                        {/* Sound toggle — wired to the global audio
-                            settings so muting here also silences
-                            every lesson, quiz, song, and helper. */}
                         <AudioControl size="sm" placement="bottom" />
 
-                        {/* Mobile drawer toggle */}
                         <button
                             onClick={() => setDrawerOpen(true)}
                             className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1E293B] text-white shadow-sm lg:hidden"
@@ -402,14 +337,11 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                 </div>
             </header>
 
-            {/* ─── BODY: map + sidebar ───────────────────────── */}
             <div className="relative flex min-h-0 flex-1">
-                {/* Map area — fluid, fits viewport, no horizontal scroll */}
                 <main className="relative flex-1 overflow-hidden bg-[#A6DBF6]">
-                    {/* Map background */}
                     <div className="absolute inset-0">
                         <img
-                            src="/assets/ui/map/map-bg.png"
+                            src="/assets/ui/map/map-1.png"
                             alt=""
                             className="h-full w-full object-cover"
                             draggable={false}
@@ -418,7 +350,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-sky-400/5 via-transparent to-blue-900/10" />
                     </div>
 
-                    {/* Pin layer */}
                     <div className="absolute inset-0">
                         {units.map((u) => {
                             const v = visualFor(u);
@@ -444,14 +375,8 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                             <div
                                 className="absolute -translate-x-1/2 -translate-y-1/2"
                                 style={{
-                                    left:
-                                        arena.map_x != null
-                                            ? `${Number(arena.map_x)}%`
-                                            : ARENA_VISUAL.pos.left,
-                                    top:
-                                        arena.map_y != null
-                                            ? `${Number(arena.map_y)}%`
-                                            : ARENA_VISUAL.pos.top,
+                                    left: ARENA_VISUAL.pos.left,
+                                    top: ARENA_VISUAL.pos.top,
                                 }}
                             >
                                 <ArenaNode unlocked={!!arena.unlocked} arena={arena} />
@@ -459,7 +384,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                         ) : null}
                     </div>
 
-                    {/* Centered "Need Help?" button */}
                     <button
                         onClick={() => router.visit("/help")}
                         className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white bg-white/95 px-4 py-2 text-[11px] font-black text-[#7C3AED] shadow-xl backdrop-blur transition-transform hover:scale-105 sm:bottom-4 sm:px-5 sm:py-2.5 sm:text-xs"
@@ -468,14 +392,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                     </button>
                 </main>
 
-                {/* ─── SIDEBAR ─────────────────────────────── */}
-                {/* Three states:
-                      • desktop xl+: 280px expanded panel
-                      • tablet lg-md: 64px icon rail with tooltips
-                      • phone <md: off-canvas drawer (drawerOpen state)
-                   The desktop expanded panel renders a compact summary
-                   of mission + stats + nav so it never needs internal
-                   scroll on a 720p tablet. */}
                 <Sidebar
                     units={units}
                     activeUnit={activeUnit}
@@ -488,7 +404,6 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                 />
             </div>
 
-            {/* Quiz result overlay */}
             {showQuizResult && quizResult ? (
                 <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
@@ -534,16 +449,11 @@ const MapScreen = ({ user, units: propUnits, arena }) => {
                 .animate-fade-in { animation: fade-in 0.25s ease-out forwards; }
             `}</style>
 
-            {/* Streak celebration toast — fires once per session when
-                today's lesson bumps the streak counter. */}
             <StreakCelebration />
         </div>
     );
 };
 
-/* ═════════════════════════════════════════════════════════════
-   Sidebar — three responsive sizes (drawer / rail / panel)
-   ═════════════════════════════════════════════════════════════ */
 const Sidebar = ({
     units,
     activeUnit,
@@ -556,7 +466,6 @@ const Sidebar = ({
 }) => {
     return (
         <>
-            {/* Desktop expanded panel (xl+) */}
             <aside className="hidden w-[280px] shrink-0 flex-col border-l border-gray-100 bg-white shadow-lg xl:flex">
                 <ExpandedSidebarContent
                     activeUnit={activeUnit}
@@ -568,7 +477,6 @@ const Sidebar = ({
                 />
             </aside>
 
-            {/* Tablet/laptop icon rail (lg) */}
             <aside className="hidden w-[64px] shrink-0 flex-col items-center gap-2 border-l border-gray-100 bg-white py-3 shadow-lg lg:flex xl:hidden">
                 <RailButton
                     icon="🚀"
@@ -603,7 +511,6 @@ const Sidebar = ({
                 />
             </aside>
 
-            {/* Phone drawer (<lg) */}
             <aside
                 className={`fixed right-0 top-0 z-[60] h-[100dvh] w-[280px] max-w-[80vw] transform border-l border-gray-100 bg-white shadow-2xl transition-transform duration-300 lg:hidden ${
                     drawerOpen ? "translate-x-0" : "translate-x-full"
@@ -668,12 +575,8 @@ const ExpandedSidebarContent = ({
     };
     return (
         <div className="custom-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2.5 sm:p-3">
-            {/* Daily Quest — first card so it's always visible, even
-                without scrolling. The card itself returns null when
-                the user is signed out. */}
             <DailyQuestCard />
 
-            {/* Today's mission */}
             <div className="shrink-0 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50 p-2.5 shadow-sm">
                 <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-black text-[#1E293B]">
                     <span className="text-base">🎯</span> Today's Mission
@@ -699,7 +602,6 @@ const ExpandedSidebarContent = ({
                 </button>
             </div>
 
-            {/* Quick stats */}
             <div className="grid shrink-0 grid-cols-2 gap-2">
                 <div className="rounded-xl border border-gray-100 bg-white p-2.5 text-center shadow-sm">
                     <p className="mb-1 text-base font-black leading-none text-[#1E293B]">
@@ -719,7 +621,6 @@ const ExpandedSidebarContent = ({
                 </div>
             </div>
 
-            {/* Map index — units + arena */}
             <div className="rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm">
                 <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-black text-[#1E293B]">
                     <span>🗺️</span> Map Index
@@ -782,13 +683,6 @@ const ExpandedSidebarContent = ({
                 </div>
             </div>
 
-            {/* Mascot tip — sits naturally in flow at the bottom of
-                the sidebar list. Earlier this used mt-auto, which on
-                short viewports (1366×768) pushed it below the
-                viewport and the parent container's overflow-y-auto
-                hid it. We now keep it in the regular flow with a
-                small top margin so the whole card list scrolls
-                cleanly. */}
             <div className="relative shrink-0 overflow-hidden rounded-2xl border border-[#6D28D9] bg-[#7C3AED] p-2.5 shadow-md">
                 <div className="relative z-10 flex items-center gap-2">
                     <img
